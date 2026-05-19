@@ -1,0 +1,235 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user with role-based access",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "manager", "commercial", "technician"] },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "phone": { "type": "string" },
+        "avatar": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "lastLogin": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "name"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Customer information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "cpfCnpj": { "type": "string" },
+        "address": { "type": "object" },
+        "city": { "type": "string" },
+        "region": { "type": "string" },
+        "leadSource": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone"]
+    },
+    "Quote": {
+      "title": "Quote",
+      "description": "Central entity for operational pricing and sales",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string" },
+        "pestType": { "type": "string" },
+        "environmentType": { "type": "string" },
+        "areaSize": { "type": "number" },
+        "infestationLevel": { "type": "string", "enum": ["Baixo", "Médio", "Alto"] },
+        "operationalComplexity": { "type": "string", "enum": ["Simples", "Normal", "Complexo"] },
+        "recurrence": { "type": "string", "enum": ["Único", "Mensal", "Trimestral", "Semestral"] },
+        "urgency": { "type": "boolean" },
+        "displacement": { "type": "number" },
+        "estimatedTime": { "type": "number" },
+        "suggestedPrice": { "type": "number" },
+        "estimatedCost": { "type": "number" },
+        "estimatedMargin": { "type": "number" },
+        "suggestedTeam": { "type": "number" },
+        "status": { "type": "string", "enum": ["Rascunho", "Enviado", "Aprovado", "Executado", "Cancelado"] },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["clientId", "pestType", "suggestedPrice", "createdBy"]
+    },
+    "ServiceExecution": {
+      "title": "Service Execution",
+      "description": "Data from an executed service session",
+      "type": "object",
+      "properties": {
+        "quoteId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "technicians": { "type": "array", "items": { "type": "string" } },
+        "executionDate": { "type": "string", "format": "date-time" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "actualDuration": { "type": "number" },
+        "actualCost": { "type": "number" },
+        "actualConsumption": { "type": "array" },
+        "actualDisplacement": { "type": "number" },
+        "returnRequired": { "type": "boolean" },
+        "operationalNotes": { "type": "string" },
+        "status": { "type": "string", "enum": ["Agendado", "Em Andamento", "Finalizado", "Atrasado"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["quoteId", "technicians", "executionDate"]
+    },
+    "FinancialCost": {
+      "title": "Financial Cost",
+      "description": "Expense records for structural or operational tracking",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string", "enum": ["Fixo", "Variável", "Operacional"] },
+        "subcategory": { "type": "string" },
+        "amount": { "type": "number" },
+        "recurrence": { "type": "string" },
+        "relatedServiceId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["category", "amount", "createdBy"]
+    },
+    "Revenue": {
+      "title": "Revenue",
+      "description": "Income from services or sales",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "receivedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["amount", "receivedAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Inventory product with minimum stock trigger",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "manufacturer": { "type": "string" },
+        "unit": { "type": "string" },
+        "unitCost": { "type": "number" },
+        "quantityAvailable": { "type": "number" },
+        "minimumStock": { "type": "number" },
+        "supplier": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "unit", "quantityAvailable"]
+    },
+    "StockMovement": {
+      "title": "Stock Movement",
+      "description": "In/Out movement history for inventory",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "type": { "type": "string", "enum": ["Entrada", "Saída"] },
+        "quantity": { "type": "number" },
+        "relatedServiceId": { "type": "string" },
+        "responsibleUser": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "type", "quantity", "responsibleUser"]
+    },
+    "POP": {
+      "title": "POP",
+      "description": "Operational Technical Database",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "pestType": { "type": "string" },
+        "environmentType": { "type": "string" },
+        "description": { "type": "string" },
+        "epis": { "type": "array", "items": { "type": "string" } },
+        "recommendedProducts": { "type": "array" },
+        "checklist": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "category"]
+    },
+    "Metric": {
+      "title": "Dashboard Metric",
+      "description": "Pre-aggregated analytics for fast dashboards",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "value": { "type": "number" },
+        "period": { "type": "string" },
+        "timestamp": { "type": "string" }
+      }
+    },
+    "HistoricalInsight": {
+      "title": "Historical Insight",
+      "description": "Operational patterns learned from history",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "pattern": { "type": "string" },
+        "confidence": { "type": "number" },
+        "dataPoints": { "type": "number" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and roles"
+    },
+    "/clients/{clientId}": {
+      "schema": "Client",
+      "description": "Customer registry"
+    },
+    "/quotes/{quoteId}": {
+      "schema": "Quote",
+      "description": "Central entity for all business operations"
+    },
+    "/services/{serviceId}": {
+      "schema": "ServiceExecution",
+      "description": "Operational execution records"
+    },
+    "/financial_costs/{costId}": {
+      "schema": "FinancialCost",
+      "description": "Expenses and structural costs"
+    },
+    "/revenues/{revenueId}": {
+      "schema": "Revenue",
+      "description": "Financial income records"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Inventory and catalog"
+    },
+    "/stock_movements/{movementId}": {
+      "schema": "StockMovement",
+      "description": "Inventory flow history"
+    },
+    "/pops/{popId}": {
+      "schema": "POP",
+      "description": "Technical procedures wiki"
+    },
+    "/dashboard_metrics/{metricId}": {
+      "schema": "Metric",
+      "description": "High-performance aggregated data"
+    },
+    "/historical_insights/{insightId}": {
+      "schema": "HistoricalInsight",
+      "description": "ML/Analytic patterns from execution history"
+    }
+  }
+}

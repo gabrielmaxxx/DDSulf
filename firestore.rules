@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+
+    function hasAnyRole(roles) {
+      return isAuthenticated() && getUserData().role in roles;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if hasRole('admin');
+    }
+
+    // Clients
+    match /clients/{clientId} {
+      allow read: if isAuthenticated();
+      allow write: if hasAnyRole(['admin', 'manager', 'commercial']);
+    }
+
+    // Quotes (The Central Operational Entity)
+    match /quotes/{quoteId} {
+      allow read: if isAuthenticated();
+      allow write: if hasAnyRole(['admin', 'manager', 'commercial']);
+    }
+
+    // Service Executions
+    match /services/{serviceId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if hasAnyRole(['admin', 'manager']);
+    }
+
+    // Financial Data (Strict control)
+    match /financial_costs/{costId} {
+      allow read, write: if hasAnyRole(['admin', 'manager']);
+    }
+    match /revenues/{revenueId} {
+      allow read, write: if hasAnyRole(['admin', 'manager']);
+    }
+
+    // Products & Inventory
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow write: if hasAnyRole(['admin', 'manager']);
+    }
+    match /stock_movements/{movementId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if hasAnyRole(['admin', 'manager']);
+    }
+
+    // POPs (Wiki)
+    match /pops/{popId} {
+      allow read: if isAuthenticated();
+      allow write: if hasAnyRole(['admin', 'manager']);
+    }
+    
+    // Dashboard & Analytics
+    match /dashboard_metrics/{metricId} {
+      allow read: if hasAnyRole(['admin', 'manager']);
+      allow write: if hasRole('admin');
+    }
+    match /historical_insights/{insightId} {
+      allow read: if hasAnyRole(['admin', 'manager']);
+      allow write: if hasRole('admin');
+    }
+  }
+}
