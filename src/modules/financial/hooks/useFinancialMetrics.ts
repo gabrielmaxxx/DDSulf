@@ -5,7 +5,7 @@ import { FinancialCost, Revenue } from '@/types/database';
 export function useFinancialMetrics() {
   const [costs, setCosts] = useState<FinancialCost[]>([]);
   const [revenues, setRevenues] = useState<Revenue[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     async function fetchData() {

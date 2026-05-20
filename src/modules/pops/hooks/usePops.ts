@@ -4,7 +4,7 @@ import { POP } from '@/types/database';
 
 export function usePops() {
   const [pops, setPops] = useState<POP[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 

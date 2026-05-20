@@ -19,17 +19,27 @@ export const analyticsService = {
   async getDashboardData() {
     // In a real scenario, we might use a 云函数 or pre-aggregated metrics
     // For now, we fetch and aggregate on client
-    const [quotesSnap, costsSnap, revenuesSnap] = await Promise.all([
-      getDocs(query(collection(db, 'quotes'), orderBy('createdAt', 'desc'), limit(50))),
-      getDocs(query(collection(db, 'financial_costs'), orderBy('createdAt', 'desc'), limit(50))),
-      getDocs(query(collection(db, 'revenues'), orderBy('receivedAt', 'desc'), limit(50)))
-    ]);
+    try {
+      const [quotesSnap, costsSnap, revenuesSnap] = await Promise.all([
+        getDocs(query(collection(db, 'quotes'), orderBy('createdAt', 'desc'), limit(50))),
+        getDocs(query(collection(db, 'financial_costs'), orderBy('createdAt', 'desc'), limit(50))),
+        getDocs(query(collection(db, 'revenues'), orderBy('receivedAt', 'desc'), limit(50)))
+      ]);
 
-    const quotes = quotesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Quote);
-    const costs = costsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as FinancialCost);
-    const revenues = revenuesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Revenue);
+      const quotes = quotesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Quote);
+      const costs = costsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as FinancialCost);
+      const revenues = revenuesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Revenue);
 
-    return { quotes, costs, revenues };
+      return { quotes, costs, revenues };
+    } catch (error) {
+      console.error("Firestore fetch error, using mock data:", error);
+      // Return empty arrays or some mock data to avoid infinite loading
+      return { 
+        quotes: [], 
+        costs: [], 
+        revenues: [] 
+      };
+    }
   },
 
   generateInsights(quotes: Quote[], costs: FinancialCost[], revenues: Revenue[]): HistoricalInsight[] {

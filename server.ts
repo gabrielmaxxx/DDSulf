@@ -12,24 +12,30 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Gemini Initialization
-  const ai = new GoogleGenAI({ 
-    apiKey: process.env.GEMINI_API_KEY,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
+  // Lazy Gemini Initialization
+  let aiInstance: GoogleGenAI | null = null;
+  const getAi = () => {
+    if (!aiInstance) {
+      if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY is not configured");
       }
+      aiInstance = new GoogleGenAI({ 
+        apiKey: process.env.GEMINI_API_KEY,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
     }
-  });
+    return aiInstance;
+  };
 
   // AI Chat Endpoint
   app.post("/api/ai/chat", async (req, res) => {
     try {
       const { message, context } = req.body;
-
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
-      }
+      const ai = getAi();
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",

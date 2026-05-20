@@ -12,7 +12,7 @@ export function useDashboardIntelligence() {
     costs: [],
     revenues: []
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     async function load() {

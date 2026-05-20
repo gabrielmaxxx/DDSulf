@@ -4,7 +4,7 @@ import { Product } from '@/types/database';
 
 export function useInventory() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
   const loadProducts = async () => {
