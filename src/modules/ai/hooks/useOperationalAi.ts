@@ -1,24 +1,65 @@
 import { useState, useCallback, useEffect } from 'react';
-import { aiService } from '../services/aiService';
+import { useAuth } from '@/contexts/AuthContext';
 import { analyticsEngine } from '../services/analyticsEngine';
 import { AiMessage, OperationalContext } from '../types';
+import { AIContextEngine, AIOrchestrationService, AIMemoryService } from '@/ai';
 
 export function useOperationalAi() {
+  const { user, role } = useAuth();
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [context, setContext] = useState<OperationalContext | null>(null);
+
+  // Load chat history from the memory pipeline on startup
+  useEffect(() => {
+    const history = AIMemoryService.getSessionHistory('default_ai_session');
+    if (history && history.length > 0) {
+      setMessages(
+        history.map(h => ({
+          role: h.role === 'model' ? 'assistant' : 'user',
+          content: h.text,
+          timestamp: new Date(h.timestamp).toISOString()
+        }))
+      );
+    }
+  }, []);
 
   useEffect(() => {
     async function loadContext() {
       const data = await analyticsEngine.getOperationalContext();
       setContext(data);
+
+      // Compile and caching into the unified enterprise context engine
+      const userRole = role || 'visualizador';
+      const userNameStr = user?.name || user?.email || 'Operador DDSulf';
+
+      AIContextEngine.compileContext(
+        userRole,
+        userNameStr,
+        // Fallback or active settings values
+        {
+          costPerHour: 45,
+          costPerKm: 1.85,
+          minimumMargin: 0.30,
+          baseOperationalCost: 150
+        },
+        {
+          totalRevenue: data.financialSummary?.totalRevenue || 0,
+          totalCosts: data.financialSummary?.totalCosts || 0,
+          averageMargin: data.financialSummary?.margin ? (data.financialSummary.margin / 100) : 0,
+          serviceVolume: data.serviceMetrics?.totalServices || 0,
+          syncLatencyMs: 120, // default latency
+          stalledDraftsCount: 3
+        }
+      );
     }
     loadContext();
-  }, []);
+  }, [user, role]);
 
   const ask = useCallback(async (text: string) => {
     if (!text.trim() || !context) return;
 
+    // Insert user's optimistic message instantly
     const userMessage: AiMessage = {
       role: 'user',
       content: text,
@@ -29,19 +70,24 @@ export function useOperationalAi() {
     setLoading(true);
 
     try {
-      const response = await aiService.ask(text, context);
-      
-      const assistantMessage: AiMessage = {
-        role: 'assistant',
-        content: response,
-        timestamp: new Date().toISOString()
-      };
+      const sessionId = 'default_ai_session';
+      const systemCtx = AIContextEngine.getCachedContext();
 
-      setMessages(prev => [...prev, assistantMessage]);
+      // Dispatch through the high-performance orchestration layer (which checks roles & restricts costs/margins)
+      const updatedHistory = await AIOrchestrationService.sendMessage(sessionId, text, systemCtx);
+
+      // Map dynamic history output back to component types
+      const mappedHistory = updatedHistory.map(h => ({
+        role: h.role === 'model' ? 'assistant' as const : 'user' as const,
+        content: h.text,
+        timestamp: new Date(h.timestamp).toISOString()
+      }));
+
+      setMessages(mappedHistory);
     } catch (error: any) {
       const errorMessage: AiMessage = {
         role: 'assistant',
-        content: `Desculpe, encontrei um erro: ${error.message}`,
+        content: `Falha na sincronização operacional de inteligência: ${error.message || 'Instabilidade do provedor.'}`,
         timestamp: new Date().toISOString()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -50,7 +96,10 @@ export function useOperationalAi() {
     }
   }, [context]);
 
-  const clearChat = () => setMessages([]);
+  const clearChat = () => {
+    AIMemoryService.clearSession('default_ai_session');
+    setMessages([]);
+  };
 
   return {
     messages,
@@ -60,3 +109,4 @@ export function useOperationalAi() {
     context
   };
 }
+

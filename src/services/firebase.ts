@@ -1,21 +1,9 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+/**
+ * DDSulf — Backwards-Compatible Firebase Connection Bridging
+ * Re-exports core singletons from the structured @/firebase backend module.
+ */
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+import { db, auth, app } from '../firebase/config';
 
-// Connectivity check
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
-    }
-  }
-}
-
-testConnection();
+export { db, auth, app };
+export default { db, auth, app };

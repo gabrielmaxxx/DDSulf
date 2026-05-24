@@ -6,12 +6,9 @@
 // Vercel build fix
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { SidebarProvider, SidebarInset, SidebarTrigger } from './components/ui/Sidebar';
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { AppSidebar } from '@/components/AppSidebar';
-import { MobileNav } from '@/components/MobileNav';
 import { Toaster } from '@/components/ui/sonner';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { AppProvider } from './providers/AppProvider';
+import { AppShell } from '@/components/AppShell';
 
 // Pages - I'll create these files soon
 import { DashboardPage } from '@/modules/dashboard/DashboardPage';
@@ -22,61 +19,50 @@ import { InventoryPage } from '@/modules/inventory/InventoryPage';
 import { HistoryPage } from '@/modules/dashboard/HistoryPage';
 import { AIPage } from '@/modules/ai/AIPage';
 import { LoginPage } from '@/modules/auth/LoginPage';
+import { ProductIntelligenceCockpit } from '@/product-intelligence/components/ProductIntelligenceCockpit';
+import { PlatformGovernanceCockpit } from '@/platform/components/PlatformGovernanceCockpit';
+import { AdoptionCockpit } from '@/adoption/AdoptionCockpit';
+import { IntegrationCockpit } from '@/integration/IntegrationCockpit';
+import { QualityCockpit } from '@/quality/QualityCockpit';
+
+import { AuthGuard } from '@/auth/guards/AuthGuard';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-[#F9FAFB] font-sans selection:bg-black selection:text-white">
-        <AppSidebar />
-        <SidebarInset className="flex flex-col bg-transparent pb-20 md:pb-0">
-          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b bg-white/80 backdrop-blur-md px-6">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="-ml-1 text-[#6B7280] hover:text-black transition-colors" />
-              <div className="h-4 w-px bg-[#E5E7EB]" />
-              <div className="flex items-center gap-2 font-bold text-lg tracking-tight">
-                <span className="text-black">DDSulf</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden md:flex items-center gap-2">
-                <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-widest">Servidor Online</span>
-              </div>
-            </div>
-          </header>
-          <main className="flex-1 overflow-y-auto px-4 py-8 md:px-10">
-            <div className="mx-auto max-w-6xl">
-              {children}
-            </div>
-          </main>
-          <MobileNav />
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+    <AuthGuard>
+      <AppShell>
+        <div className="flex-1 w-full bg-transparent overflow-y-auto">
+          {children}
+        </div>
+      </AppShell>
+    </AuthGuard>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <TooltipProvider>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<Navigate to="/" replace />} />
-            
-            <Route path="/" element={<ProtectedLayout><DashboardPage /></ProtectedLayout>} />
-            <Route path="/calculator" element={<ProtectedLayout><CalculatorPage /></ProtectedLayout>} />
-            <Route path="/financial" element={<ProtectedLayout><FinancialPage /></ProtectedLayout>} />
-            <Route path="/pops" element={<ProtectedLayout><POPsPage /></ProtectedLayout>} />
-            <Route path="/inventory" element={<ProtectedLayout><InventoryPage /></ProtectedLayout>} />
-            <Route path="/history" element={<ProtectedLayout><HistoryPage /></ProtectedLayout>} />
-            <Route path="/ai" element={<ProtectedLayout><AIPage /></ProtectedLayout>} />
-            
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Router>
-        <Toaster />
-      </TooltipProvider>
-    </AuthProvider>
+    <AppProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Navigate to="/" replace />} />
+          
+          <Route path="/" element={<ProtectedLayout><DashboardPage /></ProtectedLayout>} />
+          <Route path="/calculator" element={<ProtectedLayout><CalculatorPage /></ProtectedLayout>} />
+          <Route path="/financial" element={<ProtectedLayout><FinancialPage /></ProtectedLayout>} />
+          <Route path="/pops" element={<ProtectedLayout><POPsPage /></ProtectedLayout>} />
+          <Route path="/inventory" element={<ProtectedLayout><InventoryPage /></ProtectedLayout>} />
+          <Route path="/history" element={<ProtectedLayout><HistoryPage /></ProtectedLayout>} />
+          <Route path="/ai" element={<ProtectedLayout><AIPage /></ProtectedLayout>} />
+          <Route path="/intelligence" element={<ProtectedLayout><ProductIntelligenceCockpit /></ProtectedLayout>} />
+          <Route path="/governance" element={<ProtectedLayout><PlatformGovernanceCockpit /></ProtectedLayout>} />
+          <Route path="/adoption" element={<ProtectedLayout><AdoptionCockpit /></ProtectedLayout>} />
+          <Route path="/integration" element={<ProtectedLayout><IntegrationCockpit /></ProtectedLayout>} />
+          <Route path="/quality" element={<ProtectedLayout><QualityCockpit /></ProtectedLayout>} />
+          
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+      <Toaster />
+    </AppProvider>
   );
 }

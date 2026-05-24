@@ -1,0 +1,24 @@
+{
+  "name": "DDSulf — Inteligência em Controle de Pragas",
+  "short_name": "DDSulf",
+  "description": "Plataforma operacional e analítica inteligente de controle de pragas",
+  "theme_color": "#000000",
+  "background_color": "#ffffffff",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "https://api.dicebear.com/7.x/shapes/svg?seed=DDSulf&backgroundColor=000000",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://api.dicebear.com/7.x/shapes/svg?seed=DDSulf&backgroundColor=000000",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

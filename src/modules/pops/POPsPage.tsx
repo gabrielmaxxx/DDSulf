@@ -10,7 +10,9 @@ import {
   AlertTriangle,
   Beaker,
   ListChecks,
-  Info
+  Info,
+  GraduationCap,
+  Sparkles
 } from 'lucide-react';
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -21,8 +23,10 @@ import { usePops } from './hooks/usePops';
 import { POP } from '@/types/database';
 import { PageHeader, ViewContainer } from '../shared/components/Layout';
 import { cn } from '@/lib/utils';
+import { KnowledgeWorkspace } from '@/knowledge/components/KnowledgeWorkspace';
 
 export function POPsPage() {
+  const [viewMode, setViewMode] = useState<'protocolos' | 'knowledge'>('protocolos');
   const { 
     pops, 
     loading, 
@@ -46,8 +50,47 @@ export function POPsPage() {
 
   return (
     <ViewContainer>
+      {/* View Selector Toggle Toolbar */}
+      <div className="flex bg-neutral-100 p-1.5 rounded-2xl mb-8 max-w-lg">
+        <button
+          onClick={() => setViewMode('protocolos')}
+          className={cn(
+            "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center space-x-2 leading-none",
+            viewMode === 'protocolos'
+              ? "bg-white text-black shadow-sm"
+              : "text-neutral-500 hover:text-neutral-900"
+          )}
+        >
+          <Layers className="h-4 w-4" />
+          <span>Central de Protocolos</span>
+        </button>
+        <button
+          onClick={() => setViewMode('knowledge')}
+          className={cn(
+            "flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center space-x-2 leading-none",
+            viewMode === 'knowledge'
+              ? "bg-white text-black shadow-sm"
+              : "text-neutral-500 hover:text-neutral-900"
+          )}
+        >
+          <GraduationCap className="h-4 w-4" />
+          <span>Capacitação, Onboarding & IA</span>
+          <span className="inline-block size-1.5 bg-purple-600 rounded-full animate-ping" />
+        </button>
+      </div>
+
       <AnimatePresence mode="wait">
-        {!selectedPop ? (
+        {viewMode === 'knowledge' ? (
+          <motion.div
+            key="knowledge-workspace-container"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="w-full"
+          >
+            <KnowledgeWorkspace />
+          </motion.div>
+        ) : !selectedPop ? (
           <motion.div 
             key="list"
             initial={{ opacity: 0, x: -20 }}

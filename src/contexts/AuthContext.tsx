@@ -1,7 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../services/firebase';
+import React, { createContext, useContext } from 'react';
+import { useAuthContext } from '../auth/providers/AuthProvider';
 import { User, UserRole } from '../types';
 
 interface AuthContextType {
@@ -12,61 +10,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({ user: null, loading: true, role: null });
 
+/**
+ * Backward-compatible context adapter mapping existing components to the new enterprise Auth Provider
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>({
-    uid: 'root',
-    email: 'admin@ddsulf.com',
-    name: 'Administrador',
-    role: 'admin',
-    createdAt: new Date().toISOString()
-  });
-  const [loading, setLoading] = useState(false);
-  const [role, setRole] = useState<UserRole | null>('admin');
+  const { user, isLoading, role } = useAuthContext();
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      try {
-        if (firebaseUser) {
-          // Fetch additional user data from Firestore
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as User;
-            setUser(userData);
-            setRole(userData.role);
-          } else {
-            // Fallback if user document doesn't exist yet
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              name: 'Usuário Convidado',
-              role: 'admin',
-              createdAt: new Date().toISOString()
-            });
-            setRole('admin');
-          }
-        } else {
-          // Mock user for temporary access - stay as mock
-          setUser({
-            uid: 'root',
-            email: 'admin@ddsulf.com',
-            name: 'Administrador',
-            role: 'admin',
-            createdAt: new Date().toISOString()
-          });
-          setRole('admin');
-        }
-      } catch (error) {
-        console.error("Auth initialization error:", error);
-      } finally {
-        setLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const legacyUserMapped: User | null = user ? {
+    uid: user.uid,
+    email: user.email,
+    name: user.name,
+    role: user.role as any,
+    createdAt: user.createdAt
+  } : null;
 
   return (
-    <AuthContext.Provider value={{ user, loading, role }}>
+    <AuthContext.Provider value={{ 
+      user: legacyUserMapped, 
+      loading: isLoading, 
+      role: role as any 
+    }}>
       {children}
     </AuthContext.Provider>
   );

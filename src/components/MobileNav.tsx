@@ -1,8 +1,9 @@
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Calculator, 
-  Wallet, 
+  Receipt, 
   ClipboardCheck, 
   Package,
   BrainCircuit
@@ -12,34 +13,46 @@ import { motion } from 'motion/react';
 
 const mobileItems = [
   { title: 'Home', icon: LayoutDashboard, path: '/' },
-  { title: 'IA', icon: BrainCircuit, path: '/ai' },
+  { title: 'IA', icon: BrainCircuit, path: '/ai', highlighted: true },
   { title: 'Calc', icon: Calculator, path: '/calculator' },
-  { title: '💰', icon: Wallet, path: '/financial' },
-  { title: 'Box', icon: Package, path: '/inventory' },
+  { title: 'Finanças', icon: Receipt, path: '/financial' },
+  { title: 'Estoque', icon: Package, path: '/inventory' },
 ];
 
 export function MobileNav() {
   const location = useLocation();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-xl border-t border-[#E5E7EB] z-50 px-6 flex items-center justify-between pb-4">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/90 backdrop-blur-xl border-t border-slate-200/60 z-30 px-4 flex items-center justify-around pb-1 shadow-lg">
       {mobileItems.map((item) => {
         const isActive = location.pathname === item.path;
         return (
           <Link 
             key={item.path} 
             to={item.path}
-            className="relative flex flex-col items-center justify-center gap-1 min-w-[50px]"
+            className="flex flex-col items-center justify-center gap-1.5 relative select-none"
           >
-            <div className={cn(
-              "p-2 rounded-xl transition-all duration-300",
-              isActive ? "bg-black text-white shadow-lg -translate-y-1" : "text-[#9CA3AF]"
-            )}>
-              <item.icon className="size-5" />
-            </div>
+            <motion.div 
+              whileTap={{ scale: 0.9 }}
+              className={cn(
+                "p-2 rounded-xl transition-all duration-200 relative flex items-center justify-center",
+                isActive 
+                  ? "text-black scale-105" 
+                  : "text-slate-400 hover:text-slate-900"
+              )}
+            >
+              <item.icon className={cn("size-4.5", item.highlighted && isActive ? "text-emerald-500" : "")} />
+              {isActive && (
+                <motion.span 
+                  layoutId="activeTabIndicator"
+                  className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 size-1 rounded-full bg-slate-900"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+            </motion.div>
             <span className={cn(
-              "text-[9px] font-black uppercase tracking-widest",
-              isActive ? "text-black" : "text-[#9CA3AF] opacity-0"
+              "text-[8px] font-semibold tracking-tight transition-all leading-none",
+              isActive ? "text-slate-900 font-bold" : "text-slate-400"
             )}>
               {item.title}
             </span>

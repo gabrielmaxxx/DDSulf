@@ -1,0 +1,58 @@
+{
+  "tenants": [
+    {
+      "id": "ddsulf_matriz",
+      "companyName": "DDSulf Matriz Porto Alegre",
+      "slug": "porto-alegre",
+      "tier": "enterprise",
+      "region": "RS",
+      "activeUsersCount": 24,
+      "quotaLimits": {
+        "maxStorageMb": 1024,
+        "maxUsers": 50,
+        "apiCallsLimitPerMonth": 100000
+      },
+      "customSettings": {
+        "baseMinMarginPercent": 35,
+        "pwaOfflineModeEnabled": true,
+        "dosageStabilityFilter": true
+      }
+    },
+    {
+      "id": "ddsulf_erechim_franquia",
+      "companyName": "DDSulf Franquia Erechim",
+      "slug": "erechim",
+      "tier": "professional",
+      "region": "RS",
+      "activeUsersCount": 8,
+      "quotaLimits": {
+        "maxStorageMb": 256,
+        "maxUsers": 10,
+        "apiCallsLimitPerMonth": 25000
+      },
+      "customSettings": {
+        "baseMinMarginPercent": 35,
+        "pwaOfflineModeEnabled": true,
+        "dosageStabilityFilter": true
+      }
+    }
+  ],
+  "chemicals": [
+    {
+      "chemicalId": "chem_k_othrine_101",
+      "name": "K-Othrine WG 250",
+      "category": "Piretróide",
+      "allowedDosageMlPerM2": 120,
+      "costPerGram": 0.45,
+      "reorderLevel": 100
+    },
+    {
+      "chemicalId": "chem_tempra_202",
+      "name": "Temprid SC",
+      "category": "Neonicotinóide",
+      "allowedDosageMlPerM2": 80,
+      "costPerGram": 1.2,
+      "reorderLevel": 50
+    }
+  ]
+}

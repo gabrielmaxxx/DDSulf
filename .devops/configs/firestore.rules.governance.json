@@ -1,0 +1,27 @@
+{
+  "system": "ddsulf-saas-security-firestore-guards",
+  "rulesVersion": 2,
+  "collectionsSecurePathChecking": {
+    "tenants": {
+      "path": "/databases/{database}/documents/tenants/{tenantId}",
+      "allowRead": "request.auth != null && request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.allowedUsers",
+      "allowWrite": "request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin'"
+    },
+    "audit_logs": {
+      "path": "/databases/{database}/documents/tenants/{tenantId}/audit_logs/{logId}",
+      "allowRead": "request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId",
+      "allowWrite": "request.auth != null && request.auth.uid == request.resource.data.userId && request.resource.data.status in ['success', 'failure', 'suspicious']"
+    },
+    "inventory": {
+      "path": "/databases/{database}/documents/tenants/{tenantId}/inventory/{chemicalId}",
+      "allowRead": "request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId",
+      "allowWrite": "request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'gestor_operacional', 'super_admin']"
+    }
+  },
+  "complianceAuditBackups": {
+    "format": "gcloud-firestore-backup-json",
+    "destinationBucket": "gs://ddsulf-compliance-audit-backups-immutable",
+    "gcpCronExpression": "0 2 * * *",
+    "retentionDays": 1825
+  }
+}

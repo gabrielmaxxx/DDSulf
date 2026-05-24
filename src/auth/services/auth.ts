@@ -1,0 +1,128 @@
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '@/firebase/config';
+import { UserProfile, UserRole } from '@/types/database';
+import { logOperationalEvent } from '@/firebase/analytics';
+
+export const googleProvider = new GoogleAuthProvider();
+
+/**
+ * Enterprise Auth Service
+ */
+export class AuthService {
+  /**
+   * Complete Google Identity SSP login pipeline
+   */
+  static async loginWithGoogle(): Promise<UserProfile> {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const firebaseUser = result.user;
+      
+      const profile = await this.syncUserProfile(firebaseUser);
+      logOperationalEvent('auth_login_google_success', { uid: profile.uid, role: profile.role });
+      return profile;
+    } catch (error: any) {
+      logOperationalEvent('auth_login_google_failure', { error: error.message || error });
+      console.error('[DDSulf AuthService] Google Sign-In Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Technical Email identity login bypass
+   */
+  static async loginWithEmail(email: string, password: string): Promise<UserProfile> {
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const profile = await this.syncUserProfile(result.user);
+      logOperationalEvent('auth_login_email_success', { uid: profile.uid, role: profile.role });
+      return profile;
+    } catch (error: any) {
+      logOperationalEvent('auth_login_email_failure', { email, error: error.message || error });
+      console.error('[DDSulf AuthService] Email Sign-In Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Internal database profile sync & lazy provisioning
+   */
+  private static async syncUserProfile(firebaseUser: FirebaseUser): Promise<UserProfile> {
+    const userRef = doc(db, 'users', firebaseUser.uid);
+    const snap = await getDoc(userRef);
+
+    if (snap.exists()) {
+      const existingProfile = snap.data() as UserProfile;
+      // Symmetrically update last login timestamp without mutating base structure
+      await setDoc(userRef, {
+        ...existingProfile,
+        lastLogin: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      return { 
+        ...existingProfile,
+        lastLogin: new Date().toISOString()
+      };
+    } else {
+      // Determine default role: first user ever can be Admin; default is Technician
+      const defaultRole: UserRole = firebaseUser.email?.includes('admin') ? 'admin' : 'technician';
+      const newProfile: UserProfile = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Colaborador DDSulf',
+        role: defaultRole,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString()
+      };
+      
+      await setDoc(userRef, newProfile);
+      return newProfile;
+    }
+  }
+
+  /**
+   * Terminate active sessions
+   */
+  static async logout(): Promise<void> {
+    try {
+      const currentUid = auth.currentUser?.uid;
+      await signOut(auth);
+      logOperationalEvent('auth_logout_success', { uid: currentUid });
+    } catch (error: any) {
+      logOperationalEvent('auth_logout_failure', { error: error.message || error });
+      console.error('[DDSulf AuthService] Logout Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Live Firestore sync of active user profile changes
+   */
+  static listenUserProfile(uid: string, callback: (profile: UserProfile | null) => void): () => void {
+    const userRef = doc(db, 'users', uid);
+    
+    // Fallback if client is offline or permissions aren't fully processed yet
+    const timeout = setTimeout(async () => {
+      try {
+        const snap = await getDoc(userRef);
+        if (snap.exists()) {
+          callback(snap.data() as UserProfile);
+        }
+      } catch (e) {
+        console.warn('[DDSulf AuthService] Profile stream fallback polling failed:', e);
+      }
+    }, 1500);
+
+    return () => clearTimeout(timeout);
+  }
+}

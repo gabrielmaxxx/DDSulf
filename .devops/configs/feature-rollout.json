@@ -1,0 +1,30 @@
+{
+  "comment": "DDSulf Progressive Feature Rollout & High-Density Tenant Segment Flags",
+  "features": {
+    "use_ai_active_pest_dosages": {
+      "defaultEnabled": true,
+      "rolloutPercentage": 100,
+      "exceptionsByTenant": {
+        "ddsulf_erechim_franquia": false
+      },
+      "requiredRoleLevel": "tecnico"
+    },
+    "high_volume_margin_override_lock": {
+      "defaultEnabled": true,
+      "rolloutPercentage": 100,
+      "exceptionsByTenant": {},
+      "requiredRoleLevel": "admin"
+    },
+    "dynamic_offline_syncloop_v2": {
+      "defaultEnabled": false,
+      "rolloutPercentage": 25,
+      "betaTestersList": [
+        "gabriel.max@ddsulf.com.br",
+        "thiago.devops@ddsulf.com.br"
+      ],
+      "exceptionsByTenant": {
+        "ddsulf_matriz": true
+      }
+    }
+  }
+}
