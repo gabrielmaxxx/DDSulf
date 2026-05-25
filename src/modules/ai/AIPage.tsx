@@ -185,188 +185,138 @@ INSTRUÇÕES DE TOM DE VOZ E COMPORTAMENTO DA IA:
   };
 
   return (
-    <div className="max-w-5xl mx-auto min-h-[calc(100vh-140px)] flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
-      {/* Header Profile */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-150">
-        <div className="flex gap-4 items-center">
-          <div className="size-12 bg-slate-900 rounded-2xl flex items-center justify-center shadow-md shrink-0">
-             <BrainCircuit className="size-6 text-white" />
+    <div className="flex flex-col h-[calc(100vh-56px)] max-w-3xl mx-auto">
+      {/* Header fixo */}
+      <div className="py-6 px-4 border-b border-[#E8E6E1] shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-[#1B3A2D] flex items-center justify-center">
+            <BrainCircuit className="size-5 text-[#D4A017]" />
           </div>
-          <div className="space-y-0.5">
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">Co-Piloto Operacional IA</h1>
-            <div className="flex items-center gap-2">
-               <span className="size-2 bg-emerald-500 rounded-full animate-pulse" />
-               <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">DDSulf Insight System Online</p>
+          <div>
+            <h1 className="font-display text-xl text-[#141410]">IA Operacional</h1>
+            <p className="text-xs text-[#6B6B5F]">Consultor inteligente com dados reais do sistema</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {messages.length > 0 && (
+              <button
+                onClick={handleClearChat}
+                className="mr-3 text-xs font-semibold text-[#6B6B5F] hover:text-[#C1361A] transition-colors cursor-pointer"
+              >
+                Limpar Conversa
+              </button>
+            )}
+            <div className="flex items-center gap-1.5 text-xs text-[#2D6A4F] font-semibold 
+                            bg-[#D8EDE3] px-3 py-1.5 rounded-full select-none">
+              <div className="size-1.5 bg-[#2D6A4F] rounded-full animate-pulse" />
+              Online
             </div>
           </div>
         </div>
+      </div>
 
-        {messages.length > 0 && (
-          <Button 
-            variant="outline"
-            onClick={handleClearChat}
-            className="h-10 px-4 rounded-xl text-xs font-bold text-slate-600 border-slate-200 hover:bg-slate-50 transition-all select-none gap-2"
-          >
-            <RotateCcw className="size-3.5" />
-            Limpar Conversa
-          </Button>
-        )}
-      </header>
-
-      {isStoreEmpty ? (
-        /* ESTADO VAZIO INTELIGENTE */
-        <div className="bg-slate-50 border border-slate-200 rounded-[32px] p-8 text-center max-w-xl mx-auto my-12 space-y-6 animate-in fade-in duration-300">
-          <div className="size-16 bg-slate-100 rounded-3xl flex items-center justify-center mx-auto text-slate-400">
-            <AlertCircle className="size-8" />
+      {/* Sugestões (se sem mensagens) ou área de chat */}
+      {messages.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center px-4 gap-6 overflow-y-auto">
+          {isStoreEmpty && (
+            <div className="max-w-md p-4 bg-amber-50 border border-amber-200 rounded-2xl text-left text-xs text-amber-850">
+              <p className="font-bold flex items-center gap-1.5 mb-1 text-amber-900">
+                <AlertCircle className="size-4 shrink-0" /> IA Necessita de Dados Operacionais
+              </p>
+              A IA gerará respostas mais precisas após você preencher custos fixos no módulo Financeiro e gerar orçamentos reais.
+            </div>
+          )}
+          <div className="text-center">
+            <p className="font-display text-2xl text-[#141410] mb-2">Como posso ajudar?</p>
+            <p className="text-sm text-[#6B6B5F]">Pergunte sobre margens, estoque, orçamentos ou sugestões operacionais.</p>
           </div>
-          <div className="space-y-2">
-            <h3 className="text-xl font-black text-slate-900">IA Necessita de Dados Operacionais</h3>
-            <p className="text-sm text-slate-500 leading-relaxed">
-              A IA precisa de dados reais de simulação para gerar estratégias úteis. Preencha os custos fixos no módulo Financeiro e gere ao menos um orçamento para habilitar a inteligência consultiva.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Button 
-              onClick={() => navigate('/financial')}
-              className="bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-wider h-11 px-6 shadow-sm hover:opacity-90 transition-all w-full sm:w-auto"
-            >
-              Configurar Financeiro
-            </Button>
-            <Button 
-              variant="outline"
-              onClick={() => navigate('/calculator')}
-              className="border-slate-200 text-slate-800 rounded-xl text-xs font-black uppercase tracking-wider h-11 px-6 transition-all w-full sm:w-auto"
-            >
-              Criar Orçamento
-            </Button>
-          </div>
-        </div>
-      ) : (
-        /* MAIN CHAT APPLICATION */
-        <div className="flex-1 bg-white border border-slate-200/80 rounded-[32px] shadow-sm flex flex-col overflow-hidden relative min-h-[580px]">
-          
-          {/* TOP QUICK SUGGESTIONS CHIPS */}
-          <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex gap-2 overflow-x-auto scrollbar-hide shrink-0 items-center">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 select-none mr-2">Sugestões Rápidas:</span>
-            {SUGGESTIONS.map((s, idx) => (
+          <div className="flex flex-wrap justify-center gap-2 max-w-lg">
+            {SUGGESTIONS.map((s, i) => (
               <button
-                key={idx}
-                onClick={() => handleSendMessage(s)}
-                disabled={loading}
-                className="px-3.5 py-1.5 bg-white border border-slate-200 rounded-full hover:border-slate-800 disabled:opacity-55 disabled:pointer-events-none transition-all text-xs font-bold text-slate-700 whitespace-nowrap cursor-pointer shrink-0"
+                key={i}
+                onClick={() => setInput(s)}
+                className="px-4 py-2.5 bg-white border border-[#E8E6E1] rounded-xl text-xs 
+                           text-[#141410] font-medium hover:border-[#2D6A4F] hover:bg-[#D8EDE3]/20 
+                           transition-all text-left cursor-pointer"
               >
                 {s}
               </button>
             ))}
           </div>
+        </div>
+      ) : (
+        <div 
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 font-sans"
+        >
+          {messages.map((message, i) => {
+            if (message.role === 'user') {
+              return (
+                <div key={i} className="flex justify-end mb-4">
+                  <div className="max-w-[75%] bg-[#1B3A2D] text-white rounded-2xl rounded-tr-md px-4 py-3 text-sm text-left whitespace-pre-wrap">
+                    {message.content}
+                  </div>
+                </div>
+              );
+            } else {
+              return (
+                <div key={i} className="flex gap-3 mb-4 text-left">
+                  <div className="size-8 rounded-lg bg-[#D8EDE3] flex items-center justify-center shrink-0 mt-0.5">
+                    <BrainCircuit className="size-4 text-[#1B3A2D]" />
+                  </div>
+                  <div className="max-w-[80%] bg-white border border-[#E8E6E1] rounded-2xl rounded-tl-md px-4 py-3 text-sm text-[#141410] leading-relaxed markdown-body">
+                    <Markdown>{message.content}</Markdown>
+                  </div>
+                </div>
+              );
+            }
+          })}
 
-          {/* MESSAGE CHRONOLOGICAL SCREEN */}
-          <div 
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 min-h-[350px]"
-          >
-            {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center space-y-6">
-                <div className="size-20 bg-slate-50 rounded-[28px] flex items-center justify-center">
-                  <Sparkles className="size-8 text-slate-400" />
-                </div>
-                <div className="space-y-2 max-w-sm">
-                  <h2 className="text-xl font-black text-slate-900">Qual a sua consulta operacional?</h2>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Tenho visibilidade total sobre os custos fixos descritos em financeiro, compras de insumos em estoque, POPs registrados e as margens acumuladas este mês.
-                  </p>
-                </div>
+          {loading && (
+            <div className="flex gap-3 mb-4 text-left">
+              <div className="size-8 rounded-lg bg-[#D8EDE3] flex items-center justify-center shrink-0">
+                <BrainCircuit className="size-4 text-[#1B3A2D]" />
               </div>
-            ) : (
-              <AnimatePresence initial={false}>
-                {messages.map((m, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className={`flex gap-4 max-w-3xl ${m.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}
-                  >
-                    <div className={`size-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${m.role === 'user' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
-                      {m.role === 'user' ? <User className="size-4" /> : <Bot className="size-4" />}
-                    </div>
-
-                    <div className={`flex flex-col spacing-1 ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-                      <div className={`p-5 rounded-[22px] text-xs font-medium leading-relaxed shadow-sm ${
-                        m.role === 'user' 
-                          ? 'bg-slate-900 text-white rounded-tr-none' 
-                          : 'bg-slate-50 text-slate-800 border border-slate-200/50 rounded-tl-none'
-                      }`}>
-                        {m.role === 'assistant' ? (
-                          <div className="markdown-body prose prose-slate max-w-none text-xs leading-relaxed prose-p:my-1.5 prose-strong:text-slate-950 prose-headings:font-black prose-headings:text-slate-900 prose-ul:list-disc prose-ul:pl-4">
-                            <Markdown>{m.content}</Markdown>
-                          </div>
-                        ) : (
-                          <p className="whitespace-pre-wrap">{m.content}</p>
-                        )}
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 px-1.5 select-none">
-                        {m.timestamp}
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            )}
-
-            {loading && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex gap-4 items-start"
-              >
-                <div className="size-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center animate-pulse shrink-0">
-                  <Bot className="size-4 text-slate-400" />
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl rounded-tl-md px-4 py-3">
+                <div className="flex gap-1 items-center h-4">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="size-1.5 bg-[#2D6A4F] rounded-full animate-bounce"
+                         style={{ animationDelay: `${i * 0.15}s` }} />
+                  ))}
                 </div>
-                <div className="p-4 bg-slate-50 rounded-[22px] rounded-tl-none border border-slate-200/50 flex items-center gap-3">
-                  <Loader2 className="size-3.5 animate-spin text-slate-600" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 animate-pulse">Consultando consultor DDSulf...</span>
-                </div>
-              </motion.div>
-            )}
-          </div>
-
-          {/* BOTTOM CHAT FOOTER INPUT BAR */}
-          <div className="p-6 bg-slate-50/50 border-t border-slate-100 shrink-0">
-            <div className="relative flex items-center w-full bg-white border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-slate-950 focus-within:border-slate-950 rounded-2xl group transition-all duration-200">
-              <input 
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Pergunte sobre rentabilidade, estoque crônico ou procedimentos químicos..."
-                className="flex-1 h-14 pl-5 pr-14 outline-none font-medium text-slate-800 placeholder:text-slate-350 text-sm"
-                disabled={loading}
-              />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                <Button 
-                  onClick={() => handleSendMessage()}
-                  disabled={loading || !input.trim()}
-                  className="size-10 bg-slate-900 text-white rounded-xl hover:bg-slate-800 disabled:opacity-50 active:scale-95 transition-all shadow-sm shrink-0 cursor-pointer"
-                >
-                  <Send className="size-4" />
-                </Button>
               </div>
             </div>
-            
-            <div className="flex items-center justify-center gap-5 mt-4 select-none opacity-60">
-              <div className="flex items-center gap-1.5">
-                <Sparkles className="size-3 text-emerald-500" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Gemini 3.5 Active</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <TrendingUp className="size-3 text-emerald-500" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-mono">DDSulf Knowledge Sync</span>
-              </div>
-            </div>
-          </div>
-
+          )}
         </div>
       )}
+
+      {/* Input fixo no rodapé */}
+      <div className="border-t border-[#E8E6E1] p-4 bg-white shrink-0">
+        <div className="flex gap-3 items-end max-w-3xl mx-auto">
+          <textarea
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            placeholder="Pergunte algo sobre a operação..."
+            className="flex-1 resize-none rounded-xl border border-[#E8E6E1] px-4 py-3 text-sm 
+                       text-[#141410] focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 
+                       focus:border-[#2D6A4F] transition-all max-h-32 bg-[#F7F6F3]"
+          />
+          <button 
+            onClick={() => handleSendMessage()}
+            disabled={loading || !input.trim()}
+            className="size-11 bg-[#1B3A2D] text-white rounded-xl flex items-center 
+                               justify-center hover:bg-[#2D6A4F] transition-colors disabled:opacity-40 shrink-0 cursor-pointer"
+          >
+            <Send className="size-4" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -4,25 +4,19 @@ import { Button } from '@/components/ui/button';
 import { 
   FileText, 
   Trash2, 
-  Edit3, 
   Plus, 
   Search, 
-  Layers, 
-  FileCheck2, 
   Eye, 
   X, 
   Upload, 
   Clock, 
-  BookOpen, 
   Beaker, 
   AlertTriangle, 
-  Check, 
-  Sparkles, 
   ExternalLink,
-  ChevronRight,
-  Info,
-  Shield,
-  SearchX
+  SearchX,
+  FileSpreadsheet,
+  FileUp,
+  Check
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -42,16 +36,27 @@ function getPestLabel(val: string): string {
 }
 
 function getPestBadgeStyle(val: string): string {
-  if (!val) return 'bg-zinc-50 text-zinc-700 border-zinc-200';
+  if (!val) return 'bg-[#FAFAF9] text-[#6B6B5F] border-[#E8E6E1]';
   const v = val.toLowerCase().trim();
-  if (v === 'baratas') return 'bg-amber-50 text-amber-700 border-amber-200/60';
-  if (v === 'ratos') return 'bg-slate-100 text-slate-800 border-slate-200';
-  if (v === 'cupins') return 'bg-orange-50 text-orange-700 border-orange-200/60';
-  if (v === 'mosquitos/dengue' || v === 'mosquitos' || v === 'mosquitos-dengue' || v === 'mosquito') return 'bg-blue-50 text-blue-700 border-blue-200/60';
-  if (v === 'formigas') return 'bg-rose-50 text-rose-700 border-rose-200/60';
-  if (v === 'escorpioes' || v === 'escorpiões') return 'bg-purple-50 text-purple-700 border-purple-200/60';
-  if (v === 'aranhas') return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
-  return 'bg-zinc-100 text-zinc-700 border-zinc-200';
+  if (v === 'baratas') return 'bg-amber-50 text-amber-850 border-amber-200';
+  if (v === 'ratos') return 'bg-slate-50 text-slate-850 border-slate-200';
+  if (v === 'cupins') return 'bg-orange-50 text-orange-850 border-orange-200';
+  if (v === 'mosquitos/dengue' || v === 'mosquitos' || v === 'mosquitos-dengue' || v === 'mosquito') return 'bg-blue-50 text-blue-850 border-blue-200';
+  if (v === 'formigas') return 'bg-rose-50 text-rose-850 border-rose-200';
+  if (v === 'escorpioes' || v === 'escorpiões') return 'bg-purple-50 text-purple-855 border-purple-200';
+  if (v === 'aranhas') return 'bg-emerald-50 text-emerald-855 border-emerald-200';
+  return 'bg-[#FAFAF9] text-[#6B6B5F] border-[#E8E6E1]';
+}
+
+function getPestColor(val: string): string {
+  if (!val) return 'bg-gray-300';
+  const v = val.toLowerCase().trim();
+  if (v.includes('barata')) return 'bg-amber-400';
+  if (v.includes('rato')) return 'bg-slate-500';
+  if (v.includes('cupim')) return 'bg-orange-400';
+  if (v.includes('mosquito')) return 'bg-blue-400';
+  if (v.includes('formiga')) return 'bg-red-400';
+  return 'bg-gray-300';
 }
 
 function getServiceLabel(val: string): string {
@@ -116,6 +121,9 @@ export function POPsPage() {
   const [formFileBase64, setFormFileBase64] = useState<string | undefined>(undefined);
   const [formFileName, setFormFileName] = useState<string | undefined>(undefined);
 
+  // Drag and Drop State
+  const [isDragging, setIsDragging] = useState(false);
+
   // File Viewer states
   const [viewingPopId, setViewingPopId] = useState<string | null>(null);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
@@ -177,12 +185,9 @@ export function POPsPage() {
   };
 
   // -------------------------------------------------------------
-  // ATTACHMENT METADATA DECODER
+  // ATTACHMENT PROCESSOR & DECODER
   // -------------------------------------------------------------
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processUploadedFile = (file: File) => {
     const sizeInMB = file.size / (1024 * 1024);
     
     // Check if limit of 2MB is passed
@@ -207,12 +212,31 @@ export function POPsPage() {
       toast.error('Erro ao ler bytes do arquivo de procedimento.');
     };
 
-    if (file.type.startsWith('image/')) {
-      reader.readAsDataURL(file);
-    } else {
-      // PDF or text doc
-      reader.readAsDataURL(file);
-    }
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processUploadedFile(file);
+  };
+
+  // Drag & drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    processUploadedFile(file);
   };
 
   // -------------------------------------------------------------
@@ -278,7 +302,7 @@ export function POPsPage() {
       });
 
       toast.success('POP Cadastrado com Sucesso!', {
-        description: `Procedimento "${formName}" adicionado à catálogo operacional.`
+        description: `Procedimento "${formName}" adicionado ao catálogo operacional.`
       });
     } else {
       if (editingPopId) {
@@ -314,7 +338,6 @@ export function POPsPage() {
 
     const type = pop.fileUrl;
     if (type.startsWith('data:application/pdf') || pop.fileName?.endsWith('.pdf')) {
-      // PDF base64: create new object url if needed, or window.open
       try {
         const newTab = window.open();
         if (newTab) {
@@ -350,138 +373,140 @@ export function POPsPage() {
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 text-left">
+    <div className="space-y-6 animate-in fade-in duration-500 text-left">
       
-      {/* HEADER SECTION WITH ACTION */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-100">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <div className="size-2 bg-slate-900 rounded-full" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Padrão operacional & controle químico</span>
-          </div>
-          <h1 className="text-4xl font-black tracking-tight text-neutral-950">POP Técnicos</h1>
-          <p className="text-gray-500 text-sm max-w-2xl font-medium">Configure as fichas de aplicação. Defina os quimicos, dosagens por 100m² e tempos sugeridos de serviço automático.</p>
+      {/* HEADER */}
+      <header className="mb-8 flex items-start justify-between">
+        <div>
+          <span className="kpi-label text-[#2D6A4F] text-xs font-bold uppercase tracking-wider font-sans">Procedimentos Operacionais</span>
+          <h1 className="font-display text-3xl font-semibold text-[#141410] mt-1">POPs Cadastrados</h1>
+          <p className="text-sm text-[#6B6B5F] mt-1">
+            Base para cálculo automático de produtos na Calculadora.
+          </p>
         </div>
-
-        <Button
-          id="btn-add-new-pop"
+        <button 
           onClick={triggerCreateModal}
-          className="bg-slate-950 text-white hover:bg-slate-900 h-11 px-5 rounded-2xl text-[11px] font-black uppercase tracking-wider shadow-sm transition-all self-start md:self-auto flex items-center gap-1.5 active:scale-98"
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#1B3A2D] text-white 
+                             text-sm font-semibold rounded-xl hover:bg-[#2D6A4F] transition-colors cursor-pointer"
         >
-          <Plus className="size-4" />
-          Novo POP
-        </Button>
+          <Plus className="size-4" /> Novo POP
+        </button>
       </header>
 
       {/* FILTER SEARCH BAR */}
       <div className="relative max-w-xl">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#6B6B5F]" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filtrar procedimentos por praga, serviço ou nome..."
-          className="w-full h-11 pl-10 pr-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white shadow-xs"
+          placeholder="Filtrar POPs por praga, serviço ou nome..."
+          className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] text-[#141410] shadow-xs"
         />
       </div>
 
-      {/* PROTOCOL MATRICES CARDS */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {/* PROTOCOL MATRICES GRID OF CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {displayedProcedures.map((pop) => {
-          const chemicalCount = pop.requiredProducts?.length || 0;
+          const pestColor = getPestColor(pop.pestType);
+          const pestLabel = getPestLabel(pop.pestType);
+          const pestBadgeStyle = getPestBadgeStyle(pop.pestType);
+
           return (
             <motion.div
               layout
               key={pop.id}
-              whileHover={{ y: -3 }}
-              className="bg-white border border-gray-100 rounded-[28px] p-6 shadow-xs flex flex-col justify-between hover:border-slate-950 transition-all text-left"
+              className="bg-white rounded-2xl border border-[#E8E6E1] overflow-hidden 
+                         hover:shadow-md hover:border-[#C8C5BF] transition-all group flex flex-col justify-between"
             >
-              <div className="space-y-4">
+              <div>
+                {/* Stripe colorida no topo — cor por tipo de praga */}
+                <div className={`h-1.5 ${pestColor}`} />
                 
-                {/* Visual Category/Pest badging */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`px-2.5 py-0.5 rounded-md font-mono text-[9px] font-bold border uppercase ${getPestBadgeStyle(pop.pestType)}`}>
-                    #{getPestLabel(pop.pestType)}
+                <div className="p-5">
+                  {/* Badge de praga */}
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold 
+                                    uppercase tracking-wider border mb-3 ${pestBadgeStyle}`}>
+                    {pestLabel}
                   </span>
                   
-                  <span className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-md font-mono text-[9px] font-bold uppercase">
-                    {getServiceLabel(pop.serviceType)}
-                  </span>
-                </div>
-
-                {/* POP Name & Summary details */}
-                <div className="space-y-1">
-                  <h3 className="text-base font-black text-slate-950 tracking-tight leading-tight">{pop.name}</h3>
-                  <p className="text-[10px] text-gray-400 font-mono">ID: {pop.id}</p>
-                </div>
-
-                <p className="text-xs text-slate-500 font-semibold line-clamp-3 leading-relaxed">
-                  {pop.instructions || "Nenhuma diretriz cadastrada para este procedimento operacional."}
-                </p>
-
-                {/* Technical variables layout */}
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 text-[11px] font-semibold text-slate-700">
-                  <div className="flex items-center gap-2">
-                    <Beaker className="size-3.5 text-slate-400" />
-                    <span>
-                      <strong className="text-slate-950 block">{chemicalCount}</strong> Insumos sugeridos
+                  {/* Nome do POP */}
+                  <h3 className="font-semibold text-[#141410] text-sm leading-snug mb-3">{pop.name}</h3>
+                  
+                  {/* Métricas */}
+                  <div className="flex items-center gap-4 text-xs text-[#6B6B5F] mb-4">
+                    <span className="flex items-center gap-1">
+                      <Beaker className="size-3" /> {pop.requiredProducts?.length || 0} produtos
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="size-3" /> {pop.estimatedTimeHoursPer100m2}h/100m²
                     </span>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <Clock className="size-3.5 text-slate-400" />
-                    <span>
-                      <strong className="text-slate-950 block">{pop.estimatedTimeHoursPer100m2} Hrs</strong> por 100m²
-                    </span>
+                  
+                  {/* Lista de produtos resumida */}
+                  <div className="bg-[#F7F6F3] rounded-xl p-3 mb-4 space-y-1.5">
+                    {pop.requiredProducts?.slice(0, 2).map(prod => (
+                      <div key={prod.productId} className="flex justify-between text-xs">
+                        <span className="text-[#6B6B5F] truncate">{prod.productName}</span>
+                        <span className="font-semibold text-[#141410] shrink-0 ml-2">
+                          {prod.quantityPer100m2} {prod.unit}/100m²
+                        </span>
+                      </div>
+                    ))}
+                    {(!pop.requiredProducts || pop.requiredProducts.length === 0) && (
+                      <p className="text-xs text-[#6B6B5F]/70 italic">Sem insumos indicados.</p>
+                    )}
+                    {pop.requiredProducts?.length > 2 && (
+                      <p className="text-[10px] text-[#6B6B5F]">+ {pop.requiredProducts.length - 2} mais</p>
+                    )}
                   </div>
                 </div>
-
               </div>
 
-              {/* ACTION FOOTER BAR */}
-              <div className="flex items-center justify-between gap-2 mt-6 pt-4 border-t border-gray-50">
-                <Button
-                  variant="outline"
-                  onClick={() => handleViewFile(pop)}
-                  className="h-9 px-3.5 rounded-xl text-[10px] font-bold text-slate-800 border-gray-200 hover:bg-slate-50 flex items-center gap-1 shadow-xs"
-                >
-                  <Eye className="size-3.5 text-slate-400" />
-                  Visualizar
-                </Button>
-
-                <div className="flex items-center gap-1">
-                  <button
+              {/* Ações */}
+              <div className="p-5 pt-0">
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handleViewFile(pop)}
+                    className="flex-1 text-center text-xs font-semibold py-2 rounded-lg 
+                               border border-[#E8E6E1] text-[#6B6B5F] hover:bg-[#FAFAF9] transition-colors cursor-pointer"
+                  >
+                    Visualizar
+                  </button>
+                  <button 
                     onClick={() => triggerEditModal(pop)}
-                    className="p-2 text-slate-500 hover:text-slate-950 hover:bg-slate-50 rounded-lg transition-colors"
+                    className="flex-1 text-center text-xs font-semibold py-2 rounded-lg 
+                               bg-[#1B3A2D] text-white hover:bg-[#2D6A4F] transition-colors cursor-pointer"
                   >
-                    <Edit3 className="size-3.5" />
+                    Editar
                   </button>
-                  <button
+                  <button 
                     onClick={() => deleteProcedure(pop.id, pop.name)}
-                    className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                    className="p-2 rounded-lg text-[#6B6B5F] hover:text-[#C1361A] 
+                               hover:bg-[#FDDDD8] transition-all cursor-pointer"
+                    title="Excluir POP"
                   >
-                    <Trash2 className="size-3.5" />
+                    <Trash2 className="size-4" />
                   </button>
                 </div>
               </div>
-
             </motion.div>
           );
         })}
 
         {displayedProcedures.length === 0 && (
-          <div className="col-span-full py-24 text-center border-2 border-dashed border-gray-100 rounded-[32px] flex flex-col items-center justify-center gap-4 bg-slate-50/20">
-            <SearchX className="size-10 text-slate-300 animate-pulse" />
+          <div className="col-span-full py-24 text-center border-2 border-dashed border-[#E8E6E1] rounded-2xl flex flex-col items-center justify-center gap-4 bg-[#FAFAF9]">
+            <SearchX className="size-10 text-[#6B6B5F] opacity-50" />
             <div className="space-y-1">
-              <p className="text-sm font-black text-slate-950 uppercase tracking-widest">Procedimento Não Encontrado</p>
-              <p className="text-xs text-gray-400 max-w-sm font-semibold">Crie novos arquivos do POP ou reajuste o filtro de praga no topo.</p>
+              <p className="text-sm font-bold text-[#141410] uppercase tracking-widest">Procedimento Não Encontrado</p>
+              <p className="text-xs text-[#6B6B5F] max-w-sm font-semibold">Crie novos arquivos do POP ou reajuste o filtro no topo.</p>
             </div>
-            <Button
+            <button
               onClick={triggerCreateModal}
-              className="bg-slate-950 text-white uppercase text-[10px] py-2 px-5 rounded-lg hover:bg-slate-900 font-extrabold"
+              className="px-5 py-2.5 bg-[#1B3A2D] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#2D6A4F] transition-all cursor-pointer"
             >
               Criar Primeiro POP
-            </Button>
+            </button>
           </div>
         )}
       </div>
@@ -489,53 +514,54 @@ export function POPsPage() {
       {/* SECTION 2: WORKSHOP FORM MODAL (Add / Edit) */}
       <AnimatePresence>
         {isFormModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-gray-200 max-w-3xl w-full rounded-[32px] shadow-2xl p-6 md:p-8 space-y-6 my-8 max-h-[90vh] overflow-y-auto text-left"
+              className="bg-white border border-[#E8E6E1] max-w-3xl w-full rounded-2xl shadow-2xl my-8 max-h-[90vh] overflow-y-auto text-left relative p-0"
             >
-              <div className="flex items-start justify-between pb-4 border-b">
+              {/* STICKY HEADER */}
+              <div className="sticky top-0 bg-[#1B3A2D] text-white p-6 flex items-start justify-between z-10 rounded-t-2xl border-b border-[#2D6A4F]/20">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <div className="size-1.5 bg-slate-900 rounded-full" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Diretriz da DDSulf</span>
+                    <div className="size-1.5 bg-white/60 rounded-full" />
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-white/75 font-sans">Diretriz da DDSulf</span>
                   </div>
-                  <h2 className="text-xl font-black text-slate-950">
+                  <h2 className="text-xl font-semibold font-display text-white">
                     {modalMode === 'create' ? 'Cadastrar Novo Procedimento' : 'Editar Procedimento Operacional'}
                   </h2>
                 </div>
                 <button
                   onClick={() => setIsFormModalOpen(false)}
-                  className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-950 transition-colors"
+                  className="p-1.5 hover:bg-white/10 rounded-lg text-white/80 hover:text-white transition-colors cursor-pointer"
                 >
                   <X className="size-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleSaveForm} className="space-y-6 text-xs font-semibold text-slate-700">
+              <form onSubmit={handleSaveForm} className="p-6 space-y-6 text-xs font-semibold text-[#141410]">
                 
                 {/* ROW 1: BASIC INFO */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Nome do procedimento</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Nome do procedimento</label>
                     <input
                       type="text"
                       required
                       value={formName}
                       onChange={(e) => setFormName(e.target.value)}
-                      placeholder="Ex: Desinsetização Quimica Geral de Baratas no Esgoto"
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                      placeholder="Ex: Desinsetização Química Geral de Baratas no Esgoto"
+                      className="w-full h-11 px-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] text-[#141410]"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Tipo de Praga Alvo</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Tipo de Praga Alvo</label>
                     <select
                       value={formPestType}
                       onChange={(e) => setFormPestType(e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                      className="w-full h-11 px-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] text-[#141410] cursor-pointer"
                     >
                       {PESTS_LIST.map((pest) => (
                         <option key={pest} value={pest}>{pest}</option>
@@ -544,11 +570,11 @@ export function POPsPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Tipo de Serviço</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Tipo de Serviço</label>
                     <select
                       value={formServiceType}
                       onChange={(e) => setFormServiceType(e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                      className="w-full h-11 px-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] text-[#141410] cursor-pointer"
                     >
                       {SERVICES_LIST.map((srv) => (
                         <option key={srv.value} value={srv.value}>{srv.label}</option>
@@ -557,7 +583,7 @@ export function POPsPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Tempo por 100m² (Horas)</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Tempo por 100m² (Horas)</label>
                     <input
                       type="number"
                       step="0.1"
@@ -565,109 +591,142 @@ export function POPsPage() {
                       required
                       value={formTime}
                       onChange={(e) => setFormTime(parseFloat(e.target.value) || 0.5)}
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                      className="w-full h-11 px-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] text-[#141410]"
                     />
                   </div>
                 </div>
 
                 {/* TEXTAREA DIRECTIVES */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Instruções gerais recomendadas aos técnicos</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Instruções gerais recomendadas aos técnicos</label>
                   <textarea
                     rows={3}
                     value={formInstructions}
                     onChange={(e) => setFormInstructions(e.target.value)}
                     placeholder="Detalhamento operacional. Métricas de diluição rápida, posicionamento perimetral, advertências, EPIs específicos ou alertas operacionais ambientais..."
-                    className="w-full p-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white leading-relaxed resize-none"
+                    className="w-full p-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] text-[#141410] leading-relaxed resize-none font-sans"
                   />
                 </div>
 
                 {/* DYNAMIC PRODUCTS PER 100M² LINKED TO INVENTORY */}
-                <div className="space-y-4 pt-4 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <h3 className="text-sm font-black text-slate-950">Insumos Químicos Necessários (Por 100m²)</h3>
-                      <p className="text-[10px] text-gray-400 font-medium">Estes insumos serão deduzidos comercialmente pelo assistente DDSulf nos orçamentos.</p>
-                    </div>
-
-                    <Button
-                      type="button"
-                      onClick={handleAddChemicalLine}
-                      variant="outline"
-                      className="h-8 pr-3 pl-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider border-gray-200 text-slate-950 hover:bg-slate-50 flex items-center gap-1 shadow-xs"
-                    >
-                      <Plus className="size-3.5" />
-                      Adicionar Linha
-                    </Button>
+                <div className="space-y-4 pt-4 border-t border-[#E8E6E1]">
+                  <div className="space-y-0.5">
+                    <h3 className="text-sm font-semibold text-[#141410] font-display">Insumos Químicos Necessários (Por 100m²)</h3>
+                    <p className="text-[11px] text-[#6B6B5F] font-medium">Estes insumos serão deduzidos automaticamente pelo assistente DDSulf nos orçamentos.</p>
                   </div>
 
                   {inventoryProducts.length === 0 ? (
-                    <div className="p-4 bg-amber-50 border border-amber-200/50 rounded-xl flex items-start gap-3">
-                      <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="p-4 bg-[#FFF3CD]/50 border border-[#D4A017]/30 rounded-xl flex items-start gap-3">
+                      <AlertTriangle className="size-4 text-[#92600A] shrink-0 mt-0.5" />
                       <div className="space-y-0.5">
-                        <p className="text-xs font-black text-amber-950 uppercase">Nenhum Insumo no Estoque</p>
-                        <p className="text-[10px] text-amber-800 font-medium">Você precisa adicionar produtos no estoque para linká-los em novos POPs operacionais.</p>
+                        <p className="text-xs font-bold text-[#92600A] uppercase">Nenhum Insumo no Estoque</p>
+                        <p className="text-[10px] text-[#92600A] font-medium">Você precisa adicionar produtos no estoque antes de vinculá-los aos POPs.</p>
                       </div>
                     </div>
-                  ) : formRequiredProducts.length === 0 ? (
-                    <div className="p-8 text-center border-2 border-dashed border-gray-100 rounded-xl bg-slate-50/20 text-slate-400">
-                      <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">Nenhum químico acoplado a este POP por enquanto.<br />Gere uma linha acima para computar custos na calculadora.</p>
-                    </div>
                   ) : (
-                    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                      {formRequiredProducts.map((item, index) => (
-                        <div key={index} className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-transparent hover:border-slate-200 transition-all">
-                          
-                          {/* Product Lookup select */}
-                          <div className="flex-1">
-                            <select
-                              value={item.productId}
-                              onChange={(e) => handleUpdateChemicalLine(index, e.target.value)}
-                              className="w-full h-9 px-2 rounded-lg border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
-                            >
-                              {inventoryProducts.map(p => (
-                                <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>
-                              ))}
-                            </select>
-                          </div>
+                    <div className="border border-[#E8E6E1] rounded-xl overflow-hidden">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-[#F0EDE8]">
+                          <tr className="border-b border-[#E8E6E1]">
+                            <th className="py-2.5 px-3 text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Insumo Químico / Concentrado</th>
+                            <th className="py-2.5 px-3 text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans text-right w-36">Quantidade por 100m²</th>
+                            <th className="py-2.5 px-3 w-12"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E8E6E1]">
+                          {formRequiredProducts.map((item, index) => (
+                            <tr key={index} className="bg-[#FAFAF9] hover:bg-[#FAFAF9]/60 transition-colors border-b border-[#E8E6E1]">
+                              <td className="py-2 px-3">
+                                <select
+                                  value={item.productId}
+                                  onChange={(e) => handleUpdateChemicalLine(index, e.target.value)}
+                                  className="w-full h-9 px-2.5 rounded-lg border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white cursor-pointer"
+                                >
+                                  {inventoryProducts.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="py-2 px-3 text-right">
+                                <div className="flex items-center gap-1.5 justify-end">
+                                  <input
+                                    type="number"
+                                    min="0.001"
+                                    step="any"
+                                    required
+                                    value={item.quantityPer100m2}
+                                    onChange={(e) => handleUpdateQuantityLine(index, parseFloat(e.target.value) || 0)}
+                                    placeholder="Qtd"
+                                    className="w-20 h-9 px-2 rounded-lg border border-[#E8E6E1] text-center text-xs font-bold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white"
+                                  />
+                                  <span className="text-[11px] font-mono text-[#6B6B5F] font-bold shrink-0 w-8 text-left">{item.unit}</span>
+                                </div>
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveChemicalLine(index)}
+                                  className="p-1 px-1.5 text-[#6B6B5F] hover:text-[#C1361A] hover:bg-[#FDDDD8] rounded-md transition-colors shrink-0 cursor-pointer"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
 
-                          {/* Float quantity input */}
-                          <div className="w-28 flex items-center gap-2">
-                            <input
-                              type="number"
-                              min="0.001"
-                              step="any"
-                              required
-                              value={item.quantityPer100m2}
-                              onChange={(e) => handleUpdateQuantityLine(index, parseFloat(e.target.value) || 0)}
-                              placeholder="Fração"
-                              className="w-full h-9 px-2 rounded-lg border border-gray-200 text-center text-xs font-bold focus:outline-hidden focus:border-slate-950 bg-white"
-                            />
-                            <span className="text-[10px] font-mono text-slate-400 font-bold shrink-0 w-8">{item.unit}</span>
-                          </div>
+                          {formRequiredProducts.length === 0 && (
+                            <tr>
+                              <td colSpan={3} className="py-8 text-center text-[#6B6B5F] text-[11px] bg-[#FAFAF9]">
+                                Nenhum químico acoplado a este POP por enquanto. Clique em "+ Produto" para adicionar.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
 
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveChemicalLine(index)}
-                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-white rounded-md border border-transparent hover:border-gray-200 transition-colors shrink-0"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </div>
-                      ))}
+                      {/* FOOTER DO PRODUTO: BOTÃO NO RODAPÉ */}
+                      <div className="bg-[#F0EDE8] p-2.5 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleAddChemicalLine}
+                          className="h-8 px-4 bg-white hover:bg-[#1B3A2D] border border-[#E8E6E1] hover:border-[#1B3A2D] text-[#1B3A2D] hover:text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        >
+                          <Plus className="size-3.5" />
+                          + Produto
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
 
                 {/* ATTACHMENT UPLOAD INPUT PANEL */}
-                <div className="space-y-3 pt-4 border-t border-gray-100">
+                <div className="space-y-3 pt-4 border-t border-[#E8E6E1]">
                   <div className="space-y-0.5">
-                    <h3 className="text-sm font-black text-slate-950">Documentação do POP</h3>
-                    <p className="text-[10px] text-gray-400 font-medium">Selecione o PDF oficial ou foto de treinamento químico aprovada (Limite: 2MB).</p>
+                    <h3 className="text-sm font-semibold text-[#141410] font-display">Documentação do POP</h3>
+                    <p className="text-[11px] text-[#6B6B5F] font-medium">Selecione o PDF oﬁcial ou foto de treinamento químico aprovada (Limite: 2MB).</p>
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => document.getElementById('document-file-attacher')?.click()}
+                    className={`border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
+                      isDragging 
+                        ? 'border-[#1B3A2D] bg-[#FAFAF9]' 
+                        : 'border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-[#FAFAF9]/50 bg-[#FAFAF9]'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="p-2.5 bg-white rounded-xl border border-[#E8E6E1] text-[#1B3A2D] shadow-xs">
+                        <Upload className="size-5" />
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-bold text-[#141410]">Arraste o arquivo do POP ou clique para localizar</p>
+                        <p className="text-[10px] text-[#6B6B5F] leading-normal mt-0.5">Formatos suportados: PDF, PNG, JPG, JPEG (Limite: 2MB).</p>
+                      </div>
+
                       <input
                         type="file"
                         accept=".pdf,image/png,image/jpeg,image/jpg,.docx"
@@ -675,53 +734,43 @@ export function POPsPage() {
                         className="hidden"
                         id="document-file-attacher"
                       />
-                      <Button
-                        type="button"
-                        onClick={() => document.getElementById('document-file-attacher')?.click()}
-                        className="h-10 bg-slate-100 border text-slate-800 hover:bg-slate-200 rounded-xl px-4 text-xs font-bold flex items-center gap-2 shadow-xs"
-                      >
-                        <Upload className="size-4" />
-                        Anexar Procedimento
-                      </Button>
-                    </div>
 
-                    {formFileName ? (
-                      <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 border rounded-lg text-slate-800">
-                        <FileText className="size-4 text-slate-500" />
-                        <span className="max-w-[200px] truncate text-slate-800 font-semibold">{formFileName}</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFormFileName(undefined);
-                            setFormFileBase64(undefined);
-                          }}
-                          className="p-0.5 bg-slate-200 rounded text-slate-500 hover:text-slate-950"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Nenhum arquivo de rascunho</span>
-                    )}
+                      {formFileName && (
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#D8EDE3] text-[#1B3A2D] border border-[#2D6A4F]/20 rounded-lg text-xs font-semibold" onClick={(e) => e.stopPropagation()}>
+                          <FileText className="size-4 text-[#2D6A4F]" />
+                          <span className="max-w-[200px] truncate text-[#1B3A2D]">{formFileName}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFormFileName(undefined);
+                              setFormFileBase64(undefined);
+                            }}
+                            className="p-0.5 bg-white/60 hover:bg-white rounded text-[#1B3A2D] cursor-pointer inline-flex items-center justify-center size-5 ml-1"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* MODAL ACTION KEYS */}
-                <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100">
-                  <Button
+                <div className="flex items-center justify-end gap-3 pt-6 border-t border-[#E8E6E1]">
+                  <button
                     type="button"
-                    variant="outline"
                     onClick={() => setIsFormModalOpen(false)}
-                    className="h-10 px-5 rounded-xl text-xs font-bold text-slate-500 border-gray-200 hover:bg-slate-50"
+                    className="h-10 px-5 rounded-xl text-xs font-semibold text-[#6B6B5F] border border-[#E8E6E1] hover:bg-[#FAFAF9] transition-all cursor-pointer"
                   >
                     Cancelar
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     type="submit"
-                    className="h-10 px-6 rounded-xl text-xs font-black uppercase tracking-wider bg-slate-950 text-white hover:bg-slate-900 shadow-sm"
+                    className="h-10 px-6 rounded-xl text-xs font-bold bg-[#1B3A2D] text-white hover:bg-[#2D6A4F] transition-all cursor-pointer shadow-xs"
                   >
                     Salvar POP
-                  </Button>
+                  </button>
                 </div>
 
               </form>
@@ -737,85 +786,86 @@ export function POPsPage() {
           if (!pop) return null;
 
           return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white border text-left border-gray-200 max-w-xl w-full rounded-[32px] p-6 shadow-2xl relative space-y-5"
+                className="bg-white border text-left border-[#E8E6E1] max-w-xl w-full rounded-2xl overflow-hidden shadow-2xl relative flex flex-col"
               >
-                <div className="flex items-start justify-between pb-3 border-b">
+                {/* Header view */}
+                <div className="bg-[#1B3A2D] text-white p-6 flex items-start justify-between">
                   <div className="space-y-1">
-                    <span className="px-2 py-0.5 rounded-md font-mono text-[9px] font-bold border uppercase bg-slate-100 text-slate-700">
+                    <span className="px-2.5 py-0.5 rounded-md font-mono text-[9px] font-bold border border-white/20 uppercase bg-white/10 text-white leading-none inline-block">
                       POP #{pop.id}
                     </span>
-                    <h3 className="text-base font-black text-slate-950 block select-none pt-1">{pop.name}</h3>
+                    <h3 className="text-lg font-semibold font-display text-white pr-4 pt-1 leading-tight">{pop.name}</h3>
                   </div>
                   <button
                     onClick={() => setViewingPopId(null)}
-                    className="p-1 px-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-950 transition-colors"
+                    className="p-1.5 hover:bg-white/10 rounded-lg text-white/80 hover:text-white transition-colors cursor-pointer"
                   >
                     <X className="size-4" />
                   </button>
                 </div>
 
-                <div className="space-y-4">
+                <div className="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
                   {/* Scope criteria */}
-                  <div className="grid grid-cols-2 gap-3 text-xs font-semibold py-3 px-4 bg-slate-50 rounded-2xl border border-gray-100">
+                  <div className="grid grid-cols-2 gap-3 text-xs font-semibold py-3 px-4 bg-[#FAFAF9] rounded-xl border border-[#E8E6E1]">
                     <div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block pb-0.5">Praga Principal</span>
-                      <span className="text-slate-950 font-bold">{getPestLabel(pop.pestType)}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F] block pb-0.5 font-sans">Praga Principal</span>
+                      <span className="text-[#141410] font-bold">{getPestLabel(pop.pestType)}</span>
                     </div>
                     <div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block pb-0.5">Serviço de Combate</span>
-                      <span className="text-slate-950 font-bold">{getServiceLabel(pop.serviceType)}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F] block pb-0.5 font-sans">Serviço de Combate</span>
+                      <span className="text-[#141410] font-bold">{getServiceLabel(pop.serviceType)}</span>
                     </div>
                   </div>
 
                   {/* Operational instructions text */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Ficha de Instruções Sanitárias</span>
-                    <div className="p-4 bg-slate-50 rounded-2xl text-xs text-slate-700 font-semibold leading-relaxed max-h-[160px] overflow-y-auto whitespace-pre-wrap max-w-full">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F] block font-sans">Ficha de Instruções Sanitárias</span>
+                    <div className="p-4 bg-[#FAFAF9] rounded-xl text-xs text-[#141410] font-medium leading-relaxed max-h-[200px] overflow-y-auto whitespace-pre-wrap max-w-full border border-[#E8E6E1] font-sans">
                       {pop.instructions}
                     </div>
                   </div>
 
                   {/* Required products */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Insumos Químicos Associados</span>
-                    <div className="space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F] block font-sans">Insumos Químicos Associados</span>
+                    <div className="space-y-1.5">
                       {pop.requiredProducts?.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between text-xs font-bold text-slate-800 py-1 border-b border-dashed border-gray-100">
-                          <span className="flex items-center gap-1.5 text-slate-900">
-                            <span className="size-1.5 bg-slate-900 rounded-full" />
+                        <div key={index} className="flex items-center justify-between text-xs font-semibold text-[#141410] py-1.5 border-b border-dashed border-[#E8E6E1]">
+                          <span className="flex items-center gap-1.5 text-[#141410]">
+                            <span className="size-1.5 bg-[#2D6A4F] rounded-full" />
                             {item.productName}
                           </span>
-                          <span className="font-mono text-slate-500 font-bold">{item.quantityPer100m2} {item.unit} por 100m²</span>
+                          <span className="font-mono text-[#6B6B5F] font-bold">{item.quantityPer100m2} {item.unit} por 100m²</span>
                         </div>
                       ))}
                       {(!pop.requiredProducts || pop.requiredProducts.length === 0) && (
-                        <p className="text-[10px] italic text-gray-400">Nenhum solvente ou químico associado.</p>
+                        <p className="text-[10px] italic text-[#6B6B5F]">Nenhum solvente ou químico associado.</p>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t flex justify-end gap-3 text-xs font-semibold">
+                <div className="p-6 bg-[#FAFAF9] border-t border-[#E8E6E1] flex justify-end gap-3 text-xs font-semibold">
                   {pop.fileUrl && (
                     <button
                       onClick={() => {
                         setViewingPopId(null);
                         handleViewFile(pop);
                       }}
-                      className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 border text-slate-800 px-4 py-2 rounded-xl transition-all"
+                      className="inline-flex items-center gap-1.5 bg-white border border-[#E8E6E1] hover:bg-[#FAFAF9] text-[#141410] px-4 py-2 rounded-xl transition-all cursor-pointer"
                     >
-                      <ExternalLink className="size-3.5" />
+                      <ExternalLink className="size-3.5 text-[#6B6B5F]" />
                       Abrir Anexo Original
                     </button>
                   )}
                   <button
                     onClick={() => setViewingPopId(null)}
-                    className="bg-slate-950 hover:bg-slate-900 text-white font-extrabold uppercase text-[10px] px-5 py-2 rounded-xl transition-all"
+                    className="bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white font-bold px-5 py-2 rounded-xl transition-all cursor-pointer shadow-sm"
                   >
                     Concluído
                   </button>
@@ -833,7 +883,7 @@ export function POPsPage() {
           <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4 backdrop-blur-md">
             <button
               onClick={() => setFullscreenImage(null)}
-              className="absolute top-6 right-6 p-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition-all"
+              className="absolute top-6 right-6 p-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition-all cursor-pointer"
             >
               <X className="size-6" />
             </button>

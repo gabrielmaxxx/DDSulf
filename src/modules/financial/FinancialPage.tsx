@@ -452,70 +452,56 @@ export function FinancialPage() {
 
   // Recharts chart makeup
   const pieData = [
-    { name: 'Aluguel Frota', value: financial.fixedCosts.vehicleRental || 0, color: '#1E293B' },
-    { name: 'Folha Salarial', value: financial.fixedCosts.salaries || 0, color: '#0F172A' },
-    { name: 'Aluguel Sede', value: financial.fixedCosts.rent || 0, color: '#475569' },
-    { name: 'Combustíveis', value: financial.fixedCosts.fuel || 0, color: '#64748B' },
-    { name: 'Seguros Gerais', value: financial.fixedCosts.insurance || 0, color: '#94A3B8' },
-    { name: 'Outros Custos', value: financial.fixedCosts.other || 0, color: '#CBD5E1' }
+    { name: 'Aluguel Frota', value: financial.fixedCosts.vehicleRental || 0, color: '#1B3A2D' },
+    { name: 'Folha Salarial', value: financial.fixedCosts.salaries || 0, color: '#2D6A4F' },
+    { name: 'Aluguel Sede', value: financial.fixedCosts.rent || 0, color: '#D4A017' },
+    { name: 'Combustíveis', value: financial.fixedCosts.fuel || 0, color: '#C1361A' },
+    { name: 'Seguros Gerais', value: financial.fixedCosts.insurance || 0, color: '#7C6F5B' },
+    { name: 'Outros Custos', value: financial.fixedCosts.other || 0, color: '#A8CDB8' }
   ].filter(item => item.value > 0);
 
-  return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
-      
-      {/* Visual Header */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-100">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <div className="size-2 bg-slate-900 rounded-full" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Painel de Controle de viabilidade</span>
-          </div>
-          <h1 className="text-4xl font-black tracking-tight text-neutral-950">Custos & Viabilidade</h1>
-          <p className="text-gray-500 text-sm max-w-2xl font-medium">Configure as despesas fixas, preço de insumos operacionais e a margem de segurança para subsidiar a calculadora DDSulf.</p>
-        </div>
+  const tabs = [
+    { id: 'overview' as const, label: 'Visão Geral' },
+    { id: 'costs' as const, label: 'Custos da Empresa' },
+    { id: 'spreadsheet' as const, label: 'Upload de Planilha' }
+  ];
 
-        {/* Dynamic Tabs Navigation Switch */}
-        <div className="flex bg-gray-100/80 p-1.5 rounded-2xl border border-gray-200/50 self-start md:self-auto shrink-0 shadow-xs" id="tabs-navigation">
-          <button
-            id="tab-btn-overview"
-            type="button"
-            onClick={() => setActiveTab('overview')}
-            className={`px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'overview' ? 'bg-white text-slate-950 shadow-sm border border-black/5' : 'text-gray-500 hover:text-black hover:bg-white/40'
-            }`}
-          >
-            <Eye className="size-3.5" />
-            Visão Geral
-          </button>
-          <button
-            id="tab-btn-costs"
-            type="button"
-            onClick={() => setActiveTab('costs')}
-            className={`px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'costs' ? 'bg-white text-slate-950 shadow-sm border border-black/5' : 'text-gray-500 hover:text-black hover:bg-white/40'
-            }`}
-          >
-            <Settings2 className="size-3.5" />
-            Custos da Empresa
-          </button>
-          <button
-            id="tab-btn-spreadsheet"
-            type="button"
-            onClick={() => setActiveTab('spreadsheet')}
-            className={`px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'spreadsheet' ? 'bg-white text-slate-950 shadow-sm border border-black/5' : 'text-gray-500 hover:text-black hover:bg-white/40'
-            }`}
-          >
-            <Upload className="size-3.5" />
-            Upload de Planilha
-          </button>
-        </div>
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
+      
+      {/* Header */}
+      <header className="mb-8">
+        <span className="kpi-label text-[#2D6A4F] text-xs font-bold uppercase tracking-wider block">Gestão Financeira</span>
+        <h1 className="font-display text-4xl text-[#141410] mt-1 font-black">
+          Base de <span className="text-[#2D6A4F] italic">Custos</span>
+        </h1>
+        <p className="text-sm text-[#6B6B5F] mt-1 font-medium">
+          Esses dados alimentam diretamente os cálculos de precificação.
+        </p>
       </header>
+
+      {/* Navigation Tabs - Pills Style */}
+      <div className="flex gap-2 mb-8 p-1 bg-[#F0EDE8] rounded-xl w-fit">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              activeTab === tab.id 
+                ? 'bg-[#1B3A2D] text-white shadow-sm' 
+                : 'text-[#6B6B5F] hover:text-[#141410]'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       {/* Tabs Layout Handler */}
       <AnimatePresence mode="wait">
         
-        {/* ABA 1: CUSTOS DA EMPRESA */}
+        {/* ABA 1: FORMULÁRIO DE CUSTOS */}
         {activeTab === 'costs' && (
           <motion.div
             key="costs-tab"
@@ -527,340 +513,354 @@ export function FinancialPage() {
           >
             
             {/* Form Column - Left */}
-            <form onSubmit={handleSave} className="lg:col-span-8 space-y-8" id="financial-form">
-              
-              {/* Custos Fixos Seção */}
-              <Card className="bg-white border-[#E5E7EB] shadow-xs rounded-[28px] p-8 space-y-6" id="card-fixed-costs-input">
-                <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
-                  <div className="p-2.5 bg-slate-50 border border-slate-100 text-slate-950 rounded-xl">
-                    <Truck className="size-5" />
+            <form onSubmit={handleSave} className="lg:col-span-8 space-y-6 animate-in fade-in duration-300" id="financial-form">
+              <div className="grid gap-6 md:grid-cols-2 items-start">
+                
+                {/* Seção 1: Custos Fixos */}
+                <div className="bg-white rounded-2xl border border-[#E8E6E1] overflow-hidden shadow-xs">
+                  {/* Header do card */}
+                  <div className="flex items-center gap-3 px-6 py-4 border-b border-[#E8E6E1] bg-[#FAFAF9]">
+                    <div className="size-8 rounded-lg bg-[#1B3A2D] flex items-center justify-center">
+                      <Truck className="size-4 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-[#141410] text-sm">Custos Fixos Mensais</h3>
+                      <p className="text-xs text-[#6B6B5F]">Despesas que ocorrem todo mês</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-950">Custos Fixos Mensais</h3>
-                    <p className="text-[11px] text-gray-400">Despesas rotineiras essenciais para manter a DDSulf em operação.</p>
+                  {/* Campos */}
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-1.5 text-xs font-semibold">Aluguel de Veículos (Frota)</label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[#9E9A93] font-medium">R$</span>
+                        <input 
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={vehicleRental || ''}
+                          onChange={(e) => setVehicleRental(parseFloat(e.target.value) || 0)}
+                          className="w-full h-11 pl-9 pr-4 rounded-xl border border-[#E8E6E1] bg-white
+                                            text-sm font-semibold text-[#141410]
+                                            focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F]
+                                            transition-all font-mono" 
+                          placeholder="0,00"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-1.5 text-xs font-semibold">Salários (Total Bruto)</label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[#9E9A93] font-medium">R$</span>
+                        <input 
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={salaries || ''}
+                          onChange={(e) => setSalaries(parseFloat(e.target.value) || 0)}
+                          className="w-full h-11 pl-9 pr-4 rounded-xl border border-[#E8E6E1] bg-white
+                                            text-sm font-semibold text-[#141410]
+                                            focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F]
+                                            transition-all font-mono" 
+                          placeholder="0,00"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-1.5 text-xs font-semibold">Aluguel / Sede Coordenada</label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[#9E9A93] font-medium">R$</span>
+                        <input 
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={rent || ''}
+                          onChange={(e) => setRent(parseFloat(e.target.value) || 0)}
+                          className="w-full h-11 pl-9 pr-4 rounded-xl border border-[#E8E6E1] bg-white
+                                            text-sm font-semibold text-[#141410]
+                                            focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F]
+                                            transition-all font-mono" 
+                          placeholder="0,00"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-1.5 text-xs font-semibold">Combustível (Média Mensal)</label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[#9E9A93] font-medium">R$</span>
+                        <input 
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={fuel || ''}
+                          onChange={(e) => setFuel(parseFloat(e.target.value) || 0)}
+                          className="w-full h-11 pl-9 pr-4 rounded-xl border border-[#E8E6E1] bg-white
+                                            text-sm font-semibold text-[#141410]
+                                            focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F]
+                                            transition-all font-mono" 
+                          placeholder="0,00"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-1.5 text-xs font-semibold">Seguros Contratados</label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[#9E9A93] font-medium">R$</span>
+                        <input 
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={insurance || ''}
+                          onChange={(e) => setInsurance(parseFloat(e.target.value) || 0)}
+                          className="w-full h-11 pl-9 pr-4 rounded-xl border border-[#E8E6E1] bg-white
+                                            text-sm font-semibold text-[#141410]
+                                            focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F]
+                                            transition-all font-mono" 
+                          placeholder="0,00"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-1.5 text-xs font-semibold">Outros Custos Fixos</label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[#9E9A93] font-medium">R$</span>
+                        <input 
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={other || ''}
+                          onChange={(e) => setOther(parseFloat(e.target.value) || 0)}
+                          className="w-full h-11 pl-9 pr-4 rounded-xl border border-[#E8E6E1] bg-white
+                                            text-sm font-semibold text-[#141410]
+                                            focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F]
+                                            transition-all font-mono" 
+                          placeholder="0,00"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div className="space-y-1.5" id="group-vehicle-rental">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Aluguel de Veículos (Frota)</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">R$</span>
-                      <input
-                        id="input-vehicle-rental"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={vehicleRental || ''}
-                        onChange={(e) => setVehicleRental(parseFloat(e.target.value) || 0)}
-                        className="w-full h-11 border border-gray-200 rounded-xl pl-10 pr-4 text-xs font-semibold focus:outline-hidden focus:border-slate-950 transition-all bg-white"
-                        placeholder="0,00"
+                {/* Seção 2: Custos Variáveis + Parâmetro Operacionais */}
+                <div className="space-y-6">
+                  
+                  {/* Card Custos Variáveis */}
+                  <div className="bg-white rounded-2xl border border-[#E8E6E1] overflow-hidden shadow-xs">
+                    <div className="flex items-center gap-3 px-6 py-4 border-b border-[#E8E6E1] bg-[#FAFAF9]">
+                      <div className="size-8 rounded-lg bg-[#1B3A2D] flex items-center justify-center">
+                        <Coins className="size-4 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-[#141410] text-sm">Custos Variáveis</h3>
+                        <p className="text-xs text-[#6B6B5F]">Vinculados diretamente aos insumos</p>
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <div>
+                        <label className="kpi-label text-[#6B6B5F] block mb-1.5 text-xs font-semibold">Insumos e Produtos / Serviço</label>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[#9E9A93] font-medium">R$</span>
+                          <input 
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={productsPerService || ''}
+                            onChange={(e) => setProductsPerService(parseFloat(e.target.value) || 0)}
+                            className="w-full h-11 pl-9 pr-4 rounded-xl border border-[#E8E6E1] bg-white
+                                              text-sm font-semibold text-[#141410]
+                                              focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F]
+                                              transition-all font-mono" 
+                            placeholder="0,00"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="kpi-label text-[#6B6B5F] block mb-1.5 text-xs font-semibold">Mão de Obra Técnica por Hora</label>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[#9E9A93] font-medium">R$</span>
+                          <input 
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={laborPerHour || ''}
+                            onChange={(e) => setLaborPerHour(parseFloat(e.target.value) || 0)}
+                            className="w-full h-11 pl-9 pr-4 rounded-xl border border-[#E8E6E1] bg-white
+                                              text-sm font-semibold text-[#141410]
+                                              focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F]
+                                              transition-all font-mono" 
+                            placeholder="0,00"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="kpi-label text-[#6B6B5F] block mb-1.5 text-xs font-semibold">Depreciação de Equipamento / Serviço</label>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[#9E9A93] font-medium">R$</span>
+                          <input 
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={equipmentDepreciation || ''}
+                            onChange={(e) => setEquipmentDepreciation(parseFloat(e.target.value) || 0)}
+                            className="w-full h-11 pl-9 pr-4 rounded-xl border border-[#E8E6E1] bg-white
+                                              text-sm font-semibold text-[#141410]
+                                              focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F]
+                                              transition-all font-mono" 
+                            placeholder="0,00"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Parâmetros Operacionais */}
+                  <div className="bg-white rounded-2xl border border-[#E8E6E1] overflow-hidden shadow-xs">
+                    <div className="flex items-center gap-3 px-6 py-4 border-b border-[#E8E6E1] bg-[#FAFAF9]">
+                      <div className="size-8 rounded-lg bg-[#1B3A2D] flex items-center justify-center">
+                        <Sliders className="size-4 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-[#141410] text-sm">Parâmetros Operacionais</h3>
+                        <p className="text-xs text-[#6B6B5F]">Volume estimado e margens do sistema</p>
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      <div>
+                        <label className="kpi-label text-[#6B6B5F] block mb-1.5 text-xs font-semibold">Média de Serviços por Mês</label>
+                        <input 
+                          type="number"
+                          min="1"
+                          value={servicesPerMonth || ''}
+                          onChange={(e) => setServicesPerMonth(parseInt(e.target.value) || 1)}
+                          className="w-full h-11 px-4 rounded-xl border border-[#E8E6E1] bg-white
+                                            text-sm font-semibold text-[#141410]
+                                            focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F]
+                                            transition-all font-mono" 
+                          placeholder="Ex: 120"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="kpi-label text-[#6B6B5F] block mb-1.5 text-xs font-semibold">Duração Média de Serviços (Horas)</label>
+                        <input 
+                          type="number"
+                          min="0.5"
+                          step="0.5"
+                          value={avgServiceDurationHours || ''}
+                          onChange={(e) => setAvgServiceDurationHours(parseFloat(e.target.value) || 1)}
+                          className="w-full h-11 px-4 rounded-xl border border-[#E8E6E1] bg-white
+                                            text-sm font-semibold text-[#141410]
+                                            focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F]
+                                            transition-all font-mono" 
+                          placeholder="Ex: 3"
+                        />
+                      </div>
+
+                      <div className="space-y-2 pt-2">
+                        <div className="flex justify-between items-center text-xs font-semibold">
+                          <span className="text-[#6B6B5F]">Margem Mínima Desejada</span>
+                          <span className="text-white bg-[#1B3A2D] px-2.5 py-1 rounded text-xs shrink-0 font-bold">{minimumMarginPercent}%</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-[10px] font-bold text-[#6B6B5F]">0%</span>
+                          <input 
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="1"
+                            value={minimumMarginPercent}
+                            onChange={(e) => setMinimumMarginPercent(parseInt(e.target.value) || 0)}
+                            className="flex-1 accent-[#1B3A2D] h-1.5 bg-[#F0EDE8] rounded-xl appearance-none cursor-pointer"
+                          />
+                          <span className="text-[10px] font-bold text-[#6B6B5F]">100%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Observações Estratégicas */}
+                  <div className="bg-white rounded-2xl border border-[#E8E6E1] overflow-hidden shadow-xs">
+                    <div className="flex items-center gap-3 px-6 py-4 border-b border-[#E8E6E1] bg-[#FAFAF9]">
+                      <div className="size-8 rounded-lg bg-[#1B3A2D] flex items-center justify-center">
+                        <Sliders className="size-4 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-[#141410] text-sm">Observações Estratégicas</h3>
+                        <p className="text-xs text-[#6B6B5F]">Diretrizes e notas para simulações</p>
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <textarea
+                        rows={3}
+                        value={observations}
+                        onChange={(e) => setObservations(e.target.value)}
+                        className="w-full border border-[#E8E6E1] rounded-xl p-3 text-sm font-medium text-[#141410] bg-white
+                                          focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F]
+                                          transition-all min-h-[90px]"
+                        placeholder="Especifique frotas extras, contratos especiais ou reajustes periódicos programados..."
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-1.5" id="group-salaries">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Salários (Total Bruto)</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">R$</span>
-                      <input
-                        id="input-salaries"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={salaries || ''}
-                        onChange={(e) => setSalaries(parseFloat(e.target.value) || 0)}
-                        className="w-full h-11 border border-gray-200 rounded-xl pl-10 pr-4 text-xs font-semibold focus:outline-hidden focus:border-slate-950 transition-all bg-white"
-                        placeholder="0,00"
-                      />
-                    </div>
-                  </div>
                 </div>
 
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div className="space-y-1.5" id="group-rent">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Aluguel / Sede Coordenada</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">R$</span>
-                      <input
-                        id="input-rent"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={rent || ''}
-                        onChange={(e) => setRent(parseFloat(e.target.value) || 0)}
-                        className="w-full h-11 border border-gray-200 rounded-xl pl-10 pr-4 text-xs font-semibold focus:outline-hidden focus:border-slate-950 transition-all bg-white"
-                        placeholder="0,00"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5" id="group-fuel">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Combustível (Média Mensal)</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">R$</span>
-                      <input
-                        id="input-fuel"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={fuel || ''}
-                        onChange={(e) => setFuel(parseFloat(e.target.value) || 0)}
-                        className="w-full h-11 border border-gray-200 rounded-xl pl-10 pr-4 text-xs font-semibold focus:outline-hidden focus:border-slate-950 transition-all bg-white"
-                        placeholder="0,00"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div className="space-y-1.5" id="group-insurance">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Seguros Contratados</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">R$</span>
-                      <input
-                        id="input-insurance"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={insurance || ''}
-                        onChange={(e) => setInsurance(parseFloat(e.target.value) || 0)}
-                        className="w-full h-11 border border-gray-200 rounded-xl pl-10 pr-4 text-xs font-semibold focus:outline-hidden focus:border-slate-950 transition-all bg-white"
-                        placeholder="0,00"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5" id="group-other">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Outros Custos Fixos (Água, Luz, Admin...)</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">R$</span>
-                      <input
-                        id="input-other"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={other || ''}
-                        onChange={(e) => setOther(parseFloat(e.target.value) || 0)}
-                        className="w-full h-11 border border-gray-200 rounded-xl pl-10 pr-4 text-xs font-semibold focus:outline-hidden focus:border-slate-950 transition-all bg-white"
-                        placeholder="0,00"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5" id="group-observations">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Observações Estratégicas</label>
-                  <textarea
-                    id="textarea-observations"
-                    rows={2}
-                    value={observations}
-                    onChange={(e) => setObservations(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl p-3.5 text-xs font-semibold focus:outline-hidden focus:border-slate-950 transition-all bg-white min-h-[70px]"
-                    placeholder="Especifique frotas extras, contratos especiais ou reajustes periódicos programados..."
-                  />
-                </div>
-              </Card>
-
-              {/* Custos Variáveis Seção */}
-              <Card className="bg-white border-[#E5E7EB] shadow-xs rounded-[28px] p-8 space-y-6" id="card-variable-costs-input">
-                <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
-                  <div className="p-2.5 bg-slate-50 border border-slate-100 text-slate-950 rounded-xl">
-                    <Coins className="size-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-950">Custos Variáveis</h3>
-                    <p className="text-[11px] text-gray-400">Despesas inerentes aos consumíveis e as execuções de atendimentos.</p>
-                  </div>
-                </div>
-
-                <div className="grid gap-5 md:grid-cols-3">
-                  <div className="space-y-1.5" id="group-products-per-service">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Média de Produtos/Serviço</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">R$</span>
-                      <input
-                        id="input-products-per-service"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={productsPerService || ''}
-                        onChange={(e) => setProductsPerService(parseFloat(e.target.value) || 0)}
-                        className="w-full h-11 border border-gray-200 rounded-xl pl-10 pr-4 text-xs font-semibold focus:outline-hidden focus:border-slate-950 transition-all bg-white"
-                        placeholder="0,00"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5" id="group-labor-per-hour">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Mão de Obra por Hora</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">R$</span>
-                      <input
-                        id="input-labor-per-hour"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={laborPerHour || ''}
-                        onChange={(e) => setLaborPerHour(parseFloat(e.target.value) || 0)}
-                        className="w-full h-11 border border-gray-200 rounded-xl pl-10 pr-4 text-xs font-semibold focus:outline-hidden focus:border-slate-950 transition-all bg-white"
-                        placeholder="0,00"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5" id="group-equipment-depreciation">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Depreciação de Equipamento</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">R$</span>
-                      <input
-                        id="input-equipment-depreciation"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={equipmentDepreciation || ''}
-                        onChange={(e) => setEquipmentDepreciation(parseFloat(e.target.value) || 0)}
-                        className="w-full h-11 border border-gray-200 rounded-xl pl-10 pr-4 text-xs font-semibold focus:outline-hidden focus:border-slate-950 transition-all bg-white"
-                        placeholder="0,00"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Parâmetros Operacionais Seção */}
-              <Card className="bg-white border-[#E5E7EB] shadow-xs rounded-[28px] p-8 space-y-6" id="card-operational-input">
-                <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
-                  <div className="p-2.5 bg-slate-50 border border-slate-100 text-slate-950 rounded-xl">
-                    <Sliders className="size-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-950">Parâmetros Operacionais</h3>
-                    <p className="text-[11px] text-gray-400">Volume estimado de serviços de base do rateio geral.</p>
-                  </div>
-                </div>
-
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div className="space-y-1.5" id="group-services-per-month">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 font-bold">Média de Serviços por Mês</label>
-                    <input
-                      id="input-services-per-month"
-                      type="number"
-                      min="1"
-                      value={servicesPerMonth || ''}
-                      onChange={(e) => setServicesPerMonth(parseInt(e.target.value) || 1)}
-                      className="w-full h-11 border border-gray-200 rounded-xl px-4 text-xs font-semibold focus:outline-hidden focus:border-slate-950 transition-all bg-white"
-                      placeholder="Ex: 120"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5" id="group-avg-duration">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 font-bold">Duração Média do Serviço (horas)</label>
-                    <input
-                      id="input-avg-duration"
-                      type="number"
-                      min="0.5"
-                      step="0.5"
-                      value={avgServiceDurationHours || ''}
-                      onChange={(e) => setAvgServiceDurationHours(parseFloat(e.target.value) || 1)}
-                      className="w-full h-11 border border-gray-200 rounded-xl px-4 text-xs font-semibold focus:outline-hidden focus:border-slate-950 transition-all bg-white"
-                      placeholder="Ex: 3"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3" id="group-minimum-margin">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 font-bold">
-                      Margem Mínima Desejada (%)
-                    </label>
-                    <span className="text-xs font-bold text-slate-950 bg-slate-100 px-2.5 py-1 rounded-md">
-                      {minimumMarginPercent}%
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-[10px] font-bold text-slate-400">0%</span>
-                    <input
-                      id="slider-margin"
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={minimumMarginPercent}
-                      onChange={(e) => setMinimumMarginPercent(parseInt(e.target.value) || 0)}
-                      className="flex-1 accent-slate-950 h-1 bg-gray-200 rounded-sm appearance-none cursor-pointer"
-                    />
-                    <span className="text-[10px] font-bold text-slate-400">100%</span>
-                  </div>
-                </div>
-              </Card>
+              </div>
             </form>
 
-            {/* Sidebar real-time computations - Right */}
+            {/* Painel lateral de Resumo em Tempo Real (sticky) - Right */}
             <div className="lg:col-span-4 space-y-6">
               
-              <Card className="bg-slate-950 text-white p-8 rounded-[32px] space-y-6 relative overflow-hidden shadow-md" id="right-projection-panel">
-                <div>
-                  <div className="size-2 bg-emerald-500 rounded-full mb-3.5 animate-pulse" />
-                  <h3 className="text-sm font-black uppercase tracking-widest opacity-60">Projeção Dinâmica</h3>
-                  <h4 className="text-[10px] text-slate-400">Visualização imediata dos inputs atuais</h4>
-                </div>
-
-                <div className="border-t border-slate-800 pt-5 space-y-3.5 text-xs font-mono">
-                  <div className="flex justify-between items-center">
-                    <span className="opacity-50">Custos Fixos Totais/mês</span>
-                    <span className="font-bold">R$ {currentTotalFixedCosts.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              <div className="bg-[#1B3A2D] rounded-2xl p-6 text-white sticky top-4 shadow-sm border border-[#2D6A4F]/20">
+                <p className="kpi-label text-[#A8CDB8] mb-4 text-xs font-bold uppercase tracking-wider">Resumo em Tempo Real</p>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs text-[#A8CDB8]">Custo Fixo/Mês</p>
+                    <p className="font-display text-3xl font-bold">R$ {currentTotalFixedCosts.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="opacity-50">Custo Fixo por Serviço</span>
-                    <span className="font-bold">R$ {currentFixedCostPerService.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  <div className="h-px bg-[#2D6A4F]" />
+                  <div>
+                    <p className="text-xs text-[#A8CDB8]">Custo por Serviço</p>
+                    <p className="font-display text-2xl font-bold">R$ {currentTotalCostPerService.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="opacity-50">Custo Variável estimado</span>
-                    <span className="font-bold">R$ {currentVariableCostPerService.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  <div className="h-px bg-[#2D6A4F]" />
+                  <div>
+                    <p className="text-xs text-[#A8CDB8]">Preço Mínimo (c/ margem)</p>
+                    <p className="font-display text-2xl text-[#D4A017] font-bold">R$ {currentSuggestedMinPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                   </div>
-                  <div className="border-t border-slate-800/80 pt-3 flex justify-between items-center text-sm font-bold text-slate-100">
-                    <span>Custo Total por Serviço</span>
-                    <span>R$ {currentTotalCostPerService.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-
-                <div className="bg-slate-900 rounded-2xl p-5 space-y-1.5 border border-slate-800/60">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[#10B981] flex items-center gap-1">
-                    <TrendingUp className="size-3" /> Preço Mínimo Sugerido
-                  </span>
-                  <div className="text-2xl font-black text-white tracking-tight">
-                    R$ {currentSuggestedMinPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </div>
-                  <p className="text-[9px] text-slate-500 leading-normal">
-                    Fator multiplicador necessário para cobrir custos e retornar livre de encargos a margem estipulada de {minimumMarginPercent}%.
-                  </p>
                 </div>
 
                 <Button
                   id="btn-save-costs-form"
+                  type="button"
                   onClick={() => handleSave()}
                   disabled={saving}
-                  className="w-full h-12 bg-white text-slate-950 hover:bg-gray-100 font-bold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-98 flex items-center justify-center gap-2 shadow-sm"
+                  className="w-full h-12 mt-6 bg-white text-[#1B3A2D] hover:bg-[#FAFAF9] font-bold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                 >
-                  {saving ? 'Gravando Alterações...' : (
+                  {saving ? (
+                    'Gravando...'
+                  ) : (
                     <>
                       <Check className="size-4" />
                       Salvar Dados Financeiros
                     </>
                   )}
                 </Button>
+              </div>
 
-                <div className="absolute -bottom-20 -left-20 size-56 bg-slate-800/15 rounded-full blur-2xl pointer-events-none" />
-              </Card>
-
-              {/* Tips Section */}
-              <div className="p-6 bg-slate-50 border border-[#E5E7EB] rounded-[24px] space-y-3" id="card-help-projections">
-                <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <HelpCircle className="size-3.5 text-slate-400" />
+              {/* Informações adicionais */}
+              <div className="p-6 bg-[#FAFAF9] border border-[#E8E6E1] rounded-2xl space-y-3">
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-[#6B6B5F] flex items-center gap-1.5">
+                  <HelpCircle className="size-3.5 text-[#2D6A4F]" />
                   Métrica de Equivalência
                 </h4>
-                <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+                <p className="text-xs text-[#6B6B5F] font-medium leading-relaxed">
                   A DDSulf usa essas taxas como referências globais do sistema. O rateio do KM rodado, taxas tributárias aproximadas e custo ocioso de técnicos em campo de orçamentos se retroalimentam com base neste painel central.
                 </p>
               </div>
@@ -877,16 +877,16 @@ export function FinancialPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.25 }}
-            className="space-y-8"
+            className="space-y-6"
           >
-            <div className="grid gap-8 lg:grid-cols-12">
+            <div className="grid gap-6 lg:grid-cols-12 items-start">
               
               {/* Drag n Drop Upload Area */}
-              <div className="lg:col-span-5 space-y-6">
-                <Card className="bg-white border-[#E5E7EB] shadow-xs rounded-[28px] p-8 space-y-6" id="card-upload-dragdrop">
-                  <div className="space-y-1.5">
-                    <h3 className="text-base font-bold text-slate-950">Seletor de Planilhas</h3>
-                    <p className="text-[11px] text-gray-400">Importe as planilhas existentes da DDSulf sem mudar suas estruturas originais.</p>
+              <div className="lg:col-span-12 xl:col-span-5 space-y-6">
+                <div className="bg-white rounded-2xl border border-[#E8E6E1] p-6 space-y-6">
+                  <div>
+                    <h3 className="font-semibold text-[#141410] text-base font-display">Seletor de Planilhas</h3>
+                    <p className="text-xs text-[#6B6B5F] mt-1">Importe as planilhas existentes da DDSulf sem mudar suas estruturas originais.</p>
                   </div>
 
                   {/* Interative Box */}
@@ -895,26 +895,26 @@ export function FinancialPage() {
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    className={`border-2 border-dashed rounded-[20px] p-10 text-center transition-all cursor-pointer ${
+                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
                       isDragging 
-                        ? 'border-slate-950 bg-slate-50/50' 
-                        : 'border-slate-200 hover:border-slate-400 bg-white'
+                        ? 'border-[#1B3A2D] bg-[#FAFAF9]' 
+                        : 'border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-[#FAFAF9]/50 bg-[#FAFAF9]'
                     }`}
                     onClick={() => document.getElementById('file-upload-input')?.click()}
                   >
                     <div className="flex flex-col items-center gap-4">
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-slate-400">
+                      <div className="p-3 bg-white rounded-xl border border-[#E8E6E1] text-[#1B3A2D] shadow-xs">
                         <FileSpreadsheet className="size-8" />
                       </div>
                       
                       <div className="space-y-1">
-                        <p className="text-xs font-bold text-slate-900">Arraste ou clique para carregar o arquivo</p>
-                        <p className="text-[9px] text-gray-400">Formatos compatíveis: .xlsx, .xls ou .csv</p>
+                        <p className="text-xs font-bold text-[#141410]">Arraste ou clique para carregar o arquivo</p>
+                        <p className="text-[10px] text-[#6B6B5F]">Formatos compatíveis: .xlsx, .xls ou .csv</p>
                       </div>
 
                       {uploadedFileName && (
-                        <div className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-900 px-3 py-1 rounded-full text-[10px] font-bold border border-slate-200">
-                          <Check className="size-3 text-emerald-600" />
+                        <div className="inline-flex items-center gap-1.5 bg-[#E8F5E9] text-[#1B3A2D] px-3 py-1 rounded-full text-[10px] font-bold border border-[#A5D6A7]">
+                          <Check className="size-3" />
                           {uploadedFileName}
                         </div>
                       )}
@@ -930,7 +930,7 @@ export function FinancialPage() {
                         <Button
                           type="button"
                           variant="outline"
-                          className="h-9 px-4 rounded-xl font-bold text-[10px] uppercase tracking-wider text-slate-950 border-slate-200 hover:bg-slate-50"
+                          className="h-9 px-4 rounded-xl font-bold text-[10px] uppercase tracking-wider text-[#1B3A2D] border-[#1B3A2D] hover:bg-[#1B3A2D]/10 cursor-pointer"
                         >
                           Procurar Arquivo
                         </Button>
@@ -939,61 +939,59 @@ export function FinancialPage() {
                   </div>
 
                   {/* Details block */}
-                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-[10px] text-gray-500 space-y-1.5">
-                    <span className="font-bold text-slate-800 uppercase block tracking-wider">Como funciona o scanner semântico?</span>
-                    <p className="leading-relaxed">
+                  <div className="p-4 bg-[#FAFAF9] rounded-xl border border-[#E8E6E1] text-xs text-[#6B6B5F] space-y-1.5">
+                    <span className="font-bold text-[#141410] uppercase block tracking-wider text-[10px]">Como funciona o mapeador?</span>
+                    <p className="leading-relaxed text-[11px]">
                       Lemos as linhas e cruzamos descrições comuns para "veículo", "salários", "sede", "gasolina" e "seguros" e detectamos de forma contígua os valores próximos. Você pode visualizar a correspondência e mudar o campo destino ou ignorar.
                     </p>
                   </div>
-                </Card>
+                </div>
               </div>
 
               {/* Mapped values review parameters panel */}
-              <div className="lg:col-span-7 space-y-6">
-                <Card className="bg-white border-[#E5E7EB] shadow-xs rounded-[28px] p-8 space-y-6 flex flex-col min-h-[420px]" id="card-mapped-results">
+              <div className="lg:col-span-12 xl:col-span-7 space-y-6">
+                <div className="bg-white rounded-2xl border border-[#E8E6E1] p-6 space-y-4 flex flex-col min-h-[420px]" id="card-mapped-results">
                   
-                  <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                  <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-4">
                     <div className="space-y-0.5">
-                      <h3 className="text-base font-bold text-slate-950">Tabela de Revisão</h3>
-                      <p className="text-[11px] text-gray-400">Verifique e edite o destino das correspondências identificadas.</p>
+                      <h3 className="font-semibold text-base font-display text-[#141410]">Tabela de Revisão</h3>
+                      <p className="text-xs text-[#6B6B5F]">Verifique e edite o destino das correspondências identificadas.</p>
                     </div>
                     {mappedItems.length > 0 && (
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 flex items-center gap-1">
+                      <span className="text-[10px] font-bold text-[#1B3A2D] bg-[#E8F5E9] px-2.5 py-1 rounded-lg border border-[#A5D6A7] flex items-center gap-1">
                         <FileCheck2 className="size-3.5" /> {mappedItems.length} Encontrados
                       </span>
                     )}
                   </div>
 
                   {/* Review Table body */}
-                  <div className="flex-1 overflow-y-auto max-h-[350px] pr-1 space-y-3">
+                  <div className="flex-1 overflow-y-auto max-h-[350px] pr-1 space-y-2">
                     {mappedItems.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
-                        <AlertTriangle className="size-8 text-amber-500 opacity-60" />
+                        <AlertTriangle className="size-8 text-[#D4A017] opacity-80" />
                         <div className="space-y-1">
-                          <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Aguardando Planilha</p>
-                          <p className="text-[10px] text-gray-400 max-w-[320px] leading-relaxed">Importe uma planilha financeira para ver o mapeador inteligente em ação.</p>
+                          <p className="text-xs font-bold text-[#141410] uppercase tracking-wider">Aguardando Planilha</p>
+                          <p className="text-xs text-[#6B6B5F] max-w-[320px] leading-relaxed">Importe uma planilha financeira para ver o mapeador inteligente em ação.</p>
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {mappedItems.map((item, index) => (
                           <div 
                             key={item.id}
-                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border transition-all gap-4 ${
-                              item.confirmed 
-                                ? 'bg-slate-50/50 border-slate-200' 
-                                : 'bg-white border-dashed border-gray-200 opacity-50'
-                            }`}
+                            className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-all gap-4 ${
+                              index % 2 === 0 ? 'bg-[#FAFAF9] border-[#E8E6E1]' : 'bg-white border-[#E8E6E1]'
+                            } ${!item.confirmed ? 'opacity-50' : ''}`}
                           >
                             <div className="space-y-1 flex-1">
                               <div className="flex items-center gap-2">
-                                <b className="text-xs text-slate-950 font-bold">{item.sourceLabel}</b>
-                                <span className="font-mono text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                                <span className="text-xs text-[#141410] font-bold">{item.sourceLabel}</span>
+                                <span className="font-mono text-[9px] text-[#6B6B5F] bg-[#F0EDE8] px-1.5 py-0.5 rounded">
                                   Ref: {item.cellRef.split(' (')[0]}
                                 </span>
                               </div>
-                              <p className="text-[10px] text-gray-400 font-medium">
-                                Valor identificado: <span className="font-bold text-slate-700">R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                              <p className="text-xs text-[#6B6B5F]">
+                                Valor identificado: <span className="font-bold text-[#1B3A2D] font-mono">R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                               </p>
                             </div>
 
@@ -1004,7 +1002,7 @@ export function FinancialPage() {
                               <select
                                 value={item.systemField}
                                 onChange={(e) => handleUpdateItemField(item.id, e.target.value)}
-                                className="h-9 input-option-system text-slate-950 bg-white border border-gray-200 rounded-lg px-2 text-[11px] font-bold focus:outline-hidden focus:ring-1 focus:ring-slate-950 max-w-[220px]"
+                                className="h-9 text-[#141410] bg-white border border-[#E8E6E1] rounded-lg px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] max-w-[220px] cursor-pointer"
                               >
                                 {SYSTEM_FIELDS_OPTIONS.map(opt => (
                                   <option key={opt.value} value={opt.value}>
@@ -1019,9 +1017,9 @@ export function FinancialPage() {
                                   type="checkbox"
                                   checked={item.confirmed}
                                   onChange={() => handleToggleItemConfirm(item.id)}
-                                  className="size-4 accent-slate-950 rounded border-gray-300"
+                                  className="size-4 accent-[#1B3A2D] rounded border-[#E8E6E1]"
                                 />
-                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Aprovar</span>
+                                <span className="text-xs font-bold text-[#6B6B5F] uppercase tracking-wider pl-1 font-sans">Aprovar</span>
                               </label>
 
                             </div>
@@ -1032,7 +1030,7 @@ export function FinancialPage() {
                   </div>
 
                   {mappedItems.length > 0 && (
-                    <div className="pt-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
+                    <div className="pt-4 border-t border-[#E8E6E1] flex justify-end gap-3 shrink-0">
                       <Button
                         type="button"
                         onClick={() => {
@@ -1041,7 +1039,7 @@ export function FinancialPage() {
                           setUploadedFileName('');
                         }}
                         variant="ghost"
-                        className="h-11 px-5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-rose-600 hover:bg-rose-50"
+                        className="h-11 px-5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-rose-600 hover:bg-rose-50 cursor-pointer"
                       >
                         Limpar Dados
                       </Button>
@@ -1049,7 +1047,7 @@ export function FinancialPage() {
                         id="btn-confirm-import-data"
                         type="button"
                         onClick={handleImportSelected}
-                        className="h-11 px-6 text-[10px] font-bold uppercase tracking-wider text-white bg-slate-950 hover:opacity-95 active:scale-98 transition-all rounded-xl shadow-md flex items-center gap-1.5"
+                        className="h-11 px-6 text-[11px] font-bold uppercase tracking-wider text-white bg-[#1B3A2D] hover:bg-[#2D6A4F] active:scale-95 transition-all rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer font-sans"
                       >
                         <Check className="size-4" />
                         Importar Dados Selecionados
@@ -1057,7 +1055,7 @@ export function FinancialPage() {
                     </div>
                   )}
 
-                </Card>
+                </div>
               </div>
 
             </div>
@@ -1123,134 +1121,134 @@ export function FinancialPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.25 }}
-            className="space-y-8"
+            className="space-y-6"
           >
             
             {/* KPI Cards Grid */}
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4" id="overview-kpi-grid">
               
               {/* Card 1: Custo Fixo Mensal */}
-              <Card className="bg-white border-[#E5E7EB] shadow-xs rounded-[24px] p-6 space-y-4" id="overview-card-fixed-total">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[10px] font-black uppercase tracking-wider">Custos Fixos Totais</span>
-                  <Truck className="size-4" />
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4 hover:shadow-xs transition-shadow" id="overview-card-fixed-total">
+                <div className="flex items-center justify-between text-[#6B6B5F]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider font-sans">Custos Fixos Totais</span>
+                  <Truck className="size-4 text-[#2D6A4F]" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-3xl font-black text-slate-950">R$ {savedTotalFixedCosts.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
-                  <p className="text-[10px] text-gray-400">Rateio para {savedSafeServicesPerMonth} metas de atendimentos</p>
+                  <h4 className="text-3xl font-display text-[#141410]">R$ {savedTotalFixedCosts.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
+                  <p className="text-[10px] text-[#6B6B5F]">Rateio para {savedSafeServicesPerMonth} metas de atendimentos</p>
                 </div>
                 
                 {/* Visual items list breakdown */}
-                <div className="border-t border-gray-100 pt-3 space-y-1 text-[11px] text-slate-600">
+                <div className="border-t border-[#E8E6E1] pt-3 space-y-1 text-xs text-[#6B6B5F]">
                   <div className="flex justify-between">
                     <span>Veículos:</span>
-                    <span className="font-bold text-slate-950">R$ {(financial.fixedCosts.vehicleRental || 0).toLocaleString('pt-BR')}</span>
+                    <span className="font-bold text-[#141410] font-mono">R$ {(financial.fixedCosts.vehicleRental || 0).toLocaleString('pt-BR')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Funcionários:</span>
-                    <span className="font-bold text-slate-950">R$ {(financial.fixedCosts.salaries || 0).toLocaleString('pt-BR')}</span>
+                    <span className="font-bold text-[#141410] font-mono">R$ {(financial.fixedCosts.salaries || 0).toLocaleString('pt-BR')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Sede Física:</span>
-                    <span className="font-bold text-slate-950">R$ {(financial.fixedCosts.rent || 0).toLocaleString('pt-BR')}</span>
+                    <span className="font-bold text-[#141410] font-mono">R$ {(financial.fixedCosts.rent || 0).toLocaleString('pt-BR')}</span>
                   </div>
                 </div>
-              </Card>
+              </div>
 
               {/* Card 2: Custo Por Serviço */}
-              <Card className="bg-white border-[#E5E7EB] shadow-xs rounded-[24px] p-6 space-y-4" id="overview-card-per-service">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[10px] font-black uppercase tracking-wider">Custo Médio / Atendimento</span>
-                  <Coins className="size-4" />
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4 hover:shadow-xs transition-shadow" id="overview-card-per-service">
+                <div className="flex items-center justify-between text-[#6B6B5F]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider font-sans">Custo Médio / Atendimento</span>
+                  <Coins className="size-4 text-[#2D6A4F]" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-3xl font-black text-slate-950">R$ {savedTotalCostPerService.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
-                  <p className="text-[10px] text-gray-400">Fixo Rateado + Categoria do serviço</p>
+                  <h4 className="text-3xl font-display text-[#141410]">R$ {savedTotalCostPerService.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
+                  <p className="text-[10px] text-[#6B6B5F]">Fixo Rateado + Categoria do serviço</p>
                 </div>
 
-                <div className="border-t border-gray-100 pt-3 space-y-1 text-[11px] text-slate-600">
+                <div className="border-t border-[#E8E6E1] pt-3 space-y-1 text-xs text-[#6B6B5F]">
                   <div className="flex justify-between">
                     <span>Fração Fixa:</span>
-                    <span className="font-bold text-slate-900">R$ {savedFixedCostPerService.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</span>
+                    <span className="font-bold text-[#141410] font-mono">R$ {savedFixedCostPerService.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Insumos Médios:</span>
-                    <span className="font-bold text-slate-900">R$ {(financial.variableCosts.productsPerService || 0).toLocaleString('pt-BR')}</span>
+                    <span className="font-bold text-[#141410] font-mono">R$ {(financial.variableCosts.productsPerService || 0).toLocaleString('pt-BR')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Mão de Obra estim.:</span>
-                    <span className="font-bold text-slate-900">R$ {(financial.variableCosts.laborPerHour * financial.operational.avgServiceDurationHours).toLocaleString('pt-BR')}</span>
+                    <span className="font-bold text-[#141410] font-mono">R$ {(financial.variableCosts.laborPerHour * financial.operational.avgServiceDurationHours).toLocaleString('pt-BR')}</span>
                   </div>
                 </div>
-              </Card>
+              </div>
 
               {/* Card 3: Preço Mínimo */}
-              <Card className="bg-slate-950 text-white shadow-xs rounded-[24px] p-6 space-y-4 relative overflow-hidden" id="overview-card-suggested-price">
-                <div className="flex items-center justify-between opacity-60">
-                  <span className="text-[10px] font-black uppercase tracking-wider">Mínimo Sugerido Base</span>
-                  <TrendingUp className="size-4 text-emerald-400" />
+              <div className="bg-[#1B3A2D] text-white rounded-2xl p-6 space-y-4 relative overflow-hidden shadow-sm" id="overview-card-suggested-price">
+                <div className="flex items-center justify-between opacity-80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider font-sans text-[#A8CDB8]">Mínimo Sugerido Base</span>
+                  <TrendingUp className="size-4 text-[#D4A017]" />
                 </div>
-                <div className="space-y-1">
-                  <h4 className="text-3xl font-black text-white">R$ {savedSuggestedMinPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
-                  <p className="text-[10px] text-slate-400">Para preservar a rentabilidade definida</p>
+                <div className="space-y-1 z-10 relative">
+                  <h4 className="text-3xl font-display text-white">R$ {savedSuggestedMinPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
+                  <p className="text-[10px] text-[#A8CDB8]">Para preservar a rentabilidade definida</p>
                 </div>
 
-                <div className="border-t border-slate-800 pt-3 space-y-1 text-[11px] text-slate-300">
+                <div className="border-t border-[#2D6A4F] pt-3 space-y-1 text-xs text-[#A8CDB8] z-10 relative">
                   <div className="flex justify-between">
-                    <span>Custo Base do Atendimento:</span>
-                    <span>R$ {savedTotalCostPerService.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</span>
+                    <span>Custo do Atendimento:</span>
+                    <span className="font-mono text-white">R$ {savedTotalCostPerService.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Margem Mínima Segura:</span>
-                    <span className="text-emerald-400 font-bold">{financial.operational.minimumMarginPercent}%</span>
+                    <span className="text-[#D4A017] font-bold font-mono">{financial.operational.minimumMarginPercent}%</span>
                   </div>
                 </div>
-                <div className="absolute -bottom-16 -right-16 size-36 bg-slate-800/25 rounded-full blur-xl pointer-events-none" />
-              </Card>
+                <div className="absolute -bottom-16 -right-16 size-36 bg-[#2D6A4F]/30 rounded-full blur-xl pointer-events-none" />
+              </div>
 
               {/* Card 4: Margem Operacional */}
-              <Card className="bg-white border-[#E5E7EB] shadow-xs rounded-[24px] p-6 space-y-4" id="overview-card-margin-goal">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[10px] font-black uppercase tracking-wider">Configuração da Margem</span>
-                  <Percent className="size-4" />
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4 hover:shadow-xs transition-shadow" id="overview-card-margin-goal">
+                <div className="flex items-center justify-between text-[#6B6B5F]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider font-sans">Configuração da Margem</span>
+                  <Percent className="size-4 text-[#2D6A4F]" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-3xl font-black text-slate-950">{financial.operational.minimumMarginPercent}%</h4>
-                  <p className="text-[10px] text-gray-400">Margem mínima em cotações</p>
+                  <h4 className="text-3xl font-display text-[#141410]">{financial.operational.minimumMarginPercent}%</h4>
+                  <p className="text-[10px] text-[#6B6B5F]">Margem mínima em cotações</p>
                 </div>
 
-                <div className="border-t border-gray-100 pt-3 space-y-1 text-[11px] text-slate-600">
+                <div className="border-t border-[#E8E6E1] pt-3 space-y-1 text-xs text-[#6B6B5F]">
                   <div className="flex justify-between">
                     <span>Serviços / Mês (Meta):</span>
-                    <span className="font-bold text-slate-950">{financial.operational.servicesPerMonth} serviços</span>
+                    <span className="font-bold text-[#141410] font-sans">{financial.operational.servicesPerMonth} serv.</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Duração Média:</span>
-                    <span className="font-bold text-slate-950">{financial.operational.avgServiceDurationHours} horas</span>
+                    <span className="font-bold text-[#141410] font-sans">{financial.operational.avgServiceDurationHours} horas</span>
                   </div>
                 </div>
-              </Card>
+              </div>
 
             </div>
 
             {/* Visual Charts and lists breakdown */}
-            <div className="grid gap-8 lg:grid-cols-12" id="overview-visuals">
+            <div className="grid gap-6 lg:grid-cols-12" id="overview-visuals">
               
               {/* Pie Composition Chart - Left */}
-              <Card className="bg-white border-[#E5E7EB] shadow-xs rounded-[28px] p-8 lg:col-span-7 flex flex-col justify-between" id="card-piechart-fixed-costs">
-                <div className="space-y-1 border-b border-gray-100 pb-4">
-                  <h3 className="text-base font-bold text-slate-950 flex items-center gap-2">
-                    <PieChartIcon className="size-4 text-slate-500" />
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 lg:col-span-12 xl:col-span-7 flex flex-col justify-between" id="card-piechart-fixed-costs">
+                <div className="space-y-1 border-b border-[#E8E6E1] pb-4">
+                  <h3 className="text-base font-semibold font-display text-[#141410] flex items-center gap-2">
+                    <PieChartIcon className="size-4 text-[#2D6A4F]" />
                     Distribuição Estrita dos Custos Fixos
                   </h3>
-                  <p className="text-[11px] text-gray-400">Visão proporcional das despesas obrigatórias mensais para fins de gerenciamento tributário e de compras.</p>
+                  <p className="text-xs text-[#6B6B5F]">Visão proporcional das despesas obrigatórias mensais para fins de gerenciamento tributário e de compras.</p>
                 </div>
 
                 <div className="h-[280px] w-full mt-6" id="wrapper-fixed-costs-piechart">
                   {pieData.length === 0 ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-center text-slate-400 gap-2">
-                      <AlertTriangle className="size-6 text-amber-500" />
-                      <span className="text-[11px] font-medium">Não há custos fixos inseridos para gerar o gráfico.</span>
+                    <div className="w-full h-full flex flex-col items-center justify-center text-center text-[#6B6B5F] gap-2">
+                      <AlertTriangle className="size-6 text-[#D4A017]" />
+                      <span className="text-xs font-medium">Não há custos fixos inseridos para gerar o gráfico.</span>
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
@@ -1275,66 +1273,66 @@ export function FinancialPage() {
                           verticalAlign="bottom" 
                           height={36} 
                           iconType="circle"
-                          wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }}
+                          wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', fontFamily: 'DM Sans, sans-serif' }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
                 </div>
-              </Card>
+              </div>
 
               {/* Complete lists breakdown card - Right */}
-              <Card className="bg-white border-[#E5E7EB] shadow-xs rounded-[28px] p-8 lg:col-span-5 flex flex-col justify-between" id="card-overview-breakdown-list">
-                <div className="space-y-1 border-b border-gray-100 pb-4">
-                  <h3 className="text-base font-bold text-slate-950">Composição Detalhada</h3>
-                  <p className="text-[11px] text-gray-400">Sumário completo das variáveis atualmente ativas no sistema.</p>
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 lg:col-span-12 xl:col-span-5 flex flex-col justify-between" id="card-overview-breakdown-list">
+                <div className="space-y-1 border-b border-[#E8E6E1] pb-4">
+                  <h3 className="text-base font-semibold font-display text-[#141410]">Composição Detalhada</h3>
+                  <p className="text-xs text-[#6B6B5F]">Sumário completo das variáveis atualmente ativas no sistema.</p>
                 </div>
 
-                <div className="space-y-4 py-5 flex-1 divide-y divide-gray-100 text-xs">
+                <div className="space-y-4 py-4 flex-1 divide-y divide-[#E8E6E1] text-xs">
                   
-                  <div className="pt-3 space-y-2">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Custos Fixos Mensais</span>
-                    <div className="grid grid-cols-2 gap-y-1.5 text-slate-600">
+                  <div className="pt-2 space-y-2">
+                    <span className="text-[10px] font-bold uppercase text-[#6B6B5F] tracking-wider font-sans">Custos Fixos Mensais</span>
+                    <div className="grid grid-cols-2 gap-y-1.5 text-[#6B6B5F]">
                       <span>Aluguel Veículos:</span>
-                      <span className="font-mono text-right font-bold text-slate-900">R$ {(financial.fixedCosts.vehicleRental || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-mono text-right font-bold text-[#141410]">R$ {(financial.fixedCosts.vehicleRental || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                       <span>Salários Ativos:</span>
-                      <span className="font-mono text-right font-bold text-slate-900">R$ {(financial.fixedCosts.salaries || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-mono text-right font-bold text-[#141410]">R$ {(financial.fixedCosts.salaries || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                       <span>Aluguel Sede:</span>
-                      <span className="font-mono text-right font-bold text-slate-900">R$ {(financial.fixedCosts.rent || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-mono text-right font-bold text-[#141410]">R$ {(financial.fixedCosts.rent || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                       <span>Combustível mensal:</span>
-                      <span className="font-mono text-right font-bold text-slate-900">R$ {(financial.fixedCosts.fuel || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-mono text-right font-bold text-[#141410]">R$ {(financial.fixedCosts.fuel || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                       <span>Seguros:</span>
-                      <span className="font-mono text-right font-bold text-slate-900">R$ {(financial.fixedCosts.insurance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-mono text-right font-bold text-[#141410]">R$ {(financial.fixedCosts.insurance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                       <span>Outros Custos:</span>
-                      <span className="font-mono text-right font-bold text-slate-900">R$ {(financial.fixedCosts.other || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-mono text-right font-bold text-[#141410]">R$ {(financial.fixedCosts.other || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
 
                   <div className="pt-4 space-y-2">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Custos Variáveis por Serviço</span>
-                    <div className="grid grid-cols-2 gap-y-1.5 text-slate-600">
+                    <span className="text-[10px] font-bold uppercase text-[#6B6B5F] tracking-wider font-sans">Custos Variáveis por Serviço</span>
+                    <div className="grid grid-cols-2 gap-y-1.5 text-[#6B6B5F]">
                       <span>Média Produtos/Serviço:</span>
-                      <span className="font-mono text-right font-bold text-slate-900">R$ {(financial.variableCosts.productsPerService || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-mono text-right font-bold text-[#141410]">R$ {(financial.variableCosts.productsPerService || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                       <span>Valor Mão de Obra Hora:</span>
-                      <span className="font-mono text-right font-bold text-slate-900">R$ {(financial.variableCosts.laborPerHour || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                      <span>Depreciação de Equipamento/mês:</span>
-                      <span className="font-mono text-right font-bold text-slate-900">R$ {(financial.variableCosts.equipmentDepreciation || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-mono text-right font-bold text-[#141410]">R$ {(financial.variableCosts.laborPerHour || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span>Depreciação de Equipamento:</span>
+                      <span className="font-mono text-right font-bold text-[#141410]">R$ {(financial.variableCosts.equipmentDepreciation || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
 
                 </div>
 
-                <div className="pt-4 border-t border-gray-100 flex gap-2">
+                <div className="pt-4 border-t border-[#E8E6E1] flex gap-2">
                   <Button
                     id="btn-goto-costs-tab"
                     type="button"
                     onClick={() => setActiveTab('costs')}
-                    className="w-full text-[10px] font-bold uppercase tracking-wider h-11 bg-slate-100 text-slate-950 hover:bg-slate-200 rounded-xl"
+                    className="w-full text-[11px] font-bold uppercase tracking-wider h-11 bg-[#F0EDE8] hover:bg-[#FAFAF9] text-[#141410] border border-[#E8E6E1] rounded-xl cursor-pointer"
                   >
                     Alterar Parâmetros Manualmente
                   </Button>
                 </div>
-              </Card>
+              </div>
 
             </div>
 

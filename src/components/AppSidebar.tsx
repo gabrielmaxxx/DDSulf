@@ -1,7 +1,6 @@
-import { LayoutDashboard, Calculator, Receipt, ClipboardCheck, Package, Settings, LogOut, BrainCircuit } from 'lucide-react';
+import { Shield, LayoutDashboard, Calculator, Receipt, ClipboardCheck, Package, Settings, LogOut, BrainCircuit } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { motion } from 'motion/react';
 import {
   Sidebar,
   SidebarContent,
@@ -10,139 +9,184 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarGroupContent,
 } from './ui/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSystemStore } from '@/store/systemStore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { auth } from '@/services/firebase';
-
-const menuItems = [
-  { title: 'Dashboard', icon: LayoutDashboard, path: '/' },
-  { title: 'IA Operacional', icon: BrainCircuit, path: '/ai', highlighted: true },
-  { title: 'Calculadora', icon: Calculator, path: '/calculator' },
-  { title: 'Financeiro', icon: Receipt, path: '/financial' },
-  { title: 'POPs Operacionais', icon: ClipboardCheck, path: '/pops' },
-  { title: 'Estoque', icon: Package, path: '/inventory' },
-];
 
 export function AppSidebar() {
   const location = useLocation();
   const { user } = useAuth();
+  const { currentCompany, companies } = useSystemStore();
 
   const handleLogout = () => {
     useSystemStore.getState().logoutCompany();
-    auth.signOut();
+    // Simulate logging out from current account view
+    window.location.reload();
+  };
+
+  const currentCompanyName = currentCompany && companies?.[currentCompany]
+    ? companies[currentCompany].displayName
+    : (user?.name || 'DDSulf');
+
+  const mainGroup = [
+    { title: 'Dashboard', icon: LayoutDashboard, path: '/' },
+    { title: 'IA Operacional', icon: BrainCircuit, path: '/ai', aiBadge: true },
+  ];
+
+  const operationGroup = [
+    { title: 'Calculadora', icon: Calculator, path: '/calculator' },
+    { title: 'Financeiro', icon: Receipt, path: '/financial' },
+    { title: 'POPs Operacionais', icon: ClipboardCheck, path: '/pops' },
+    { title: 'Estoque', icon: Package, path: '/inventory' },
+  ];
+
+  const renderMenuItem = (item: { title: string; icon: any; path: string; aiBadge?: boolean }) => {
+    const isActive = location.pathname === item.path;
+    const Icon = item.icon;
+
+    return (
+      <SidebarMenuItem key={item.path}>
+        <SidebarMenuButton
+          render={<Link to={item.path} />}
+          isActive={isActive}
+          className={cn(
+            "transition-all duration-200 h-10 px-4 rounded-xl flex items-center gap-3 w-full border border-transparent font-medium",
+            isActive
+              ? "bg-white text-[#1B3A2D] font-bold shadow-md shadow-emerald-950/10 hover:bg-white hover:text-[#1B3A2D]"
+              : "text-[#E8F4EE]/90 hover:bg-[#2D6A4F] hover:text-white"
+          )}
+          tooltip={item.title}
+        >
+          <Icon className={cn("size-[18px] shrink-0", isActive ? "text-[#1B3A2D]" : "text-[#E8F4EE]/85")} />
+          <span className="text-xs tracking-tight">{item.title}</span>
+          {item.aiBadge && (
+            <span className="ml-auto flex items-center justify-center">
+              <span className="relative flex h-2 w-2 mr-1">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D4A017] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D4A017]"></span>
+              </span>
+              <span className={cn(
+                "text-[9px] font-black tracking-wider uppercase px-1.5 py-0.5 rounded-md",
+                isActive 
+                  ? "bg-[#D4A017] text-white" 
+                  : "bg-[#D4A017] text-slate-900"
+              )}>
+                IA
+              </span>
+            </span>
+          )}
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
   };
 
   return (
-    <Sidebar variant="sidebar" collapsible="icon">
-      <SidebarHeader className="border-b px-6 py-6 font-sans">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center shrink-0 shadow-sm">
-            <span className="text-white font-display font-semibold text-sm">DD</span>
+    <Sidebar variant="sidebar" collapsible="icon" className="bg-[#1B3A2D] border-r border-[#2D6A4F]/60 text-[#E8F4EE]">
+      {/* Header with Luxury Shield Logo */}
+      <SidebarHeader className="px-6 py-6 border-b border-[#2D6A4F] bg-[#1B3A2D]">
+        <div className="flex items-center gap-3.5 overflow-hidden">
+          <div className="relative size-10 shrink-0 flex items-center justify-center bg-[#2D6A4F]/40 border border-[#D4A017]/55 rounded-xl text-[#D4A017] shadow-lg shadow-emerald-950/20">
+            <Shield className="size-6 shrink-0 fill-[#D4A017]/5" />
+            <span className="absolute text-[10px] font-black tracking-tighter text-[#D4A017] select-none">DD</span>
           </div>
           <div className="flex flex-col truncate">
-            <span className="font-bold text-xl tracking-tight text-black leading-none">DDSulf</span>
-            <span className="text-[8px] font-mono text-slate-400 mt-1 uppercase tracking-widest font-semibold">Sistema v1.0</span>
+            <span className="font-display font-extrabold text-lg text-white tracking-wide leading-tight">DDSulf</span>
+            <span className="text-[9px] font-semibold text-[#82B29D] tracking-wider uppercase font-sans mt-0.5">Centro de Inteligência</span>
           </div>
         </div>
       </SidebarHeader>
-      
-      <SidebarContent className="px-2">
-        <SidebarGroup>
-          <div className="px-4 mb-4 mt-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-0 font-mono">Operacional</span>
+
+      <SidebarContent className="bg-[#1B3A2D] px-2.5 py-4 space-y-4">
+        {/* GROUP 1: PRINCIPAL */}
+        <SidebarGroup className="p-0">
+          <div className="px-4 mb-2.5">
+            <span className="text-[10px] font-black text-[#82B29D] uppercase tracking-wider font-sans">
+              Principal
+            </span>
           </div>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1.5">
-              {menuItems.map((item) => {
-                const isActive = location.pathname === item.path;
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      render={<Link to={item.path} />}
-                      isActive={isActive}
-                      className={cn(
-                        "transition-all duration-200 h-10 px-4 rounded-xl font-sans",
-                        isActive ? "bg-slate-900 text-white font-semibold" : "text-slate-600 hover:bg-slate-100",
-                        item.highlighted && !isActive && "group bg-slate-50 border border-slate-200/50"
-                      )}
-                      tooltip={item.title}
-                    >
-                      <div className={cn(
-                        "transition-transform rounded-md flex items-center justify-center shrink-0 size-5.5",
-                        item.highlighted && !isActive && "p-1 bg-black text-white rounded-md group-hover:scale-105 transition-transform"
-                      )}>
-                        <item.icon className="size-4 shrink-0" />
-                      </div>
-                      <span className="text-xs font-semibold tracking-tight">{item.title}</span>
-                      {item.highlighted && !isActive && (
-                        <div className="ml-auto text-[8px] font-bold bg-black text-white px-1.5 py-0.5 rounded font-mono uppercase tracking-wider scale-90">
-                          IA
-                        </div>
-                      )}
-                      {isActive && !item.highlighted && (
-                        <div className="ml-auto size-1.5 rounded-full bg-slate-400" />
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {mainGroup.map(renderMenuItem)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="mt-auto">
+        {/* Separator */}
+        <div className="h-px bg-[#2D6A4F] my-4 mx-2" />
+
+        {/* GROUP 2: OPERAÇÃO */}
+        <SidebarGroup className="p-0">
+          <div className="px-4 mb-2.5">
+            <span className="text-[10px] font-black text-[#82B29D] uppercase tracking-wider font-sans">
+              Operação
+            </span>
+          </div>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-1.5">
+              {operationGroup.map(renderMenuItem)}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="bg-[#1B3A2D] mt-auto">
+        {/* Separator, Config & User Controls in footer */}
+        <div className="h-px bg-[#2D6A4F] my-2 mx-2" />
+
+        <SidebarGroup className="p-1">
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   render={<Link to="/settings" />} 
                   tooltip="Configurações"
-                  className="rounded-xl h-10 px-4 text-slate-500 hover:text-slate-900 font-sans font-medium"
+                  className={cn(
+                    "transition-all duration-200 h-10 px-4 rounded-xl flex items-center gap-3 w-full font-medium",
+                    location.pathname === '/settings'
+                      ? "bg-white text-[#1B3A2D] font-bold"
+                      : "text-[#E8F4EE]/90 hover:bg-[#2D6A4F]"
+                  )}
                 >
-                    <Settings className="size-4 shrink-0" />
-                    <span className="text-xs">Configurações</span>
+                  <Settings className="size-[18px] shrink-0" />
+                  <span className="text-xs">Configurações</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-      </SidebarContent>
 
-      <SidebarFooter className="border-t border-border p-3 bg-slate-50/50">
-        <DropdownMenu>
-          <DropdownMenuTrigger render={
-            <SidebarMenuButton className="h-12 w-full justify-start gap-3 rounded-xl hover:bg-white border border-transparent hover:border-slate-200/50 hover:shadow-xs transition-all">
-              <Avatar className="size-8 rounded-lg border border-slate-200">
-                <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'Administrator'}`} />
-                <AvatarFallback className="rounded-lg bg-slate-900 text-white font-semibold">
-                  {(user?.name || 'AD').substring(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col truncate text-left font-sans">
-                <span className="truncate font-semibold text-xs text-slate-900 leading-tight">{user?.name || 'Administrador'}</span>
-                <span className="truncate text-[9px] font-mono text-slate-400 capitalize">{user?.role || 'Admin'}</span>
-              </div>
-              <LogOut className="ml-auto size-3.5 text-slate-400 shrink-0" />
-            </SidebarMenuButton>
-          } />
-          <DropdownMenuContent align="end" className="w-[--radix-dropdown-menu-trigger-width] p-1.5 rounded-2xl shadow-xl border-slate-100 bg-white">
-            <DropdownMenuLabel className="text-xs font-sans text-slate-500 font-normal">Minha Conta</DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-slate-100" />
-            <DropdownMenuItem render={<Link to="/" />} className="text-xs rounded-lg cursor-pointer h-9 px-2">
-              Ver Painel Geral
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleLogout} className="text-xs text-rose-600 rounded-lg font-medium cursor-pointer h-9 px-2">
-              Sair do Sistema
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="h-px bg-[#2D6A4F] my-2 mx-2" />
+
+        {/* Premium User Info and Logout bar */}
+        <div className="p-3 mx-2.5 mb-2.5 rounded-2xl bg-[#2D6A4F]/30 border border-[#2D6A4F]/40 flex items-center justify-between gap-3.5 shadow-sm shadow-emerald-950/15">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <Avatar className="size-9 rounded-full border-2 border-[#D4A017] shadow-inner shrink-0 bg-emerald-950/20">
+              <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${currentCompanyName}`} />
+              <AvatarFallback className="rounded-full bg-slate-900 text-white font-semibold">
+                {currentCompanyName.substring(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col truncate text-left">
+              <span className="truncate font-bold text-xs text-white leading-tight">
+                {currentCompanyName}
+              </span>
+              <span className="truncate text-[9px] font-medium text-[#82B29D] capitalize mt-0.5">
+                {user?.role || 'Diretoria'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            title="Sair do Sistema"
+            className="p-1.5 rounded-lg bg-emerald-900/40 hover:bg-[#C1361A]/20 hover:text-red-400 text-[#E8F4EE] transition-all cursor-pointer shrink-0 border border-[#2D6A4F]/50 hover:border-[#C1361A]/50"
+          >
+            <LogOut className="size-4" />
+          </button>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

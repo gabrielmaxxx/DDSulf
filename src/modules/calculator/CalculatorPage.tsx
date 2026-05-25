@@ -641,128 +641,150 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  return (
-    <div className="py-6 space-y-8 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-left animate-in fade-in duration-500">
-      
-      {/* HEADER TITLE PANEL */}
-      <header className="pb-6 border-b border-gray-100 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <div className="size-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Engenharia de Custos DDSulf</span>
-          </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-neutral-900">Calculadora Inteligente</h1>
-          <p className="text-gray-500 text-sm max-w-xl font-medium">Wizard integrado para quantificação de produtos por m² do POP, otimização de rotas pelo Google Maps e cálculo de preço final com margem real.</p>
-        </div>
-        
-        {/* Dynamic margin goal display */}
-        <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl flex items-center gap-3">
-          <div className="p-2 bg-emerald-100/50 rounded-xl text-emerald-700">
-            <Percent className="size-4" />
-          </div>
-          <div>
-            <span className="text-gray-400 text-[10px] font-bold block uppercase tracking-wider">Margem Mínima Alvo</span>
-            <span className="text-slate-900 text-sm font-black font-mono">{minMarginPercent}%</span>
-          </div>
-        </div>
-      </header>
+  let StepIcon = Smartphone;
+  let stepTitle = '';
+  if (currentStep === 1) {
+    StepIcon = Smartphone;
+    stepTitle = 'Identificação do Cliente e Distância';
+  } else if (currentStep === 2) {
+    StepIcon = Beaker;
+    stepTitle = 'Parâmetros Sanitários do Serviço';
+  } else if (currentStep === 3) {
+    StepIcon = ClipboardCheck;
+    stepTitle = 'Composição de Custos & Rentabilidade';
+  } else if (currentStep === 4) {
+    StepIcon = FileCheck;
+    stepTitle = 'Revisão de Proposta Comercial';
+  }
 
-      {/* STEP INDICATOR BAR */}
-      <div className="relative">
-        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-100 -translate-y-1/2 z-0" />
-        <div className="relative flex justify-between items-center z-10">
-          {[
-            { step: 1, label: 'Identificação', desc: 'Cliente e Rota' },
-            { step: 2, label: 'Especificação', desc: 'Praga, Serviço e POP' },
-            { step: 3, label: 'Formulação', desc: 'Custos e Preço' },
-            { step: 4, label: 'Revisão', desc: 'Recibo Comercial' }
-          ].map((item) => (
+  const steps = [
+    { step: 1, label: 'Identificação' },
+    { step: 2, label: 'Especificação' },
+    { step: 3, label: 'Formulação' },
+    { step: 4, label: 'Revisão' }
+  ];
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8 text-left animate-in fade-in duration-500">
+      
+      {/* HEADER */}
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <span className="kpi-label text-[#2D6A4F]">Calculadora Inteligente</span>
+          <h1 className="font-display text-3xl text-[#141410] mt-1">
+            Novo Orçamento
+          </h1>
+        </div>
+        {/* Card compacto mostrando margem mínima configurada */}
+        <div className="bg-[#1B3A2D] text-white rounded-xl px-4 py-3 text-right">
+          <p className="kpi-label text-[#A8CDB8] mb-0.5">Margem Mínima</p>
+          <p className="font-display text-2xl">{minMarginPercent}%</p>
+        </div>
+      </div>
+
+      {/* Barra de progresso (etapas) */}
+      <div className="mb-8 font-sans">
+        {/* Barra de progresso */}
+        <div className="h-1 bg-[#E8E6E1] rounded-full mb-4 overflow-hidden">
+          <div 
+            className="h-full bg-[#1B3A2D] transition-all duration-500 rounded-full"
+            style={{ width: `${(currentStep / 4) * 100}%` }}
+          />
+        </div>
+        {/* Labels das etapas */}
+        <div className="flex justify-between">
+          {steps.map((step, i) => (
             <button
-              key={item.step}
-              onClick={() => { if (item.step < currentStep || validateStep(currentStep)) setCurrentStep(item.step); }}
-              className="flex flex-col items-center focus:outline-hidden group"
+              key={i}
+              type="button"
+              onClick={() => { if (step.step < currentStep || validateStep(currentStep)) setCurrentStep(step.step); }}
+              className="flex flex-col items-center gap-1 focus:outline-none cursor-pointer"
             >
-              <div className={`size-8 rounded-full flex items-center justify-center font-mono text-xs font-bold border-2 transition-all ${
-                currentStep === item.step
-                  ? 'bg-slate-950 border-slate-950 text-white shadow-sm scale-110'
-                  : currentStep > item.step
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-500'
-                    : 'bg-white text-gray-400 border-gray-200 group-hover:border-slate-300'
+              <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-colors ${
+                currentStep > i + 1 ? 'text-[#2D6A4F]' : 
+                currentStep === i + 1 ? 'text-[#1B3A2D]' : 
+                'text-[#C8C5BF]'
               }`}>
-                {currentStep > item.step ? <Check className="size-4" /> : item.step}
-              </div>
-              <span className={`text-[10px] font-black uppercase tracking-wider mt-2 transition-colors ${
-                currentStep === item.step ? 'text-slate-950' : 'text-gray-400'
-              }`}>{item.label}</span>
-              <span className="text-[9px] text-gray-400 hidden sm:inline-block font-medium">{item.desc}</span>
+                {i + 1}. {step.label}
+              </span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* WORKFLOW PAGES */}
-      <div className="bg-white border border-gray-100 rounded-[32px] p-6 sm:p-8 shadow-xs min-h-[400px]">
-        
-        {/* ANIMATED PARENT FOR STEPS */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentStep}
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.2 }}
-            className="space-y-6"
-          >
-            
-            {/* ======================================================== */}
-            {/* STEP 1: CLIENT IDENTIFICATION & ROUTE ROUTING */}
-            {/* ======================================================== */}
-            {currentStep === 1 && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                    <Smartphone className="size-5 text-slate-500" />
-                    Identificação do Cliente e Distância
-                  </h3>
-                  <p className="text-gray-400 text-xs font-medium">Preencha os dados do solicitante. A distância é usada para calcular as tarifas de combustível do transporte técnico.</p>
-                </div>
+      {/* Card do passo atual */}
+      <div className="bg-white rounded-3xl border border-[#E8E6E1] shadow-sm overflow-hidden mb-6">
+        {/* Header do passo */}
+        <div className="bg-[#F0EDE8] border-b border-[#E8E6E1] px-8 py-5">
+          <div className="flex items-center gap-3">
+            <div className="size-8 rounded-lg bg-[#1B3A2D] flex items-center justify-center">
+              <StepIcon className="size-4 text-white" />
+            </div>
+            <div>
+              <p className="kpi-label text-[#6B6B5F]">Passo {currentStep} de 4</p>
+              <h2 className="font-display text-xl text-[#141410]">{stepTitle}</h2>
+            </div>
+          </div>
+        </div>
+        {/* Conteúdo do passo */}
+        <div className="px-8 py-8">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentStep}
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              transition={{ duration: 0.15 }}
+            >
+              {/* STEP 1: CLIENT IDENTIFICATION */}
+              {currentStep === 1 && (
+                <div className="space-y-5">
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-2">Nome do Cliente</label>
+                      <input
+                        type="text"
+                        required
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                        placeholder="Ex: Condomínio Residencial Florescente"
+                        className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                   text-sm font-medium placeholder:text-[#C8C5BF]
+                                   focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                   transition-all"
+                      />
+                    </div>
 
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Nome do Cliente</label>
-                    <input
-                      type="text"
-                      required
-                      value={clientName}
-                      onChange={(e) => setClientName(e.target.value)}
-                      placeholder="Ex: Condomínio Residencial Florescente"
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
-                    />
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-2">Telefone para Contato (Opcional)</label>
+                      <input
+                        type="text"
+                        value={clientPhone}
+                        onChange={(e) => setClientPhone(e.target.value)}
+                        placeholder="Ex: (24) 99876-5432"
+                        className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                   text-sm font-medium placeholder:text-[#C8C5BF]
+                                   focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                   transition-all"
+                      />
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Telefone para Contato (Opcional)</label>
-                    <input
-                      type="text"
-                      value={clientPhone}
-                      onChange={(e) => setClientPhone(e.target.value)}
-                      placeholder="Ex: (51) 99876-5432"
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Endereço Completo do Atendimento</label>
+                  <div>
+                    <label className="kpi-label text-[#6B6B5F] block mb-2">Endereço Completo do Atendimento</label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                        <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#6B6B5F]" />
                         <input
                           type="text"
                           required
                           value={clientAddress}
                           onChange={(e) => setClientAddress(e.target.value)}
-                          placeholder="Ex: Av. Ipiranga, 6681 - Partenon, Porto Alegre - RS"
-                          className="w-full h-11 pl-10 pr-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                          placeholder="Ex: Av. Ipiranga, 6681 - Volta Redonda - RJ"
+                          className="w-full h-12 pl-10 pr-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                     text-sm font-medium placeholder:text-[#C8C5BF]
+                                     focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                     transition-all"
                         />
                       </div>
                       
@@ -770,37 +792,36 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
                         type="button"
                         onClick={handleCalculateDistance}
                         disabled={isCalculatingDistance || !clientAddress.trim()}
-                        className="h-11 px-4 bg-slate-950 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-slate-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 whitespace-nowrap active:scale-98"
+                        className="h-12 px-5 bg-[#1B3A2D] text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-[#2D6A4F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
                       >
                         {isCalculatingDistance ? (
                           <RefreshCw className="size-4 animate-spin" />
                         ) : (
-                          '📍'
+                          'Roteirizar'
                         )}
-                        Calcular Rota
                       </button>
                     </div>
                     {settings?.headquartersAddress ? (
-                      <p className="text-[10px] text-gray-400 font-semibold italic">Partindo da Sede: <span className="text-slate-800">{settings.headquartersAddress}</span></p>
+                      <p className="text-[10px] text-[#6B6B5F] font-semibold italic mt-1.5">Partindo da Sede: <span className="text-[#141410]">{settings.headquartersAddress}</span></p>
                     ) : (
-                      <p className="text-[10px] text-amber-600 font-black flex items-center gap-1">
-                        <AlertTriangle className="size-3 shrink-0" /> Endereço de sede não configurado. Vá às Configurações para obter roteirização automática.
+                      <p className="text-[10px] text-[#C1361A] font-black flex items-center gap-1 mt-1.5">
+                        <AlertTriangle className="size-3 shrink-0" /> Endereço de sede não configurado nas Configurações.
                       </p>
                     )}
 
-                    <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 text-left mt-1 flex items-start gap-2.5">
+                    <div className="bg-[#D8EDE3]/30 border border-[#2D6A4F]/20 rounded-xl p-3 text-left mt-3 flex items-start gap-2.5">
                       <span className="text-xs">🛣️</span>
                       <div className="space-y-0.5">
-                        <h5 className="text-[9px] font-black uppercase text-indigo-950 tracking-wider">Geolocalizador DDSulf (RJ) Ativo</h5>
-                        <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                        <h5 className="text-[9px] font-black uppercase text-[#1B3A2D] tracking-wider">Geolocalizador DDSulf (RJ) Ativo</h5>
+                        <p className="text-[10px] text-[#6B6B5F] font-medium leading-relaxed">
                           Estimador inteligente de rotas para o Estado do Rio de Janeiro. Mapeamento calibrado das 92 cidades e bairros fluminenses partindo de Volta Redonda.
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Distância Real do Trajeto (Km — Ida e Volta Automático)</label>
+                  <div>
+                    <label className="kpi-label text-[#6B6B5F] block mb-2">Distância Real do Trajeto (Km — Ida e Volta Automático)</label>
                     <div className="relative">
                       <input
                         type="number"
@@ -810,502 +831,442 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
                         value={distanceKm || ''}
                         onChange={(e) => setDistanceKm(parseFloat(e.target.value) || 0)}
                         placeholder="Ex: 12.5"
-                        className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-bold focus:outline-hidden focus:border-slate-950 bg-white font-mono"
+                        className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                   text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                   transition-all font-mono"
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">KM</span>
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-[#6B6B5F]">KM</span>
                     </div>
-                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">A distância inserida será multiplicada por 2 (ida + volta) nos custos de transporte.</p>
+                    <p className="text-[9px] text-[#6B6B5F] font-bold uppercase tracking-wider mt-1">A distância inserida será multiplicada por 2 (ida + volta) nos custos de transporte.</p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ======================================================== */}
-            {/* STEP 2: DETAILS, DIMENSIONS & POP MATRIX DETECTOR */}
-            {/* ======================================================== */}
-            {currentStep === 2 && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                    <Beaker className="size-5 text-slate-500" />
-                    Parâmetros Sanitários do Serviço
-                  </h3>
-                  <p className="text-gray-400 text-xs font-medium">Selecione a praga alvo e o tipo de aplicação. O sistema tentará localizar um POP técnico para extrair os produtos recomendados.</p>
-                </div>
-
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tipo de Praga Alvo</label>
-                    <select
-                      value={pestType}
-                      onChange={(e) => setPestType(e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
-                    >
-                      {PESTS_LIST.map((pest) => (
-                        <option key={pest.value} value={pest.value}>{pest.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tipo de Serviço</label>
-                    <select
-                      value={serviceType}
-                      onChange={(e) => setServiceType(e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
-                    >
-                      {SERVICES_LIST.map((srv) => (
-                        <option key={srv.value} value={srv.value}>{srv.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Área Total Mapeada (m²)</label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min="1"
-                        required
-                        value={areaM2 || ''}
-                        onChange={(e) => setAreaM2(parseInt(e.target.value) || 0)}
-                        placeholder="Ex: 150"
-                        className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-bold focus:outline-hidden focus:border-slate-950 bg-white font-mono"
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">m²</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tipo de Imóvel</label>
-                    <select
-                      value={propertyType}
-                      onChange={(e) => setPropertyType(e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
-                    >
-                      {PROPERTY_TYPES.map((prop) => (
-                        <option key={prop.value} value={prop.value}>{prop.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* ANIMATED POP DETECTED METRIC CARD */}
-                <div className="pt-4">
-                  {matchedPop ? (
-                    <div className="p-4 bg-emerald-50 border border-emerald-200/50 rounded-2xl flex items-start gap-3.5 text-left">
-                      <div className="p-2 bg-emerald-500 text-white rounded-xl">
-                        <CheckCircle2 className="size-4" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-black text-emerald-950 uppercase tracking-wide">
-                          ✅ POP Encontrado para Aplicação
-                        </p>
-                        <p className="text-[11px] text-emerald-800 font-bold">
-                          {matchedPop.name} ({matchedPop.requiredProducts?.length || 0} produtos mapeados com dosagens ajustadas automaticamente por proporção).
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-amber-50 border border-amber-200/50 rounded-2xl flex items-start gap-3.5 text-left">
-                      <div className="p-2 bg-amber-500 text-white rounded-xl">
-                        <AlertTriangle className="size-4" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-black text-amber-950 uppercase tracking-wide">
-                          ⚠️ Nenhum POP Mapeado Detectado
-                        </p>
-                        <p className="text-[11px] text-amber-800 font-bold">
-                          Não foram localizados procedimentos para as opções selecionadas. Os custos de insumos químicos para este orçamento começarão zerados. Cadastre um POP na respectiva aba se desejar vinculação comercial automatizada de produtos.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ======================================================== */}
-            {/* STEP 3: FINANCIAL COST SHEET & COMMERCIAL SUGGESTION */}
-            {/* ======================================================== */}
-            {currentStep === 3 && (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                    <ClipboardCheck className="size-5 text-slate-500" />
-                    Composição de Custos & Rentabilidade
-                  </h3>
-                  <p className="text-gray-400 text-xs font-medium">As faturas e insumos foram calculados baseados nos parâmetros operacionais registrados do Financeiro e Estoque.</p>
-                </div>
-
-                {/* CORE COST BENTO GRID */}
-                <div className="grid gap-6 md:grid-cols-2">
-                  
-                  {/* CARD 1: PRODUCTS INSUMS */}
-                  <div className="border border-gray-100 bg-slate-50/20 p-5 rounded-3xl space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Beaker className="size-4 text-sky-600" />
-                        <h4 className="text-xs font-black text-slate-950 uppercase tracking-widest">1. Produtos Químicos</h4>
-                      </div>
-                      <span className="font-mono text-xs font-black text-slate-950 bg-slate-100 px-2 py-0.5 rounded-md">
-                        R$ {formatCurrency(totalProductsCost)}
-                      </span>
+              {/* STEP 2: SERVICE PARAMETERS */}
+              {currentStep === 2 && (
+                <div className="space-y-5">
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-2">Tipo de Praga Alvo</label>
+                      <select
+                        value={pestType}
+                        onChange={(e) => setPestType(e.target.value)}
+                        className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                   text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                   transition-all"
+                      >
+                        {PESTS_LIST.map((pest) => (
+                          <option key={pest.value} value={pest.value}>{pest.label}</option>
+                        ))}
+                      </select>
                     </div>
 
-                    <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
-                      {productsWithStockCosts.map((p, idx) => (
-                        <div key={idx} className="flex justify-between items-center text-[11px] border-b border-gray-100 pb-1.5 last:border-0 last:pb-0">
-                          <div className="space-y-0.5">
-                            <span className="text-slate-900 font-bold block">{p.productName}</span>
-                            <span className="text-gray-400 font-bold font-mono">
-                              Estoque: {p.availableQty} {p.unit} ({p.isInsufficient ? 'INSUFICIENTE' : 'OK'})
-                            </span>
-                          </div>
-                          <div className="text-right font-mono font-bold">
-                            <span className={`block font-extrabold ${p.isInsufficient ? 'text-rose-600' : 'text-slate-800'}`}>
-                              {p.quantity} {p.unit}
-                            </span>
-                            <span className="text-gray-400 text-[9px]">R$ {formatCurrency(p.totalCost)}</span>
-                          </div>
-                        </div>
-                      ))}
-
-                      {productsWithStockCosts.length === 0 && (
-                        <p className="text-[10px] text-gray-400 italic">Sem produtos calculados por POP.</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* CARD 2: LABOR COSTS */}
-                  <div className="border border-gray-100 bg-slate-50/20 p-5 rounded-3xl space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Clock className="size-4 text-purple-600" />
-                        <h4 className="text-xs font-black text-slate-950 uppercase tracking-widest">2. Mão de Obra</h4>
-                      </div>
-                      <span className="font-mono text-xs font-black text-slate-950 bg-slate-100 px-2 py-0.5 rounded-md">
-                        R$ {formatCurrency(totalLaborCost)}
-                      </span>
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-2">Tipo de Serviço</label>
+                      <select
+                        value={serviceType}
+                        onChange={(e) => setServiceType(e.target.value)}
+                        className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                   text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                   transition-all"
+                      >
+                        {SERVICES_LIST.map((srv) => (
+                          <option key={srv.value} value={srv.value}>{srv.label}</option>
+                        ))}
+                      </select>
                     </div>
 
-                    <div className="space-y-3 pt-1 text-xs text-slate-600 flex flex-col justify-center h-[120px]">
-                      <div className="flex justify-between font-semibold">
-                        <span>Horas Estimadas:</span>
-                        <strong className="text-slate-900 font-mono">{estimatedHours} Hrs</strong>
-                      </div>
-                      <div className="flex justify-between font-semibold">
-                        <span>Valor do Custo/Hora:</span>
-                        <strong className="text-slate-900 font-mono">R$ {laborCostPerHour.toFixed(2)}</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* CARD 3: TRANSPORTATION */}
-                  <div className="border border-gray-100 bg-slate-50/20 p-5 rounded-3xl space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Truck className="size-4 text-amber-600" />
-                        <h4 className="text-xs font-black text-slate-950 uppercase tracking-widest">3. Transporte (Rotas)</h4>
-                      </div>
-                      <span className="font-mono text-xs font-black text-slate-950 bg-slate-100 px-2 py-0.5 rounded-md">
-                        R$ {formatCurrency(totalTransportCost)}
-                      </span>
-                    </div>
-
-                    <div className="space-y-3 pt-1 text-xs text-slate-600 flex flex-col justify-center h-[120px]">
-                      <div className="flex justify-between font-semibold">
-                        <span>Distância Mapeada (Ida):</span>
-                        <strong className="text-slate-900 font-mono">{distanceKm} Km</strong>
-                      </div>
-                      <div className="flex justify-between font-semibold">
-                        <span>Distância Mapeada (Volta):</span>
-                        <strong className="text-slate-900 font-mono">{distanceKm} Km</strong>
-                      </div>
-                      <div className="flex justify-between font-semibold">
-                        <span>Custo Operacional por KM:</span>
-                        <strong className="text-slate-900 font-mono">R$ {costPerKm.toFixed(2)}/Km</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* CARD 4: FIXED OVERHEAD PORTION */}
-                  <div className="border border-gray-100 bg-slate-50/20 p-5 rounded-3xl space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="size-4 text-emerald-600" />
-                        <h4 className="text-xs font-black text-slate-950 uppercase tracking-widest">4. Overhead Fixo</h4>
-                      </div>
-                      <span className="font-mono text-xs font-black text-slate-950 bg-slate-100 px-2 py-0.5 rounded-md">
-                        R$ {formatCurrency(totalOverheadCost)}
-                      </span>
-                    </div>
-
-                    <div className="space-y-3 pt-1 text-xs text-slate-600 flex flex-col justify-center h-[120px]">
-                      <div className="flex justify-between font-semibold">
-                        <span>Custos Fixos Mensal Sede:</span>
-                        <strong className="text-slate-900 font-mono">R$ {formatCurrency(totalFixedCosts)}</strong>
-                      </div>
-                      <div className="flex justify-between font-semibold">
-                        <span>Metas de Atendimento/Mês:</span>
-                        <strong className="text-slate-900 font-mono">{targetServicesPerMonth} orçamentos executados</strong>
-                      </div>
-                      <div className="flex justify-between font-semibold">
-                        <span>Injeção Fixa por Chamado:</span>
-                        <strong className="text-slate-900 font-mono">R$ {totalOverheadCost.toFixed(2)}</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* CARD 5 — COMMERCIAL RESUME COMPILATOR */}
-                <div className="p-6 bg-slate-950 text-white rounded-[32px] space-y-6">
-                  <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                    <motion.div
-                      key={totalCosts}
-                      animate={{
-                        scale: [1, 1.04, 1],
-                        backgroundColor: ["rgba(255, 255, 255, 0)", "rgba(255, 255, 255, 0.08)", "rgba(255, 255, 255, 0)"]
-                      }}
-                      transition={{ duration: 0.45, ease: "easeInOut" }}
-                      className="space-y-1 p-3 rounded-[18px]"
-                    >
-                      <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Custo Total Acumulado</h4>
-                      <p className="text-2xl font-black font-mono">R$ {formatCurrency(totalCosts)}</p>
-                    </motion.div>
-
-                    <motion.div
-                      key={suggestedPrice}
-                      animate={{
-                        scale: [1, 1.04, 1],
-                        backgroundColor: ["rgba(16, 185, 129, 0)", "rgba(16, 185, 129, 0.12)", "rgba(16, 185, 129, 0)"]
-                      }}
-                      transition={{ duration: 0.45, ease: "easeInOut" }}
-                      className="space-y-1 p-3 rounded-[18px]"
-                    >
-                      <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Preço Mínimo Sugerido</h4>
-                      <p className="text-2xl font-black text-emerald-400 font-mono">R$ {formatCurrency(suggestedPrice)}</p>
-                    </motion.div>
-
-                    {/* DYNAMIC MARGIN HEALTH SHIELDER */}
-                    <motion.div 
-                      key={resultingMargin}
-                      animate={{
-                        scale: [1, 1.02, 1]
-                      }}
-                      transition={{ duration: 0.45, ease: "easeInOut" }}
-                      className="space-y-1 p-3 rounded-[18px]"
-                    >
-                      <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Margem Resultante Real</h4>
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black font-mono ${
-                        isMarginHealthy 
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                          : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                      }`}>
-                        {resultingMargin.toFixed(1)}% ({isMarginHealthy ? 'Saudável' : 'Inadequada'})
-                      </span>
-                    </motion.div>
-                  </div>
-
-                  <div className="border-t border-white/10 pt-6 space-y-4">
-                    <div className="max-w-md space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">Preço Comercial Final Proposto (R$)</label>
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-2">Área Total Mapeada (m²)</label>
                       <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400 font-mono">R$</span>
                         <input
                           type="number"
-                          step="0.01"
-                          min="0"
-                          value={finalPrice || ''}
-                          onChange={(e) => {
-                            setFinalPrice(parseFloat(e.target.value) || 0);
-                            setIsPriceManuallyEdited(true);
-                          }}
-                          className="w-full h-12 pl-11 pr-4 rounded-xl border border-white/10 bg-white/5 text-white text-base font-black font-mono focus:outline-hidden focus:border-white transition-all"
+                          min="1"
+                          required
+                          value={areaM2 || ''}
+                          onChange={(e) => setAreaM2(parseInt(e.target.value) || 0)}
+                          placeholder="Ex: 150"
+                          className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                     text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                     transition-all font-mono"
                         />
-                      </div>
-                      <p className="text-[10px] text-gray-400 font-bold">Ajuste o preço final conforme negociações ou particularidades de acesso comercial.</p>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {/* ======================================================== */}
-            {/* STEP 4: REVIEW & SUBMIT WORKFLOW */}
-            {/* ======================================================== */}
-            {currentStep === 4 && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                    <FileCheck className="size-5 text-slate-500" />
-                    Revisão de Proposta Comercial
-                  </h3>
-                  <p className="text-gray-400 text-xs font-medium">Confirme os detalhes operacionais no recibo abaixo antes de submeter oficialmente o registro ao sistema de faturamento.</p>
-                </div>
-
-                {/* VISUAL RECEIPT WRAPPER */}
-                <div className="border-2 border-dashed border-gray-200 p-6 sm:p-8 rounded-[32px] bg-slate-50/10 space-y-6 max-w-2xl mx-auto text-xs text-slate-700">
-                  
-                  {/* HEADER OF RECEIPT */}
-                  <div className="border-b pb-4 text-center space-y-1">
-                    <h4 className="text-sm font-black uppercase text-slate-950 tracking-wider">PREVISÃO COMERCIAL SANITÁRIA</h4>
-                    <span className="text-gray-400 block text-[10px] font-bold font-mono">DDSulf Controle Operacional de Pragas</span>
-                    <span className="text-gray-400 block text-[9px] font-mono">{new Date().toLocaleString()}</span>
-                  </div>
-
-                  {/* CUSTOMER BRIEF DETAILS */}
-                  <div className="space-y-2">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">DADOS DO CLIENTE</span>
-                    <div className="grid gap-2 sm:grid-cols-2 bg-slate-50 p-4 rounded-2xl border border-gray-100 font-semibold text-slate-800">
-                      <div>
-                        <span className="text-[8px] uppercase tracking-wider text-gray-400 block">Cliente principal</span>
-                        <span className="font-extrabold">{clientName}</span>
-                      </div>
-                      <div>
-                        <span className="text-[8px] uppercase tracking-wider text-gray-400 block">Contato Telefônico</span>
-                        <span>{clientPhone || 'Não cadastrado'}</span>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <span className="text-[8px] uppercase tracking-wider text-gray-400 block">Destino do Serviço</span>
-                        <span className="font-bold">{clientAddress}</span>
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-[#6B6B5F]">m²</span>
                       </div>
                     </div>
-                  </div>
 
-                  {/* FIELD OPERATIONAL BRIEF */}
-                  <div className="space-y-2">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">ENQUADRAMENTO TÉCNICO</span>
-                    <div className="grid gap-2 sm:grid-cols-3 bg-slate-50 p-4 rounded-2xl border border-gray-100 font-semibold text-slate-800">
-                      <div>
-                        <span className="text-[8px] uppercase tracking-wider text-gray-400 block">Praga controlada</span>
-                        <span className="font-bold">{PESTS_LIST.find(p => p.value === pestType)?.label || pestType}</span>
-                      </div>
-                      <div>
-                        <span className="text-[8px] uppercase tracking-wider text-gray-400 block">Procedimento Técnico</span>
-                        <span className="font-bold">{SERVICES_LIST.find(s => s.value === serviceType)?.label || serviceType}</span>
-                      </div>
-                      <div>
-                        <span className="text-[8px] uppercase tracking-wider text-gray-400 block">Dimensionamento da Área</span>
-                        <span className="font-bold font-mono">{areaM2} m²</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SUBTOTAL COSTS DETAILED BREAKDOWN */}
-                  <div className="space-y-2">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">COMPOSIÇÃO FINANCEIRA DE APOIO</span>
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-gray-100 space-y-1.5 font-bold font-mono text-slate-700">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">A. Insumos Químicos do POP:</span>
-                        <span>R$ {formatCurrency(totalProductsCost)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">B. Dedicação Técnica (Mão de Obra):</span>
-                        <span>R$ {formatCurrency(totalLaborCost)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">C. Logística de Deslocamento ({distanceKm} km x2):</span>
-                        <span>R$ {formatCurrency(totalTransportCost)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">D. Meta Amortização e Overhead Sede:</span>
-                        <span>R$ {formatCurrency(totalOverheadCost)}</span>
-                      </div>
-                      <div className="flex justify-between text-slate-950 font-black border-t pt-1.5 mt-1">
-                        <span>CUSTO OPERACIONAL TOTAL:</span>
-                        <span>R$ {formatCurrency(totalCosts)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* FINAL PRICING STATEMENT */}
-                  <div className="bg-slate-950 text-white p-5 rounded-2xl flex items-center justify-between">
                     <div>
-                      <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">Investimento Comercial</span>
-                      <strong className="text-xl font-black font-mono text-emerald-400">R$ {formatCurrency(finalPrice)}</strong>
+                      <label className="kpi-label text-[#6B6B5F] block mb-2">Tipo de Imóvel</label>
+                      <select
+                        value={propertyType}
+                        onChange={(e) => setPropertyType(e.target.value)}
+                        className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                   text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                   transition-all"
+                      >
+                        {PROPERTY_TYPES.map((prop) => (
+                          <option key={prop.value} value={prop.value}>{prop.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* POP DETECTED METRIC CARD */}
+                  <div className="pt-3">
+                    {matchedPop ? (
+                      <div className="p-4 bg-[#D8EDE3]/40 border border-[#2D6A4F]/20 rounded-2xl flex items-start gap-3 text-left">
+                        <div className="p-2 bg-[#2D6A4F] text-white rounded-xl shrink-0">
+                          <CheckCircle2 className="size-4" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-black text-[#1B3A2D] uppercase tracking-wide">
+                            ✅ POP Encontrado para Aplicação
+                          </p>
+                          <p className="text-[11px] text-[#2D6A4F] font-bold">
+                            {matchedPop.name} ({matchedPop.requiredProducts?.length || 0} produtos mapeados com dosagens ajustadas automaticamente por proporção).
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-3 text-left">
+                        <div className="p-2 bg-[#D4A017] text-white rounded-xl shrink-0">
+                          <AlertTriangle className="size-4" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                            ⚠️ Nenhum POP Mapeado Detectado
+                          </p>
+                          <p className="text-[11px] text-amber-800 font-bold">
+                            Não foram localizados procedimentos para as opções selecionadas. Os custos de insumos químicos para este orçamento começarão zerados. Cadastre um POP na respectiva aba se desejar vinculação comercial automatizada de produtos.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: COST SHEET & SUGGESTION */}
+              {currentStep === 3 && (
+                <div className="space-y-6">
+                  {/* Custo Cards Bento Grid */}
+                  <div className="grid gap-5 md:grid-cols-2 text-left">
+                    
+                    {/* CARD 1: PRODUCTS INSUMS */}
+                    <div className="border-l-4 border-l-[#2D6A4F] bg-[#FAFAF9] px-6 py-5 rounded-r-2xl border-y border-r border-[#E8E6E1] space-y-4">
+                      <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-2.5">
+                        <div className="flex items-center gap-2">
+                          <Beaker className="size-4 text-[#2D6A4F]" />
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-[#6B6B5F]">1. Produtos Químicos</span>
+                        </div>
+                        <span className="font-display text-xl text-[#141410]">R$ {formatCurrency(totalProductsCost)}</span>
+                      </div>
+
+                      <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                        {productsWithStockCosts.map((p, idx) => (
+                          <div key={idx} className="flex justify-between items-center text-[11px] border-b border-[#E8E6E1]/40 pb-1.5 last:border-0 last:pb-0">
+                            <div className="space-y-0.5">
+                              <span className="text-[#141410] font-bold block">{p.productName}</span>
+                              <span className="text-[#6B6B5F] font-bold font-mono">
+                                Estoque: {p.availableQty} {p.unit} ({p.isInsufficient ? 'INSUFICIENTE' : 'OK'})
+                              </span>
+                            </div>
+                            <div className="text-right font-mono font-bold">
+                              <span className={`block font-extrabold ${p.isInsufficient ? 'text-[#C1361A]' : 'text-[#141410]'}`}>
+                                {p.quantity} {p.unit}
+                              </span>
+                              <span className="text-[#6B6B5F] text-[9px]">R$ {formatCurrency(p.totalCost)}</span>
+                            </div>
+                          </div>
+                        ))}
+
+                        {productsWithStockCosts.length === 0 && (
+                          <p className="text-[10px] text-[#6B6B5F] italic">Sem produtos calculados por POP.</p>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="text-right">
-                      <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">Garantia Técnica</span>
-                      <strong className="text-xs font-black uppercase text-emerald-400 block">90 dias da Anvisa</strong>
+                    {/* CARD 2: LABOR COSTS */}
+                    <div className="border-l-4 border-l-[#2B4C8C] bg-[#FAFAF9] px-6 py-5 rounded-r-2xl border-y border-r border-[#E8E6E1] space-y-4">
+                      <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-2.5">
+                        <div className="flex items-center gap-2">
+                          <Clock className="size-4 text-[#2B4C8C]" />
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-[#6B6B5F]">2. Mão de Obra</span>
+                        </div>
+                        <span className="font-display text-xl text-[#141410]">R$ {formatCurrency(totalLaborCost)}</span>
+                      </div>
+
+                      <div className="space-y-2.5 pt-1 text-xs text-[#6B6B5F] flex flex-col justify-center min-h-[100px]">
+                        <div className="flex justify-between font-semibold">
+                          <span>Horas Estimadas:</span>
+                          <strong className="text-[#141410] font-mono">{estimatedHours} Hrs</strong>
+                        </div>
+                        <div className="flex justify-between font-semibold">
+                          <span>Custo/Hora:</span>
+                          <strong className="text-[#141410] font-mono">R$ {laborCostPerHour.toFixed(2)}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CARD 3: TRANSPORTATION */}
+                    <div className="border-l-4 border-l-[#D4A017] bg-[#FAFAF9] px-6 py-5 rounded-r-2xl border-y border-r border-[#E8E6E1] space-y-4">
+                      <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-2.5">
+                        <div className="flex items-center gap-2">
+                          <Truck className="size-4 text-[#D4A017]" />
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-[#6B6B5F]">3. Transporte (Rotas)</span>
+                        </div>
+                        <span className="font-display text-xl text-[#141410]">R$ {formatCurrency(totalTransportCost)}</span>
+                      </div>
+
+                      <div className="space-y-1.5 pt-1 text-xs text-[#6B6B5F] flex flex-col justify-center min-h-[100px]">
+                        <div className="flex justify-between font-semibold">
+                          <span>Distância Mapeada (Ida):</span>
+                          <strong className="text-[#141410] font-mono">{distanceKm} Km</strong>
+                        </div>
+                        <div className="flex justify-between font-semibold">
+                          <span>Distância Mapeada (Volta):</span>
+                          <strong className="text-[#141410] font-mono">{distanceKm} Km</strong>
+                        </div>
+                        <div className="flex justify-between font-semibold">
+                          <span>Custo por KM:</span>
+                          <strong className="text-[#141410] font-mono font-sans">R$ {costPerKm.toFixed(2)}/Km</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CARD 4: FIXED OVERHEAD PORTION */}
+                    <div className="border-l-4 border-l-[#6B6B5F] bg-[#FAFAF9] px-6 py-5 rounded-r-2xl border-y border-r border-[#E8E6E1] space-y-4">
+                      <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-2.5">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="size-4 text-[#6B6B5F]" />
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-[#6B6B5F]">4. Overhead Fixo</span>
+                        </div>
+                        <span className="font-display text-xl text-[#141410]">R$ {formatCurrency(totalOverheadCost)}</span>
+                      </div>
+
+                      <div className="space-y-1.5 pt-1 text-xs text-[#6B6B5F] flex flex-col justify-center min-h-[100px]">
+                        <div className="flex justify-between font-semibold">
+                          <span>Custos Fixos Mensal Sede:</span>
+                          <strong className="text-[#141410] font-mono">R$ {formatCurrency(totalFixedCosts)}</strong>
+                        </div>
+                        <div className="flex justify-between font-semibold">
+                          <span>Metas Atendimento/Mês:</span>
+                          <strong className="text-[#141410] font-mono">{targetServicesPerMonth} orçamentos</strong>
+                        </div>
+                        <div className="flex justify-between font-semibold">
+                          <span>Injeção por Chamado:</span>
+                          <strong className="text-[#141410] font-mono">R$ {totalOverheadCost.toFixed(2)}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Resumo de Custos Acumulado Técnico antes do Resultado */}
+                  <div className="bg-[#F0EDE8] border border-[#E8E6E1] rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                      <span className="kpi-label text-[#6B6B5F] text-[9px]">Custo Técnico Acumulado</span>
+                      <p className="font-display text-2xl text-[#141410]">R$ {formatCurrency(totalCosts)}</p>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <span className="kpi-label text-[#6B6B5F] text-[9px]">Garantia Regulamentar</span>
+                      <p className="text-xs font-bold text-[#141410] uppercase">90 dias com emissão de laudo</p>
+                    </div>
+                  </div>
+
+                  {/* CARD DE RESULTADO (PREÇO FINAL) */}
+                  <div className="bg-[#1B3A2D] rounded-2xl p-6 text-white mt-6 text-left">
+                    <p className="kpi-label text-[#A8CDB8] mb-1">Preço Sugerido</p>
+                    <p className="font-display text-5xl mb-4">R$ {formatCurrency(suggestedPrice)}</p>
+                    {/* Input para preço final editável */}
+                    <div className="bg-[#2D6A4F] rounded-xl p-4 flex items-center gap-4">
+                      <div className="flex-1">
+                        <p className="text-[11px] text-[#A8CDB8] uppercase tracking-wider mb-1">Preço Final</p>
+                        <div className="flex items-center text-white text-2xl font-display">
+                          <span className="mr-1 select-none">R$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={finalPrice || ''}
+                            onChange={(e) => {
+                              setFinalPrice(parseFloat(e.target.value) || 0);
+                              setIsPriceManuallyEdited(true);
+                            }}
+                            className="bg-transparent text-white font-display w-full focus:outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[11px] text-[#A8CDB8] mb-1">Margem</p>
+                        <p className={`text-xl font-bold font-mono ${isMarginHealthy ? 'text-[#D4A017]' : 'text-[#C1361A]'}`}>
+                          {resultingMargin.toFixed(1)}%
+                        </p>
+                      </div>
                     </div>
                   </div>
 
                 </div>
-
-              </div>
-            )}
-
-            {/* ======================================================== */}
-            {/* ACTION KEYS FOOTER PANELS */}
-            {/* ======================================================== */}
-            <div className="flex justify-between pt-6 border-t border-gray-50">
-              
-              {currentStep > 1 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={prevStep}
-                  className="h-11 px-6 rounded-2xl text-xs font-bold text-slate-500 border-gray-200 hover:bg-slate-50 flex items-center gap-1 bg-white"
-                >
-                  <ChevronLeft className="size-4" />
-                  Voltar
-                </Button>
-              ) : (
-                <div />
               )}
 
-              {currentStep < 4 ? (
-                <Button
-                  type="button"
-                  onClick={nextStep}
-                  className="h-11 px-6 bg-slate-950 text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-slate-900 transition-all flex items-center gap-1 shadow-xs active:scale-98"
-                >
-                  Prosseguir
-                  <ChevronRight className="size-4" />
-                </Button>
-              ) : (
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-stretch sm:items-center">
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleSaveQuote('rascunho')}
-                    className="h-11 px-5 rounded-2xl text-xs font-bold border-gray-200 text-slate-700 hover:bg-slate-50 bg-white"
-                  >
-                    Salvar Rascunho
-                  </Button>
+              {/* STEP 4: REVIEW */}
+              {currentStep === 4 && (
+                <div className="space-y-6">
+                  {/* VISUAL RECEIPT WRAPPER */}
+                  <div className="border-2 border-dashed border-[#E8E6E1] p-6 sm:p-8 rounded-[32px] bg-[#FAFAF9] space-y-6 max-w-2xl mx-auto text-xs text-[#141410]">
+                    
+                    {/* HEADER OF RECEIPT */}
+                    <div className="border-b border-[#E8E6E1] pb-4 text-center space-y-1">
+                      <h4 className="text-sm font-black uppercase text-[#1B3A2D] tracking-wider select-none font-display">PREVISÃO COMERCIAL SANITÁRIA</h4>
+                      <span className="text-[#6B6B5F] block text-[10px] font-bold font-sans">DDSulf Controle Operacional de Pragas</span>
+                      <span className="text-[#6B6B5F] block text-[9px] font-mono">{new Date().toLocaleString()}</span>
+                    </div>
 
-                  <Button
-                    type="button"
-                    onClick={() => handleSaveQuote('enviado')}
-                    className="h-11 px-5 bg-sky-600 text-white hover:bg-sky-500 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-xs active:scale-98"
-                  >
-                    Gerar Orçamento
-                  </Button>
+                    {/* CUSTOMER BRIEF DETAILS */}
+                    <div className="space-y-2">
+                      <span className="text-[9px] font-black uppercase tracking-wider text-[#6B6B5F] block">DADOS DO CLIENTE</span>
+                      <div className="grid gap-2 sm:grid-cols-2 bg-white p-4 rounded-2xl border border-[#E8E6E1] font-semibold text-[#141410]">
+                        <div>
+                          <span className="text-[8px] uppercase tracking-wider text-[#6B6B5F] block">Cliente principal</span>
+                          <span className="font-extrabold">{clientName}</span>
+                        </div>
+                        <div>
+                          <span className="text-[8px] uppercase tracking-wider text-[#6B6B5F] block">Contato Telefônico</span>
+                          <span>{clientPhone || 'Não cadastrado'}</span>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <span className="text-[8px] uppercase tracking-wider text-[#6B6B5F] block">Destino do Serviço</span>
+                          <span>{clientAddress}</span>
+                        </div>
+                      </div>
+                    </div>
 
-                  <Button
-                    type="button"
-                    onClick={() => handleSaveQuote('executado')}
-                    className="h-11 px-6 bg-emerald-600 text-white hover:bg-emerald-500 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-xs active:scale-98 flex items-center justify-center gap-1.5"
-                  >
-                    Marcar como Executado
-                  </Button>
+                    {/* FIELD OPERATIONAL BRIEF */}
+                    <div className="space-y-2">
+                      <span className="text-[9px] font-black uppercase tracking-wider text-[#6B6B5F] block">ENQUADRAMENTO TÉCNICO</span>
+                      <div className="grid gap-2 sm:grid-cols-3 bg-white p-4 rounded-2xl border border-[#E8E6E1] font-semibold text-[#141410]">
+                        <div>
+                          <span className="text-[8px] uppercase tracking-wider text-[#6B6B5F] block">Praga controlada</span>
+                          <span className="font-bold">{PESTS_LIST.find(p => p.value === pestType)?.label || pestType}</span>
+                        </div>
+                        <div>
+                          <span className="text-[8px] uppercase tracking-wider text-[#6B6B5F] block">Procedimento Técnico</span>
+                          <span className="font-bold">{SERVICES_LIST.find(s => s.value === serviceType)?.label || serviceType}</span>
+                        </div>
+                        <div>
+                          <span className="text-[8px] uppercase tracking-wider text-[#6B6B5F] block">Área Total m²</span>
+                          <span className="font-bold font-mono">{areaM2} m²</span>
+                        </div>
+                      </div>
+                    </div>
 
+                    {/* SUBTOTAL COSTS DETAILED BREAKDOWN */}
+                    <div className="space-y-2">
+                      <span className="text-[9px] font-black uppercase tracking-wider text-[#6B6B5F] block">COMPOSIÇÃO FINANCEIRA DE APOIO</span>
+                      <div className="bg-white p-4 rounded-2xl border border-[#E8E6E1] space-y-1.5 font-bold font-mono text-[#141410]">
+                        <div className="flex justify-between">
+                          <span className="text-[#6B6B5F]">A. Insumos Químicos do POP:</span>
+                          <span>R$ {formatCurrency(totalProductsCost)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#6B6B5F]">B. Dedicação Técnica (Mão de Obra):</span>
+                          <span>R$ {formatCurrency(totalLaborCost)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#6B6B5F]">C. Logística de Deslocamento ({distanceKm} km x2):</span>
+                          <span>R$ {formatCurrency(totalTransportCost)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#6B6B5F]">D. Meta Amortização e Overhead Sede:</span>
+                          <span>R$ {formatCurrency(totalOverheadCost)}</span>
+                        </div>
+                        <div className="flex justify-between text-[#1B3A2D] font-black border-t border-[#E8E6E1] pt-1.5 mt-1">
+                          <span>CUSTO OPERACIONAL TOTAL:</span>
+                          <span>R$ {formatCurrency(totalCosts)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* FINAL PRICING STATEMENT */}
+                    <div className="bg-[#1B3A2D] text-white p-5 rounded-2xl flex items-center justify-between">
+                      <div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-[#A8CDB8] block">Investimento Comercial</span>
+                        <strong className="text-xl font-black font-mono text-[#D4A017]">R$ {formatCurrency(finalPrice)}</strong>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-[#A8CDB8] block">Garantia Técnica</span>
+                        <strong className="text-xs font-black uppercase text-[#D4A017] block">90 dias da Anvisa</strong>
+                      </div>
+                    </div>
+
+                  </div>
                 </div>
               )}
-            </div>
-
-          </motion.div>
-        </AnimatePresence>
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
 
-      {/* ======================================================== */}
+      {/* NAVEGAÇÃO ENTRE PASSOS / ACTION KEYS FOOTER PANELS */}
+      <div className="flex justify-between mt-8 pt-6 border-t border-[#E8E6E1] font-sans">
+        
+        {currentStep > 1 ? (
+          <button
+            type="button"
+            onClick={prevStep}
+            className="flex items-center gap-2 text-sm font-semibold text-[#6B6B5F] hover:text-[#1B3A2D] transition-colors disabled:opacity-30 cursor-pointer"
+          >
+            ← Voltar
+          </button>
+        ) : (
+          <button 
+            disabled 
+            className="flex items-center gap-2 text-sm font-semibold text-[#6B6B5F] opacity-30 cursor-not-allowed"
+          >
+            ← Voltar
+          </button>
+        )}
+
+        {currentStep < 4 ? (
+          <button
+            type="button"
+            onClick={nextStep}
+            className="flex items-center gap-2 px-6 py-3 bg-[#1B3A2D] text-white text-sm font-semibold rounded-xl hover:bg-[#2D6A4F] transition-all cursor-pointer shadow-sm"
+          >
+            Próximo →
+          </button>
+        ) : (
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-stretch sm:items-center">
+            
+            <button
+              type="button"
+              onClick={() => handleSaveQuote('rascunho')}
+              className="flex items-center justify-center gap-1.5 px-4 h-11 border border-[#E8E6E1] text-[#6B6B5F] hover:text-[#1B3A2D] text-xs font-bold rounded-xl bg-[#FAFAF9] transition-all cursor-pointer hover:bg-[#F0EDE8]"
+            >
+              Salvar Rascunho
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSaveQuote('enviado')}
+              className="flex items-center justify-center gap-1.5 px-4 h-11 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm"
+            >
+              Gerar Orçamento
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSaveQuote('executado')}
+              className="flex items-center justify-center gap-1.5 px-5 h-11 bg-emerald-600 hover:bg-[#2D6A4F] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm"
+            >
+              Marcar como Executado
+            </button>
+
+          </div>
+        )}
+      </div>
+
       {/* SHARING FORM MODAL DISPLAY (COMMERCIAL COPYABLE QUOTE) */}
-      {/* ======================================================== */}
       <AnimatePresence>
         {showShareModal && generatedQuotePayload && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
@@ -1313,28 +1274,28 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border text-left border-gray-200 max-w-xl w-full rounded-[32px] p-6 sm:p-8 shadow-2xl relative space-y-6"
+              className="bg-white border text-left border-[#E8E6E1] max-w-xl w-full rounded-[32px] p-6 sm:p-8 shadow-2xl relative space-y-6 font-sans"
             >
-              <div className="flex items-start justify-between pb-3 border-b">
+              <div className="flex items-start justify-between pb-3 border-b border-[#E8E6E1]">
                 <div className="space-y-1">
                   <span className="px-2.5 py-0.5 rounded-md font-mono text-[9px] font-bold border border-sky-200 uppercase bg-sky-50 text-sky-700">
                     Orçamento Gerado
                   </span>
-                  <h3 className="text-lg font-black text-slate-950 block select-none">Proposta de Negócio Pronta</h3>
+                  <h3 className="text-lg font-black text-[#141410] block select-none">Proposta de Negócio Pronta</h3>
                 </div>
                 <button
                   onClick={() => {
                     setShowShareModal(false);
                     resetForm();
                   }}
-                  className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-950 transition-all"
+                  className="p-1.5 bg-[#FAFAF9] hover:bg-[#F0EDE8] rounded-lg text-[#6B6B5F] hover:text-[#141410] transition-all cursor-pointer"
                 >
                   <X className="size-5" />
                 </button>
               </div>
 
               <div className="space-y-4">
-                <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                <p className="text-xs text-[#6B6B5F] font-semibold leading-relaxed">
                   O orçamento foi salvo nos registros com status <strong className="text-sky-600">Enviado</strong>. Use o modelo abaixo formatado para enviar diretamente no WhatsApp ou E-mail corporativo do cliente.
                 </p>
 
@@ -1346,7 +1307,7 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
                   
                   <button
                     onClick={handleCopyText}
-                    className="absolute top-3 right-3 p-2 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center gap-1 font-sans text-[10px] font-bold"
+                    className="absolute top-3 right-3 p-2 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center gap-1 font-sans text-[10px] font-bold cursor-pointer"
                   >
                     {isCopied ? (
                       <>
@@ -1363,17 +1324,17 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
                 </div>
               </div>
 
-              <div className="pt-4 border-t flex justify-end gap-3 text-xs font-semibold">
-                <Button
+              <div className="pt-4 border-t border-[#E8E6E1] flex justify-end gap-3 text-xs font-semibold">
+                <button
                   type="button"
                   onClick={() => {
                     setShowShareModal(false);
                     resetForm();
                   }}
-                  className="bg-slate-950 hover:bg-slate-900 text-white font-extrabold uppercase text-[10px] px-6 py-2.5 rounded-2xl transition-all shadow-xs"
+                  className="bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white font-extrabold uppercase text-[10px] px-6 py-2.5 rounded-2xl transition-all shadow-xs cursor-pointer"
                 >
                   Concluído
-                </Button>
+                </button>
               </div>
             </motion.div>
           </div>

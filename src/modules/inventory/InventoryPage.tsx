@@ -80,6 +80,11 @@ export function InventoryPage() {
   const movements = inventory?.movements || [];
 
   const [activeTab, setActiveTab] = useState<'current_stock' | 'upload_entry' | 'movements_log'>('current_stock');
+  const tabs = [
+    { id: 'current_stock', label: 'Estoque Atual' },
+    { id: 'upload_entry', label: 'Entrada por Upload' },
+    { id: 'movements_log', label: 'Movimentações' }
+  ] as const;
 
   // Search & Filters for Stock Table (Tab 1)
   const [stockSearch, setStockSearch] = useState('');
@@ -761,88 +766,60 @@ export function InventoryPage() {
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
       
-      {/* ALERT OVERLAYS BANNER */}
-      {criticalProducts.length > 0 && (
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-rose-50 border border-rose-200/60 rounded-[24px] p-6 text-rose-900 flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-xs"
+      {/* HEADER */}
+      <header className="mb-8 flex items-start justify-between">
+        <div>
+          <span className="kpi-label text-[#2D6A4F] text-xs font-bold uppercase tracking-wider font-sans">Gestão de Estoque</span>
+          <h1 className="font-display text-3xl font-semibold text-[#141410] mt-1">Insumos & Produtos</h1>
+        </div>
+        <button 
+          onClick={openCreateModal}
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#1B3A2D] text-white 
+                             text-sm font-semibold rounded-xl hover:bg-[#2D6A4F] transition-colors cursor-pointer"
         >
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-rose-600 rounded-2xl text-white shadow-xs">
-              <AlertTriangle className="size-5" />
-            </div>
-            <div className="space-y-1">
-              <h4 className="text-sm font-black uppercase tracking-wider text-rose-950">Estoque Operacional Crítico</h4>
-              <p className="text-xs text-rose-700/85 font-medium leading-relaxed max-w-xl">
-                O estoque de <span className="font-bold underline">{criticalProducts.length} {criticalProducts.length === 1 ? 'insumo' : 'insumos'}</span> atingiu ou está abaixo do limite de segurança:
-                <span className="font-semibold block mt-1 text-[11px] text-rose-900 leading-normal">
-                  {criticalProducts.map(p => `${p.name} (${p.quantity}/${p.minQuantity} ${p.unit})`).join(', ')}.
-                </span>
-              </p>
-            </div>
+          <Plus className="size-4" /> Novo Produto
+        </button>
+      </header>
+
+      {/* BANNER DE PRODUTOS CRÍTICOS */}
+      {criticalProducts.length > 0 && (
+        <div className="bg-[#FFF3CD] border border-[#D4A017]/40 rounded-xl p-4 mb-6 text-sm text-[#92600A] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span>⚠️</span>
+            <span>
+              {criticalProducts.length} {criticalProducts.length === 1 ? 'produto precisa' : 'produtos precisam'} de reposição urgente: {criticalProducts.map(p => p.name).join(', ')}
+            </span>
           </div>
-          <Button
+          <button
             onClick={() => {
               setUploadedFileName('');
               setUploadParsedItems([]);
               setActiveTab('upload_entry');
             }}
-            id="btn-alert-go-import"
-            className="bg-rose-950 text-white font-bold text-[10px] uppercase tracking-widest px-5 py-2.5 rounded-xl hover:bg-rose-900 self-start md:self-auto"
+            className="text-xs font-bold underline hover:text-[#1B3A2D] cursor-pointer text-left sm:text-right shrink-0"
           >
             Dar Entrada de Insumos
-          </Button>
-        </motion.div>
+          </button>
+        </div>
       )}
 
-      {/* PAINEL CABEÇALHO */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-100">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <div className="size-2 bg-slate-900 rounded-full" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Controle de Insumos & frotas</span>
-          </div>
-          <h1 className="text-4xl font-black tracking-tight text-neutral-950">Estoque Técnico</h1>
-          <p className="text-gray-500 text-sm max-w-2xl font-medium">Cadastre produtos e insumos químicos para abater de orçamentos e controlar entradas via nota fiscal / XML de compras.</p>
-        </div>
-
-        {/* Dynamic Tab Switch */}
-        <div className="flex bg-gray-100/80 p-1.5 rounded-2xl border border-gray-200/50 self-start md:self-auto shrink-0 shadow-xs" id="inventory-tabs">
+      {/* ABAS (Pills Escuros) */}
+      <div className="flex gap-2 mb-8 p-1 bg-[#F0EDE8] rounded-xl w-fit">
+        {tabs.map(tab => (
           <button
-            id="tab-btn-current"
-            onClick={() => setActiveTab('current_stock')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'current_stock' ? 'bg-white text-slate-950 shadow-sm border border-black/5' : 'text-gray-500 hover:text-black hover:bg-white/40'
+            key={tab.id}
+            id={`tab-btn-${tab.id}`}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              activeTab === tab.id ? 'bg-[#1B3A2D] text-white shadow-sm' : 'text-[#6B6B5F] hover:text-[#141410]'
             }`}
           >
-            <Boxes className="size-3.5" />
-            Estoque Atual
+            {tab.label}
           </button>
-          <button
-            id="tab-btn-upload"
-            onClick={() => setActiveTab('upload_entry')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'upload_entry' ? 'bg-white text-slate-950 shadow-sm border border-black/5' : 'text-gray-500 hover:text-black hover:bg-white/40'
-            }`}
-          >
-            <Upload className="size-3.5" />
-            Entrada por Upload
-          </button>
-          <button
-            id="tab-btn-movements"
-            onClick={() => setActiveTab('movements_log')}
-            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'movements_log' ? 'bg-white text-slate-950 shadow-sm border border-black/5' : 'text-gray-500 hover:text-black hover:bg-white/40'
-            }`}
-          >
-            <ArrowRightLeft className="size-3.5" />
-            Movimentações
-          </button>
-        </div>
-      </header>
+        ))}
+      </div>
 
       {/* TAB SWITCH CONTENTS */}
       <AnimatePresence mode="wait">
@@ -859,49 +836,49 @@ export function InventoryPage() {
           >
             {/* Quick Overview KPI grid */}
             <div className="grid gap-6 sm:grid-cols-3">
-              <Card className="p-6 bg-white border-gray-200 shadow-xs rounded-[24px] space-y-3">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total de Categorias</p>
+              <div className="p-6 bg-white border border-[#E8E6E1] rounded-2xl space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Total de Categorias</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-black text-slate-950">{Object.keys(CATEGORY_LABELS).length}</span>
-                  <span className="text-[11px] font-semibold text-slate-400">Ativas na DDSulf</span>
+                  <span className="text-3xl font-display font-semibold text-[#141410]">{Object.keys(CATEGORY_LABELS).length}</span>
+                  <span className="text-xs text-[#6B6B5F]">Ativas na DDSulf</span>
                 </div>
-              </Card>
+              </div>
 
-              <Card className="p-6 bg-white border-gray-200 shadow-xs rounded-[24px] space-y-3">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Itens Cadastrados</p>
+              <div className="p-6 bg-white border border-[#E8E6E1] rounded-2xl space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Itens Cadastrados</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-black text-slate-950">{products.length}</span>
-                  <span className="text-[11px] font-semibold text-slate-400">Lançados no sistema</span>
+                  <span className="text-3xl font-display font-semibold text-[#141410]">{products.length}</span>
+                  <span className="text-xs text-[#6B6B5F]">Lançados no sistema</span>
                 </div>
-              </Card>
+              </div>
 
-              <Card className="p-6 bg-amber-500/10 border-amber-500/15 text-amber-950 rounded-[24px] space-y-3">
-                <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">Insumos em Alerta</p>
+              <div className="p-6 bg-[#FFF3CD]/50 border border-[#D4A017]/30 text-[#92600A] rounded-2xl space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#92600A]">Insumos em Alerta</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-black text-amber-600">{products.filter(p => p.quantity <= p.minQuantity * 1.5).length}</span>
-                  <span className="text-[10px] font-bold text-amber-700 uppercase bg-amber-500/20 px-2 py-0.5 rounded-md">Reabastecer</span>
+                  <span className="text-3xl font-display font-semibold text-[#92600A]">{products.filter(p => p.quantity <= p.minQuantity * 1.5).length}</span>
+                  <span className="text-[10px] font-bold text-[#92600A] uppercase bg-[#FFF3CD] border border-[#D4A017]/20 px-2 py-0.5 rounded-md">Reabastecer</span>
                 </div>
-              </Card>
+              </div>
             </div>
 
             {/* Controls Bar */}
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white border border-gray-200 rounded-[24px] p-4 shadow-xs">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white border border-[#E8E6E1] rounded-xl p-4">
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1">
                 <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#6B6B5F]" />
                   <input
                     type="text"
                     value={stockSearch}
                     onChange={(e) => setStockSearch(e.target.value)}
                     placeholder="Filtrar por nome do insumo ou fornecedor..."
-                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-gray-200 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                   />
                 </div>
 
                 <select
                   value={stockCategoryFilter}
                   onChange={(e) => setStockCategoryFilter(e.target.value)}
-                  className="h-11 px-4 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                  className="h-11 px-4 border border-[#E8E6E1] rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] cursor-pointer text-[#141410]"
                 >
                   <option value="all">Todas as Categorias</option>
                   {CATEGORIES_LIST.map(opt => (
@@ -909,72 +886,70 @@ export function InventoryPage() {
                   ))}
                 </select>
               </div>
-
-              <Button
-                id="btn-new-product-modal"
-                onClick={openCreateModal}
-                className="w-full md:w-auto h-11 bg-slate-950 text-white rounded-xl px-5 font-bold text-xs uppercase tracking-wider hover:bg-slate-900 active:scale-98 transition-all flex items-center justify-center gap-2 shrink-0 shadow-sm"
-              >
-                <Plus className="size-4" />
-                Novo Produto
-              </Button>
             </div>
 
             {/* STOCK PRODUCTS GRID TABLE */}
-            <Card className="bg-white border-gray-200 shadow-xs rounded-[28px] overflow-hidden" id="card-stock-grid-table">
+            <div className="bg-white border border-[#E8E6E1] rounded-2xl overflow-hidden" id="card-stock-grid-table">
               {displayedProducts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-                  <SearchX className="size-9 text-slate-300 animate-pulse" />
+                  <SearchX className="size-9 text-[#6B6B5F] opacity-50" />
                   <div className="space-y-1">
-                    <p className="text-sm font-black text-slate-800 uppercase tracking-widest">Nenhum Insumo Encontrado</p>
-                    <p className="text-xs text-slate-400 max-w-sm">Tente reajustar os filtros ou adicione um novo produto usando o botão lateral.</p>
+                    <p className="text-sm font-bold text-[#141410] uppercase tracking-widest">Nenhum Insumo Encontrado</p>
+                    <p className="text-xs text-[#6B6B5F] max-w-sm">Tente reajustar os filtros ou adicione um novo produto usando o botão superior.</p>
                   </div>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-gray-100 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        <th className="py-4 px-6">Nome do Insumo</th>
-                        <th className="py-4 px-4">Categoria</th>
-                        <th className="py-4 px-4 text-right">Qtd Atual</th>
-                        <th className="py-4 px-4">Unidade</th>
-                        <th className="py-4 px-4 text-right">Estoque Mín</th>
-                        <th className="py-4 px-4 text-right">Custo / Un.</th>
-                        <th className="py-4 px-4">Fornecedor</th>
-                        <th className="py-4 px-4 text-center">Status</th>
-                        <th className="py-4 px-6 text-right">Ações</th>
+                    <thead className="bg-[#F0EDE8]">
+                      <tr className="border-b border-[#E8E6E1]">
+                        <th className="py-4 px-6 text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Nome do Insumo</th>
+                        <th className="py-4 px-4 text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Categoria</th>
+                        <th className="py-4 px-4 text-right text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Quantidade</th>
+                        <th className="py-4 px-4 text-right text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Estoque Mín</th>
+                        <th className="py-4 px-4 text-right text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Custo / Un.</th>
+                        <th className="py-4 px-4 text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Fornecedor</th>
+                        <th className="py-4 px-4 text-center text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Status</th>
+                        <th className="py-4 px-6 text-right text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Ações</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50 text-xs">
+                    <tbody className="divide-y divide-[#E8E6E1] text-xs">
                       {displayedProducts.map((p) => {
                         const status = getProductStatus(p.quantity, p.minQuantity);
                         const isInlineEditing = editingId === p.id;
 
+                        // Map code to beautiful requested pills
+                        let pillClasses = 'bg-[#D8EDE3] text-[#1B3A2D] border border-[#2D6A4F]/20';
+                        if (status.code === 'critico') {
+                          pillClasses = 'bg-[#FDDDD8] text-[#C1361A] border border-[#C1361A]/20';
+                        } else if (status.code === 'baixo') {
+                          pillClasses = 'bg-[#FFF3CD] text-[#92600A] border border-[#D4A017]/20';
+                        }
+
                         return (
-                          <tr key={p.id} className="hover:bg-slate-50/50 transition-colors font-semibold text-slate-800">
+                          <tr key={p.id} className="hover:bg-[#FAFAF9] transition-colors font-medium text-[#141410] border-b border-[#E8E6E1]">
                             
                             {/* Nome com ícone */}
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
-                                <div className="p-2 bg-slate-100 rounded-xl border border-slate-200/50 text-slate-800">
+                                <div className="p-2 bg-[#FAFAF9] rounded-xl border border-[#E8E6E1] text-[#6B6B5F]">
                                   <Package className="size-4" />
                                 </div>
                                 <div className="space-y-0.5">
-                                  <span className="font-bold text-slate-950 block">{p.name}</span>
-                                  <span className="text-[10px] font-mono text-slate-400 font-medium">ID: {p.id}</span>
+                                  <span className="font-bold text-[#141410] block">{p.name}</span>
+                                  <span className="text-[10px] font-mono text-[#6B6B5F] font-medium">ID: {p.id}</span>
                                 </div>
                               </div>
                             </td>
 
                             {/* Categoria Badge */}
-                            <td className="py-4 px-4 uppercase text-[9px]">
-                              <span className="px-2 py-0.5 rounded-md font-mono border bg-slate-100 text-slate-700/90 font-bold">
+                            <td className="py-4 px-4 uppercase text-[10px]">
+                              <span className="px-2 py-0.5 rounded-md font-mono border border-[#E8E6E1] bg-[#FAFAF9] text-[#6B6B5F] font-bold">
                                 {CATEGORY_LABELS[p.category] || p.category}
                               </span>
                             </td>
 
-                            {/* Qtd inline edit / inline input form */}
+                            {/* Qtd with large display typography */}
                             <td className="py-4 px-4 text-right">
                               {isInlineEditing ? (
                                 <div className="flex items-center justify-end gap-1.5 max-w-[120px] ml-auto">
@@ -983,79 +958,76 @@ export function InventoryPage() {
                                     min="0"
                                     value={editingQty}
                                     onChange={(e) => setEditingQty(parseFloat(e.target.value) || 0)}
-                                    className="w-16 h-8 border border-slate-300 rounded-lg text-center text-xs font-bold focus:outline-hidden focus:border-slate-950 bg-white"
+                                    className="w-16 h-8 border border-[#E8E6E1] rounded-lg text-center text-xs font-bold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                                   />
                                   <button
                                     onClick={() => saveInlineQuantity(p)}
-                                    className="p-1.5 bg-slate-900 text-white rounded-lg hover:bg-black transition-colors"
+                                    className="p-1.5 bg-[#1B3A2D] text-white rounded-lg hover:bg-[#2D6A4F] transition-colors"
                                     title="Confirmar"
                                   >
                                     <Check className="size-3.5" />
                                   </button>
                                   <button
                                     onClick={() => setEditingId(null)}
-                                    className="p-1.5 bg-slate-100 border text-slate-500 rounded-lg hover:bg-slate-200 transition-colors"
+                                    className="p-1.5 bg-white border border-[#E8E6E1] text-[#6B6B5F] rounded-lg hover:bg-[#FAFAF9] transition-colors"
                                     title="Cancelar"
                                   >
                                     <X className="size-3.5" />
                                   </button>
                                 </div>
                               ) : (
-                                <div className="flex items-center justify-end gap-1.5 group cursor-pointer" onClick={() => startInlineEdit(p)}>
-                                  <span className="font-mono text-slate-950 font-bold text-sm">
+                                <div className="inline-flex items-baseline justify-end gap-1 cursor-pointer group" onClick={() => startInlineEdit(p)}>
+                                  <span className="font-display text-[#141410] font-semibold text-lg">
                                     {p.quantity.toLocaleString('pt-BR')}
                                   </span>
-                                  <button className="p-1 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-slate-950 transition-all rounded">
+                                  <span className="text-[#6B6B5F] text-xs ml-1">
+                                    {p.unit}
+                                  </span>
+                                  <button className="p-1 text-[#6B6B5F] opacity-0 group-hover:opacity-100 hover:text-[#141410] transition-all rounded ml-1">
                                     <Edit2 className="size-3" />
                                   </button>
                                 </div>
                               )}
                             </td>
 
-                            {/* Unidade */}
-                            <td className="py-4 px-4 font-mono text-slate-500 text-[11px]">
-                              {p.unit}
-                            </td>
-
                             {/* Estoque Mínimo */}
-                            <td className="py-4 px-4 text-right font-mono text-slate-500">
-                              {p.minQuantity.toLocaleString('pt-BR')}
+                            <td className="py-4 px-4 text-right font-mono text-[#6B6B5F] text-xs">
+                              {p.minQuantity.toLocaleString('pt-BR')} {p.unit}
                             </td>
 
                             {/* Custo por Unidade */}
-                            <td className="py-4 px-4 text-right font-mono text-slate-900">
+                            <td className="py-4 px-4 text-right font-mono text-[#141410]">
                               R$ {p.costPerUnit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                             </td>
 
                             {/* Fornecedor */}
-                            <td className="py-4 px-4 text-slate-500 max-w-[140px] truncate">
+                            <td className="py-4 px-4 text-[#6B6B5F] max-w-[140px] truncate">
                               {p.supplier || 'N/A'}
                             </td>
 
-                            {/* Status Visual */}
+                            {/* Status Visual como pill colorida descrita nas diretrizes */}
                             <td className="py-4 px-4 text-center">
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${status.color}`}>
-                                <span className={`size-1.5 rounded-full ${status.dot}`} />
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${pillClasses}`}>
                                 {status.label}
                               </span>
                             </td>
 
-                            {/* Ações */}
+                            {/* Ações (ícones apenas em cinza, hover colorido) */}
                             <td className="py-4 px-6 text-right">
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-end gap-1.5">
                                 <button
                                   onClick={() => openEditModal(p)}
-                                  className="p-1.5 text-slate-500 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors"
+                                  className="p-2 text-[#6B6B5F] hover:text-[#2D6A4F] hover:bg-[#D8EDE3] rounded-xl transition-all cursor-pointer"
                                   title="Editar Produto"
                                 >
-                                  <Edit2 className="size-3.5" />
+                                  <Edit2 className="size-4" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteProduct(p.id, p.name)}
-                                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                                  className="p-2 text-[#6B6B5F] hover:text-[#C1361A] hover:bg-[#FDDDD8] rounded-xl transition-all cursor-pointer"
                                   title="Excluir Produto"
                                 >
-                                  <Trash2 className="size-3.5" />
+                                  <Trash2 className="size-4" />
                                 </button>
                               </div>
                             </td>
@@ -1067,7 +1039,7 @@ export function InventoryPage() {
                   </table>
                 </div>
               )}
-            </Card>
+            </div>
           </motion.div>
         )}
 
@@ -1082,38 +1054,69 @@ export function InventoryPage() {
             className="grid gap-8 lg:grid-cols-12 animate-in fade-in"
           >
             {/* Upload Area left column */}
-            <div className="lg:col-span-5 space-y-6">
-              <Card className="bg-white border-gray-200 shadow-xs rounded-[28px] p-6 space-y-6">
+            <div className="lg:col-span-12 xl:col-span-5 space-y-6">
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-6">
                 <div className="space-y-1">
-                  <h3 className="text-base font-black text-slate-950">Scanner de Compras</h3>
-                  <p className="text-xs text-gray-400 font-medium">Extraia compras e dê entrada com um drop de arquivo (.xlsx, .csv, .xml de NFe ou .pdf).</p>
+                  <h3 className="text-base font-semibold text-[#141410] font-display">Scanner de Compras</h3>
+                  <p className="text-xs text-[#6B6B5F] font-medium">Extraia e sincronize entradas de faturas de insumos químicos para controle unificado.</p>
                 </div>
 
-                {/* Interactive Drop area */}
+                {/* Cards de formato aceito como pills clicáveis */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold uppercase text-[#6B6B5F] tracking-wider font-sans block">Formatos Disponíveis</span>
+                  <div className="flex flex-wrap gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => document.getElementById('inventory-file-selector')?.click()}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-[#FAFAF9] border border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-[#1B3A2D]/5 rounded-xl text-xs font-medium text-[#6B6B5F] hover:text-[#1B3A2D] transition-all cursor-pointer"
+                    >
+                      <FileSpreadsheet className="size-3.5 text-[#2D6A4F]" />
+                      <span>Planilha (.XLSX)</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => document.getElementById('inventory-file-selector')?.click()}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-[#FAFAF9] border border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-[#1B3A2D]/5 rounded-xl text-xs font-medium text-[#6B6B5F] hover:text-[#1B3A2D] transition-all cursor-pointer"
+                    >
+                      <FileUp className="size-3.5 text-[#D4A017]" />
+                      <span>XML NF-e (.xml)</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => document.getElementById('inventory-file-selector')?.click()}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-[#FAFAF9] border border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-[#1B3A2D]/5 rounded-xl text-xs font-medium text-[#6B6B5F] hover:text-[#1B3A2D] transition-all cursor-pointer"
+                    >
+                      <FileSpreadsheet className="size-3.5 text-[#C1361A]" />
+                      <span>Fatura CSV (.csv)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Dynamic drop zone */}
                 <div
                   onDragOver={handleDragOver}
                   onDragLeave={() => setIsDragging(false)}
                   onDrop={handleDrop}
                   onClick={() => document.getElementById('inventory-file-selector')?.click()}
-                  className={`border-2 border-dashed rounded-[20px] p-8 text-center transition-all cursor-pointer ${
+                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
                     isDragging 
-                      ? 'border-slate-950 bg-slate-50/50' 
-                      : 'border-slate-200 hover:border-slate-400 bg-white'
+                      ? 'border-[#1B3A2D] bg-[#FAFAF9]' 
+                      : 'border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-[#FAFAF9]/50 bg-[#FAFAF9]'
                   }`}
                 >
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-slate-400">
+                  <div className="flex flex-col items-center gap-4 animate-fade-in">
+                    <div className="p-3 bg-white rounded-xl border border-[#E8E6E1] text-[#1B3A2D] shadow-xs">
                       <FileUp className="size-7" />
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-xs font-bold text-slate-900">Arraste a Nota Fiscal ou tabela de compras</p>
-                      <p className="text-[9px] text-gray-400 leading-normal">Lemos xml, notas brutas, planilhas organizadas ou ordens PDF.</p>
+                      <p className="text-xs font-bold text-[#141410]">Arraste a Nota Fiscal ou tabela de compras</p>
+                      <p className="text-[10px] text-[#6B6B5F] leading-normal">Lemos xml, notas brutas, planilhas organizadas ou ordens PDF.</p>
                     </div>
 
                     {uploadedFileName && (
-                      <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-950 border border-emerald-100 px-3 py-1 rounded-full text-[10px] font-bold">
-                        <CheckCircle2 className="size-3 text-emerald-600" />
+                      <div className="inline-flex items-center gap-1.5 bg-[#D8EDE3] text-[#1B3A2D] border border-[#2D6A4F]/20 px-3 py-1 rounded-full text-[10px] font-bold">
+                        <Check className="size-3 text-[#2D6A4F]" />
                         {uploadedFileName}
                       </div>
                     )}
@@ -1129,7 +1132,7 @@ export function InventoryPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-9 font-bold text-[9px] uppercase tracking-wider text-slate-950 rounded-xl border-slate-200 hover:bg-slate-50 shadow-xs"
+                        className="h-9 font-bold text-[9px] uppercase tracking-wider text-[#1B3A2D] rounded-xl border-[#1B3A2D] hover:bg-[#1B3A2D]/10 shadow-xs cursor-pointer"
                       >
                         Localizar Arquivo
                       </Button>
@@ -1137,28 +1140,28 @@ export function InventoryPage() {
                   </div>
                 </div>
 
-                {/* Parsing guides */}
-                <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-2 text-[10px] text-slate-500">
-                  <span className="font-bold text-slate-800 uppercase block tracking-wider">Mapeamento dinâmico inteligente</span>
-                  <p className="leading-relaxed">
-                    Extraímos posições de colunas ou tags como <span className="font-mono bg-slate-100 text-slate-900 px-1 rounded">&lt;xProd&gt;</span>, <span className="font-mono bg-slate-100 text-slate-900 px-1 rounded">&lt;qCom&gt;</span> para dar entrada múltipla rápida.
+                {/* Guided note mapping description */}
+                <div className="p-4 bg-[#FAFAF9] border border-[#E8E6E1] rounded-xl space-y-1.5 text-xs text-[#6B6B5F]">
+                  <span className="font-bold text-[#141410] uppercase block tracking-wider text-[10px]">Mapeamento Inteligente</span>
+                  <p className="leading-relaxed text-[11px]">
+                    Nossa ferramenta realiza o cruzamento sintático do catálogo de produtos comerciais e preenche a quantidade de entrada. Altere o mapeamento das colunas conforme sua conveniência.
                   </p>
                 </div>
-              </Card>
+              </div>
 
               {/* Show original file debug snippet dynamically */}
               {(sheetPreviewRaw.length > 0 || rawTextPreview) && (
-                <Card className="bg-white border-gray-200 shadow-xs rounded-[28px] p-6 space-y-4">
+                <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4">
                   <div className="flex items-center gap-2">
-                    <Eye className="size-4 text-slate-400" />
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Preview Bruto do Arquivo</span>
+                    <Eye className="size-4 text-[#6B6B5F]" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Visualização de Registros Originais</span>
                   </div>
 
                   {/* Excel rows visual grid preview */}
                   {fileTypeDetected === 'sheet' && sheetPreviewRaw.length > 0 && (
-                    <div className="overflow-x-auto max-h-[160px] border border-gray-100 rounded-xl text-[9px] font-mono divide-y bg-slate-50/50">
+                    <div className="overflow-x-auto max-h-[160px] border border-[#E8E6E1] rounded-xl text-[9px] font-mono divide-y divide-[#E8E6E1] bg-[#FAFAF9]">
                       {sheetPreviewRaw.map((rowArr, rIdx) => (
-                        <div key={rIdx} className="flex divide-x whitespace-nowrap p-1.5">
+                        <div key={rIdx} className="flex divide-x divide-[#E8E6E1] whitespace-nowrap p-1.5">
                           {rowArr.map((cellStr, cIdx) => (
                             <span key={cIdx} className="px-1.5 opacity-85 block truncate max-w-[120px]" title={cellStr}>
                               {cellStr || '-'}
@@ -1171,41 +1174,41 @@ export function InventoryPage() {
 
                   {/* Text snippets for XML and PDF */}
                   {(fileTypeDetected === 'xml' || fileTypeDetected === 'pdf') && rawTextPreview && (
-                    <pre className="p-3 bg-slate-950 text-slate-300 text-[8px] font-mono rounded-xl overflow-auto max-h-[160px] whitespace-pre-wrap leading-normal border border-slate-800">
+                    <pre className="p-3 bg-[#141410] text-[#FAFAF9] text-[9px] font-mono rounded-xl overflow-auto max-h-[160px] whitespace-pre-wrap leading-normal border border-[#E8E6E1]">
                       {rawTextPreview}
                     </pre>
                   )}
-                </Card>
+                </div>
               )}
             </div>
 
             {/* Mapped results table right column */}
-            <div className="lg:col-span-7 space-y-6">
-              <Card className="bg-white border-gray-200 shadow-xs rounded-[28px] p-6 space-y-6 flex flex-col min-h-[440px]">
+            <div className="lg:col-span-12 xl:col-span-7 space-y-6">
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-6 flex flex-col min-h-[440px]">
                 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8E6E1] pb-4">
                   <div className="space-y-0.5">
-                    <h3 className="text-base font-black text-slate-950">Confirmar Parâmetros Mapeados</h3>
-                    <p className="text-xs text-gray-400 font-medium">Configure e confirme os insumos encontrados antes de enviar do estoque.</p>
+                    <h3 className="text-base font-semibold text-[#141410] font-display">Confirmar Parâmetros Mapeados</h3>
+                    <p className="text-xs text-[#6B6B5F] font-medium">Configure e confirme os insumos encontrados antes de incorporar ao catálogo.</p>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={handleAddManualRow}
-                    className="h-9 px-3 rounded-lg border-dashed border-gray-200 text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:text-slate-950"
+                    className="h-9 px-3 rounded-lg border-dashed border-[#E8E6E1] text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F] hover:text-[#141410]"
                   >
-                    + Adicionar Linha
+                    + Adicionar Linha Manual
                   </Button>
                 </div>
 
                 {/* Import confirm table */}
-                <div className="flex-1 overflow-y-auto max-h-[420px] divide-y divide-gray-100 pr-1">
+                <div className="flex-1 overflow-y-auto max-h-[420px] divide-y divide-[#E8E6E1] pr-1">
                   {uploadParsedItems.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-24 text-center gap-4">
-                      <FileSpreadsheet className="size-10 text-slate-200 animate-pulse" />
+                      <FileSpreadsheet className="size-10 text-[#6B6B5F] opacity-50" />
                       <div className="space-y-1">
-                        <p className="text-xs font-bold text-slate-700 uppercase tracking-widest">Nenhum Registro Prévio</p>
-                        <p className="text-[10px] text-gray-400 max-w-xs">Carregue um arquivo à esquerda ou pressione "+ Adicionar Linha" para digitar manualmente.</p>
+                        <p className="text-xs font-bold text-[#141410] uppercase tracking-widest">Nenhum Registro Prévio</p>
+                        <p className="text-[10px] text-[#6B6B5F] max-w-xs">Carregue um arquivo à esquerda ou pressione "+ Adicionar Linha Manual" para digitar.</p>
                       </div>
                     </div>
                   ) : (
@@ -1213,10 +1216,10 @@ export function InventoryPage() {
                       {uploadParsedItems.map((item) => (
                         <div 
                           key={item.id}
-                          className={`flex flex-col sm:flex-row items-stretch justify-between p-4 rounded-2xl border transition-all gap-4 ${
+                          className={`flex flex-col sm:flex-row items-stretch justify-between p-4 rounded-xl border transition-all gap-4 ${
                             item.confirmed 
-                              ? 'bg-slate-50/50 border-slate-200' 
-                              : 'bg-white border-dashed border-slate-100 opacity-40'
+                              ? 'bg-[#FAFAF9] border-[#E8E6E1]' 
+                              : 'bg-white border-dashed border-[#E8E6E1] opacity-40'
                           }`}
                         >
                           {/* Item parameters editable fields */}
@@ -1227,40 +1230,40 @@ export function InventoryPage() {
                                 type="checkbox"
                                 checked={item.confirmed}
                                 onChange={(e) => handleUpdateParsedItem(item.id, { confirmed: e.target.checked })}
-                                className="size-4 rounded-sm accent-slate-900 cursor-pointer"
+                                className="size-4 rounded-md accent-[#1B3A2D] cursor-pointer"
                               />
                             </div>
 
                             {/* Name input */}
                             <div className="sm:col-span-5 space-y-1">
-                              <label className="text-[8px] font-black uppercase text-slate-400">Nome do Insumo</label>
+                              <label className="text-[9px] font-bold uppercase text-[#6B6B5F]">Nome do Insumo</label>
                               <input
                                 type="text"
                                 value={item.name}
                                 onChange={(e) => handleUpdateParsedItem(item.id, { name: e.target.value })}
-                                className="w-full h-9 border border-gray-200 rounded-lg px-2.5 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                                className="w-full h-9 border border-[#E8E6E1] rounded-lg px-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white"
                               />
                             </div>
 
                             {/* Qtd & Unit input */}
                             <div className="sm:col-span-3 grid grid-cols-2 gap-1.5">
                               <div className="space-y-1">
-                                <label className="text-[8px] font-black uppercase text-slate-400">Qtd</label>
+                                <label className="text-[9px] font-bold uppercase text-[#6B6B5F]">Qtd</label>
                                 <input
                                   type="number"
                                   min="0.1"
                                   step="ANY"
                                   value={item.quantity}
                                   onChange={(e) => handleUpdateParsedItem(item.id, { quantity: parseFloat(e.target.value) || 0 })}
-                                  className="w-full h-9 border border-gray-200 rounded-lg px-1.5 text-center text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                                  className="w-full h-9 border border-[#E8E6E1] rounded-lg px-1.5 text-center text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white"
                                 />
                               </div>
                               <div className="space-y-1">
-                                <label className="text-[8px] font-black uppercase text-slate-400">Unidade</label>
+                                <label className="text-[9px] font-bold uppercase text-[#6B6B5F]">Unidade</label>
                                 <select
                                   value={item.unit}
                                   onChange={(e) => handleUpdateParsedItem(item.id, { unit: e.target.value })}
-                                  className="w-full h-9 border border-gray-200 rounded-lg px-1 text-[10px] font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                                  className="w-full h-9 border border-[#E8E6E1] rounded-lg px-1 text-[10px] font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white cursor-pointer"
                                 >
                                   {UNITS_LIST.map(u => (
                                     <option key={u} value={u}>{u}</option>
@@ -1272,22 +1275,22 @@ export function InventoryPage() {
                             {/* Cost per unit & Category */}
                             <div className="sm:col-span-3 grid grid-cols-2 gap-1.5">
                               <div className="space-y-1">
-                                <label className="text-[8px] font-black uppercase text-slate-400">Custo (R$)</label>
+                                <label className="text-[9px] font-bold uppercase text-[#6B6B5F]">Custo (R$)</label>
                                 <input
                                   type="number"
                                   min="0"
                                   step="0.0001"
                                   value={item.costPerUnit}
                                   onChange={(e) => handleUpdateParsedItem(item.id, { costPerUnit: parseFloat(e.target.value) || 0 })}
-                                  className="w-full h-9 border border-gray-200 rounded-lg px-1 text-center text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                                  className="w-full h-9 border border-[#E8E6E1] rounded-lg px-1 text-center text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white"
                                 />
                               </div>
                               <div className="space-y-1">
-                                <label className="text-[8px] font-black uppercase text-slate-400">Categoria</label>
+                                <label className="text-[9px] font-bold uppercase text-[#6B6B5F]">Categoria</label>
                                 <select
                                   value={item.category}
                                   onChange={(e) => handleUpdateParsedItem(item.id, { category: e.target.value })}
-                                  className="w-full h-9 border border-gray-200 rounded-lg px-1 text-[10px] font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                                  className="w-full h-9 border border-[#E8E6E1] rounded-lg px-1 text-[10px] font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white cursor-pointer"
                                 >
                                   {CATEGORIES_LIST.map(c => (
                                     <option key={c.value} value={c.value}>{c.label}</option>
@@ -1298,10 +1301,10 @@ export function InventoryPage() {
                           </div>
 
                           {/* Action Trash row deletion */}
-                          <div className="flex items-center justify-end border-t sm:border-t-0 border-gray-100 pt-2 sm:pt-0 shrink-0">
+                          <div className="flex items-center justify-end border-t sm:border-t-0 border-[#E8E6E1] pt-2 sm:pt-0 shrink-0">
                             <button
                               onClick={() => setUploadParsedItems(prev => prev.filter(p => p.id !== item.id))}
-                              className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors inline-block"
+                              className="p-2 text-[#6B6B5F] hover:text-[#C1361A] hover:bg-[#FDDDD8] rounded-lg transition-colors inline-block cursor-pointer"
                             >
                               <Trash2 className="size-3.5" />
                             </button>
@@ -1314,26 +1317,26 @@ export function InventoryPage() {
 
                 {/* Import Confirmation Footer */}
                 {uploadParsedItems.length > 0 && (
-                  <div className="border-t border-gray-100 pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <span className="text-[10px] font-bold text-slate-500">
-                      Entrada programada de <span className="text-slate-950 font-black underline">{uploadParsedItems.filter(p => p.confirmed).length} items</span> selecionados.
+                  <div className="border-t border-[#E8E6E1] pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <span className="text-[10px] font-bold text-[#6B6B5F]">
+                      Entrada programada de <span className="text-[#141410] font-black underline">{uploadParsedItems.filter(p => p.confirmed).length} itens</span> selecionados.
                     </span>
                     <Button
                       type="button"
                       id="btn-confirm-mapped-entry"
                       onClick={handleConfirmImport}
-                      className="w-full sm:w-auto h-11 bg-slate-950 text-white rounded-xl px-6 font-bold text-xs uppercase tracking-wider hover:bg-slate-900 shadow-sm"
+                      className="w-full sm:w-auto h-11 bg-[#1B3A2D] text-white rounded-xl px-6 font-bold text-xs uppercase tracking-wider hover:bg-[#2D6A4F] shadow-sm cursor-pointer"
                     >
                       Confirmar Entrada de Produtos
                     </Button>
                   </div>
                 )}
-              </Card>
+              </div>
             </div>
           </motion.div>
         )}
 
-        {/* ----------------- ABA 3: MOVIMENTAÇÕES ----------------- */}
+        {/* ----------------- ABA 3: MOVIMENTAÇÕES (TIMELINE VERTICAL) ----------------- */}
         {activeTab === 'movements_log' && (
           <motion.div
             key="movements-log-tab"
@@ -1344,29 +1347,29 @@ export function InventoryPage() {
             className="space-y-6"
           >
             {/* Log Filters Bar */}
-            <Card className="bg-white border-gray-200 shadow-xs rounded-[24px] p-5 flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="bg-white border border-[#E8E6E1] rounded-2xl p-5 flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="flex flex-wrap gap-4 w-full">
                 {/* Type filters */}
                 <div className="space-y-1 flex-1 min-w-[140px]">
-                  <label className="text-[8px] font-black uppercase text-slate-400 block pb-0.5">Tipo de Movimentação</label>
+                  <label className="text-[9px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Tipo de Movimentação</label>
                   <select
                     value={movementTypeFilter}
                     onChange={(e) => setMovementTypeFilter(e.target.value as any)}
-                    className="w-full h-10 border border-gray-200 rounded-lg px-2.5 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                    className="w-full h-10 border border-[#E8E6E1] rounded-lg px-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                   >
                     <option value="all">Todas as Altas/Baixas</option>
                     <option value="entrada">Entradas (Incrementos)</option>
-                    <option value="saida font-bold text-rose-600">Saídas (Consumos/Ajustes)</option>
+                    <option value="saida">Saídas (Consumos/Ajustes)</option>
                   </select>
                 </div>
 
                 {/* Products lookup selection */}
                 <div className="space-y-1 flex-1 min-w-[180px]">
-                  <label className="text-[8px] font-black uppercase text-slate-400 block pb-0.5">Filtrar por Produto</label>
+                  <label className="text-[9px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Filtrar por Produto</label>
                   <select
                     value={movementProductFilter}
                     onChange={(e) => setMovementProductFilter(e.target.value)}
-                    className="w-full h-10 border border-gray-200 rounded-lg px-2.5 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                    className="w-full h-10 border border-[#E8E6E1] rounded-lg px-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                   >
                     <option value="all">Todos os Produtos</option>
                     {products.map(p => (
@@ -1377,11 +1380,11 @@ export function InventoryPage() {
 
                 {/* Period selection */}
                 <div className="space-y-1 flex-1 min-w-[130px]">
-                  <label className="text-[8px] font-black uppercase text-slate-400 block pb-0.5">Período Histórico</label>
+                  <label className="text-[9px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Período Histórico</label>
                   <select
                     value={movementPeriodFilter}
                     onChange={(e) => setMovementPeriodFilter(e.target.value as any)}
-                    className="w-full h-10 border border-gray-200 rounded-lg px-2.5 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                    className="w-full h-10 border border-[#E8E6E1] rounded-lg px-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                   >
                     <option value="all">Histórico Completo</option>
                     <option value="7d">Últimos 7 dias</option>
@@ -1390,93 +1393,83 @@ export function InventoryPage() {
                   </select>
                 </div>
               </div>
-            </Card>
+            </div>
 
-            {/* History logs grid table */}
-            <Card className="bg-white border-gray-200 shadow-xs rounded-[28px] overflow-hidden">
+            {/* TIMELINE VERTICAL DE MOVIMENTAÇÕES */}
+            <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 shadow-xs">
               {filteredMovements.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-                  <History className="size-9 text-slate-200" />
+                  <History className="size-9 text-[#6B6B5F] opacity-50" />
                   <div className="space-y-1">
-                    <p className="text-sm font-black text-slate-800 uppercase tracking-widest">Sem Movimentações no Log</p>
-                    <p className="text-xs text-slate-400 max-w-sm">Nenhuma movimentação corresponde aos critérios de pesquisa selecionados acima.</p>
+                    <p className="text-sm font-bold text-[#141410] uppercase tracking-widest">Sem Movimentações no Log</p>
+                    <p className="text-xs text-[#6B6B5F] max-w-sm">Nenhuma movimentação corresponde aos critérios de pesquisa selecionados acima.</p>
                   </div>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-gray-100 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        <th className="py-4 px-6">Data & Hora</th>
-                        <th className="py-4 px-4">Produto</th>
-                        <th className="py-4 px-4">Tipo</th>
-                        <th className="py-4 px-4 text-right">Quantidade</th>
-                        <th className="py-4 px-4 text-center">Unidade</th>
-                        <th className="py-4 px-6">Motivo comercial / Origem</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 text-xs">
-                      {filteredMovements.map((m) => {
-                        const isEntrada = m.type === 'entrada';
+                <div className="space-y-6 relative pl-4 border-l border-[#E8E6E1] ml-2">
+                  {filteredMovements.map((m) => {
+                    const isEntrada = m.type === 'entrada';
+                    const productName = getProductName(m.productId);
+                    const productUnit = getProductUnit(m.productId);
+                    const formattedDate = new Date(m.date).toLocaleString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    });
 
-                        return (
-                          <tr key={m.id} className="hover:bg-slate-50/50 transition-all font-semibold text-slate-700">
-                            
-                            {/* Date elegant format */}
-                            <td className="py-4 px-6 whitespace-nowrap text-slate-900 font-medium">
-                              <div className="flex items-center gap-2 font-mono text-[11px]">
-                                <Calendar className="size-3.5 text-slate-400" />
-                                {new Date(m.date).toLocaleString('pt-BR', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </div>
-                            </td>
+                    return (
+                      <div
+                        key={m.id}
+                        className={`relative pl-8 pb-3 last:pb-0 ${
+                          isEntrada 
+                            ? 'border-l-2 border-[#D8EDE3]' 
+                            : 'border-l-2 border-[#FFF3CD]'
+                        }`}
+                        style={{ marginLeft: '-17px' }}
+                      >
+                        {/* Circle Bullet inside vertical line */}
+                        <div className="absolute left-0 top-0 -translate-x-[50%] flex items-center justify-center size-8 rounded-full bg-white border border-[#E8E6E1] shadow-xs">
+                          {isEntrada ? (
+                            <ArrowUpRight className="size-4 text-[#2D6A4F]" />
+                          ) : (
+                            <ArrowDownLeft className="size-4 text-[#D4A017]" />
+                          )}
+                        </div>
 
-                            {/* Name lookup */}
-                            <td className="py-4 px-4">
-                              <span className="font-bold text-slate-950 font-sans block">{getProductName(m.productId)}</span>
-                            </td>
+                        {/* Text fields custom styled */}
+                        <div className="space-y-1 pl-2">
+                          <div className="flex items-center gap-2">
+                            <span className="kpi-label text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">
+                              {formattedDate}
+                            </span>
+                            <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                              isEntrada 
+                                ? 'bg-[#D8EDE3] text-[#1B3A2D] border-[#2D6A4F]/10' 
+                                : 'bg-[#FFF3CD] text-[#92600A] border-[#D4A017]/10'
+                            }`}>
+                              {isEntrada ? 'Entrada / Incremento' : 'Saída / Consumo'}
+                            </span>
+                          </div>
 
-                            {/* Type badge direction design */}
-                            <td className="py-4 px-4 whitespace-nowrap">
-                              {isEntrada ? (
-                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase">
-                                  <ArrowUpRight className="size-3 text-emerald-600" /> Entrada
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase">
-                                  <ArrowDownLeft className="size-3 text-rose-600" /> Saída
-                                </span>
-                              )}
-                            </td>
+                          <div className="font-semibold text-[#141410] flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm font-semibold">{productName}</span>
+                            <span className="text-xs font-mono text-[#6B6B5F]">
+                              ({isEntrada ? '+' : '-'}{m.quantity.toLocaleString('pt-BR')} {productUnit})
+                            </span>
+                          </div>
 
-                            {/* Qtd with directional signs */}
-                            <td className={`py-4 px-4 text-right font-mono font-bold text-sm ${isEntrada ? 'text-emerald-700' : 'text-slate-900'}`}>
-                              {isEntrada ? '+' : '-'}{m.quantity.toLocaleString('pt-BR')}
-                            </td>
-
-                            {/* Unit */}
-                            <td className="py-4 px-4 text-center font-mono text-slate-400 text-[11px]">
-                              {getProductUnit(m.productId)}
-                            </td>
-
-                            {/* Reason for discrepancy subtraction or addition */}
-                            <td className="py-4 px-6 text-slate-500 max-w-sm truncate leading-relaxed">
-                              {m.reason}
-                            </td>
-
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                          <div className="text-sm text-[#6B6B5F] leading-relaxed">
+                            {m.reason}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-            </Card>
+            </div>
           </motion.div>
         )}
 
@@ -1487,25 +1480,25 @@ export function InventoryPage() {
           ------------------------------------------------------------- */}
       <AnimatePresence>
         {isProductModalOpen && (
-          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white rounded-[32px] border border-gray-100 shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
+              className="bg-white rounded-2xl border border-[#E8E6E1] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
             >
-              {/* Modal header */}
-              <div className="p-6 bg-slate-50 border-b border-gray-100 flex items-center justify-between">
+              {/* Modal header - bg-[#1B3A2D] com título em branco */}
+              <div className="p-6 bg-[#1B3A2D] flex items-center justify-between text-white">
                 <div>
-                  <h3 className="text-base font-black text-slate-950">
+                  <h3 className="text-base font-bold font-display text-white">
                     {modalMode === 'create' ? 'Cadastrar Novo Insumo' : 'Ajustar Parâmetros do Insumo'}
                   </h3>
-                  <p className="text-[10px] text-gray-400">Insira as referências técnicas de comercialização na DDSulf.</p>
+                  <p className="text-[11px] text-[#A8CDB8]">Insira as referências técnicas de comercialização na DDSulf.</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsProductModalOpen(false)}
-                  className="p-1.5 hover:bg-slate-200/50 text-slate-500 hover:text-slate-900 rounded-xl transition-all"
+                  className="p-1.5 hover:bg-white/10 text-[#A8CDB8] hover:text-white rounded-xl transition-all cursor-pointer"
                 >
                   <X className="size-4" />
                 </button>
@@ -1516,25 +1509,25 @@ export function InventoryPage() {
                 
                 {/* Product Name */}
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase text-slate-400 block pb-0.5">Nome Comercial do Produto *</label>
+                  <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Nome Comercial do Produto *</label>
                   <input
                     type="text"
                     required
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     placeholder="Ex: Fendona 60 SC (Inseticida)"
-                    className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                    className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                   />
                 </div>
 
                 {/* Category and Unit selectors */}
                 <div className="grid gap-4 grid-cols-2">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 block pb-0.5">Categoria Tecnológica *</label>
+                    <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Categoria Tecnológica *</label>
                     <select
                       value={formCategory}
                       onChange={(e) => setFormCategory(e.target.value)}
-                      className="w-full h-10 border border-gray-200 rounded-lg px-2 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] cursor-pointer"
                     >
                       {CATEGORIES_LIST.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -1543,11 +1536,11 @@ export function InventoryPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 block pb-0.5">Unidade de Medida *</label>
+                    <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Unidade de Medida *</label>
                     <select
                       value={formUnit}
                       onChange={(e) => setFormUnit(e.target.value)}
-                      className="w-full h-10 border border-gray-200 rounded-lg px-2 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] cursor-pointer"
                     >
                       {UNITS_LIST.map(u => (
                         <option key={u} value={u}>{u}</option>
@@ -1559,26 +1552,26 @@ export function InventoryPage() {
                 {/* Quantities metrics */}
                 <div className="grid gap-4 grid-cols-2">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 block pb-0.5">Quantidade Inicial em Loja</label>
+                    <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Quantidade Inicial em Loja</label>
                     <input
                       type="number"
                       min="0"
                       step="ANY"
                       value={formQty}
                       onChange={(e) => setFormQty(parseFloat(e.target.value) || 0)}
-                      className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 block pb-0.5">Estoque Mínimo Alerta</label>
+                    <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Estoque Mínimo Alerta</label>
                     <input
                       type="number"
                       min="0"
                       step="ANY"
                       value={formMinQty}
                       onChange={(e) => setFormMinQty(parseFloat(e.target.value) || 0)}
-                      className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                     />
                   </div>
                 </div>
@@ -1586,44 +1579,43 @@ export function InventoryPage() {
                 {/* Cost and Supplier details */}
                 <div className="grid gap-4 grid-cols-2">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 block pb-0.5">Custo Unitário Bruto (R$)</label>
+                    <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Custo Unitário Bruto (R$)</label>
                     <input
                       type="number"
                       min="0"
                       step="0.0001"
                       value={formCost}
                       onChange={(e) => setFormCost(parseFloat(e.target.value) || 0)}
-                      className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 block pb-0.5">Fornecedor Autorizado</label>
+                    <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Fornecedor Autorizado</label>
                     <input
                       type="text"
                       value={formSupplier}
                       onChange={(e) => setFormSupplier(e.target.value)}
                       placeholder="Ex: Bayer / BASF"
-                      className="w-full h-10 border border-gray-200 rounded-lg px-3 text-xs font-semibold focus:outline-hidden focus:border-slate-950 bg-white"
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                     />
                   </div>
                 </div>
 
-                {/* Save button actions footer */}
-                <div className="pt-2 flex items-center justify-end gap-3">
-                  <Button
+                {/* Footer buttons - botão primário bg-[#1B3A2D] + botão cancelar em texto apenas */}
+                <div className="pt-2 flex items-center justify-end gap-5">
+                  <button
                     type="button"
-                    variant="outline"
                     onClick={() => setIsProductModalOpen(false)}
-                    className="h-10 text-xs font-bold rounded-lg uppercase tracking-wider text-slate-600 hover:text-slate-950 border-slate-200"
+                    className="text-xs font-bold uppercase tracking-wider text-[#6B6B5F] hover:text-[#141410] transition-colors cursor-pointer"
                   >
-                    Retroceder
-                  </Button>
+                    Retroceder / Cancelar
+                  </button>
                   <Button
                     type="submit"
-                    className="h-10 text-xs font-bold rounded-lg uppercase tracking-wider bg-slate-950 text-white hover:bg-slate-900 shadow-sm"
+                    className="h-10 px-5 text-xs font-bold rounded-lg uppercase tracking-wider bg-[#1B3A2D] text-white hover:bg-[#2D6A4F] cursor-pointer"
                   >
-                    Salvar Mudanças
+                    Confirmar e Salvar
                   </Button>
                 </div>
 

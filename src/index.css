@@ -1,93 +1,114 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --font-display: "Space Grotesk", "Inter", sans-serif;
+  /* Tipografia */
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "DM Serif Display", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  --color-background: #FAF9F6; /* Warm off-white, safe for long exposures in field/sun light */
-  --color-foreground: #090D16; /* Clean deep onyx */
+  /* Paleta principal — Verde Floresta */
+  --color-brand: #1B3A2D;           /* Verde escuro — cor primária */
+  --color-brand-mid: #2D6A4F;       /* Verde médio */
+  --color-brand-light: #D8EDE3;     /* Verde claro — fundos de destaque */
+  --color-brand-accent: #D4A017;    /* Âmbar dourado — ações e alertas positivos */
 
-  --color-card: #ffffff;
-  --color-card-foreground: #090D16;
+  /* Estrutura */
+  --color-background: #F7F6F3;      /* Creme levíssimo */
+  --color-surface: #FFFFFF;         /* Superfície de cards */
+  --color-surface-raised: #FAFAF9;  /* Superfície elevada */
+  --color-foreground: #141410;      /* Preto quente */
+  --color-muted: #6B6B5F;           /* Cinza médio quente */
+  --color-border: #E8E6E1;          /* Borda sutil quente */
 
-  --color-popover: #ffffff;
-  --color-popover-foreground: #090D16;
+  /* Semânticos */
+  --color-primary: #1B3A2D;
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #F0EDE8;
+  --color-secondary-foreground: #1B3A2D;
+  --color-accent: #D4A017;
+  --color-accent-foreground: #141410;
+  --color-destructive: #C1361A;
+  --color-destructive-foreground: #FFFFFF;
+  --color-success: #2D6A4F;
+  --color-warning: #D4A017;
+  --color-danger: #C1361A;
+  --color-info: #2B4C8C;
 
-  --color-primary: #000000;
-  --color-primary-foreground: #ffffff;
+  /* Cards e superfícies */
+  --color-card: #FFFFFF;
+  --color-card-foreground: #141410;
+  --color-popover: #FFFFFF;
+  --color-popover-foreground: #141410;
+  --color-muted-foreground: #6B6B5F;
 
-  --color-secondary: #F3F4F6;
-  --color-secondary-foreground: #111827;
+  /* Sidebar */
+  --color-sidebar: #1B3A2D;         /* Sidebar escura verde-floresta */
+  --color-sidebar-foreground: #E8F4EE;
+  --color-sidebar-accent: #2D6A4F;
+  --color-sidebar-accent-foreground: #FFFFFF;
+  --color-sidebar-border: #2D6A4F;
+  --color-sidebar-ring: #D4A017;
 
-  --color-muted: #F3F4F6;
-  --color-muted-foreground: #6B7280;
+  /* Gráficos */
+  --color-chart-1: #2D6A4F;
+  --color-chart-2: #D4A017;
+  --color-chart-3: #2B4C8C;
+  --color-chart-4: #C1361A;
+  --color-chart-5: #7C6F5B;
 
-  --color-accent: #F1F5F9;
-  --color-accent-foreground: #0F172A;
-
-  --color-destructive: #E11D48; /* Premium Rose Red */
-  --color-destructive-foreground: #ffffff;
-
-  --color-border: #EAEAEA;
-  --color-input: #EAEAEA;
-  --color-ring: #000000;
-
-  --color-success: #059669;
-  --color-success-foreground: #ECFDF5;
-  --color-warning: #D97706;
-  --color-warning-foreground: #FFFBEB;
-  --color-info: #2563EB;
-  --color-info-foreground: #EFF6FF;
-
-  --color-chart-1: #090D16;
-  --color-chart-2: #059669;
-  --color-chart-3: #2563EB;
-  --color-chart-4: #D97706;
-  --color-chart-5: #6B7280;
-
+  /* Raios */
   --radius-xs: 0.25rem;
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
   --radius-xl: 1.25rem;
-  --radius-2xl: 1.5rem;
-  --radius-3xl: 2rem;
-
-  --tracking-tightest: -0.05em;
-
-  --color-sidebar: #ffffff;
-  --color-sidebar-foreground: #4B5563;
-  --color-sidebar-primary: #000000;
-  --color-sidebar-primary-foreground: #ffffff;
-  --color-sidebar-accent: #FAF9F6;
-  --color-sidebar-accent-foreground: #090D16;
-  --color-sidebar-border: #EAEAEA;
-  --color-sidebar-ring: #000000;
-
-  /* Custom Box Shadows - Stripe/Linear soft style */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
-  --shadow-md: 0 4px 12px -2px rgba(9, 13, 22, 0.03), 0 2px 6px -1px rgba(9, 13, 22, 0.02);
-  --shadow-lg: 0 12px 30px -4px rgba(9, 13, 22, 0.04), 0 4px 12px -2px rgba(9, 13, 22, 0.02);
-  --shadow-xl: 0 20px 48px -6px rgba(9, 13, 22, 0.06), 0 8px 18px -4px rgba(9, 13, 22, 0.03);
-  --shadow-premium: 0 8px 30px rgba(0, 0, 0, 0.02);
+  --radius-2xl: 1.75rem;
+  --radius-3xl: 2.5rem;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+  * { box-sizing: border-box; }
+  
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
   }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  /* Scrollbar customizada */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #C8C5BF; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #9E9A93; }
 }
 
-.calculator-card {
-  @apply relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-primary/10;
-}
+@layer utilities {
+  /* Textura sutil de fundo */
+  .bg-texture {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  
+  .stat-number {
+    font-family: var(--font-display);
+    font-size: 2.25rem;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
 
-.gradient-bg {
-  background: radial-gradient(circle at top left, var(--color-slate-50), transparent);
+  .kpi-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
 }
