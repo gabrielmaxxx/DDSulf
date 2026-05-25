@@ -16,6 +16,7 @@ import {
   SidebarGroupContent,
 } from './ui/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSystemStore } from '@/store/systemStore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { auth } from '@/services/firebase';
@@ -34,6 +35,7 @@ export function AppSidebar() {
   const { user } = useAuth();
 
   const handleLogout = () => {
+    useSystemStore.getState().logoutCompany();
     auth.signOut();
   };
 

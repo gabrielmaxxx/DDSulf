@@ -147,12 +147,26 @@ export interface SystemSettings {
   };
 }
 
+export interface CompanyAccount {
+  name: string;
+  displayName: string;
+  password: string;
+  financial: FinancialCostConfig;
+  inventory: InventoryState;
+  pops: POPsState;
+  quotes: QuotesState;
+  settings: SystemSettings;
+}
+
 export interface SystemState {
   financial: FinancialCostConfig;
   inventory: InventoryState;
   pops: POPsState;
   quotes: QuotesState;
   settings: SystemSettings;
+  
+  companies: Record<string, CompanyAccount>;
+  currentCompany: string | null;
 }
 
 export interface IntelligenceAlert {
@@ -208,6 +222,10 @@ export interface SystemActions {
   };
 
   getIntelligenceReport: () => IntelligenceReport;
+
+  registerCompany: (displayName: string, password: string) => { success: boolean; error?: string };
+  loginCompany: (displayName: string, password: string) => { success: boolean; error?: string };
+  logoutCompany: () => void;
 }
 
 const INITIAL_STATE: SystemState = {
@@ -327,16 +345,46 @@ const INITIAL_STATE: SystemState = {
   settings: {
     companyName: 'DDSulf Dedetizadora',
     cnpj: '00.000.000/0001-00',
-    headquartersAddress: 'Rua Principal, 100 - Bairro Industrial',
-    city: 'Passo Fundo',
-    state: 'RS',
-    phone: '(54) 3333-4444',
+    headquartersAddress: 'Rua 33, 120 - Vila Santa Cecília, Volta Redonda - RJ',
+    city: 'Volta Redonda',
+    state: 'RJ',
+    phone: '(24) 3344-5566',
     operationalGoals: {
       targetServicesPerMonth: 120,
       minimumMarginPercent: 35,
       costPerKm: 2.50
     }
+  },
+  companies: {},
+  currentCompany: null
+};
+
+const updateCompanyData = (state: any, updates: Partial<SystemState>) => {
+  const nextFinancial = updates.financial !== undefined ? updates.financial : state.financial;
+  const nextInventory = updates.inventory !== undefined ? updates.inventory : state.inventory;
+  const nextPops = updates.pops !== undefined ? updates.pops : state.pops;
+  const nextQuotes = updates.quotes !== undefined ? updates.quotes : state.quotes;
+  const nextSettings = updates.settings !== undefined ? updates.settings : state.settings;
+
+  const nextState: any = {
+    ...updates,
+  };
+
+  if (state.currentCompany && state.companies && state.companies[state.currentCompany]) {
+    nextState.companies = {
+      ...state.companies,
+      [state.currentCompany]: {
+        ...state.companies[state.currentCompany],
+        financial: nextFinancial,
+        inventory: nextInventory,
+        pops: nextPops,
+        quotes: nextQuotes,
+        settings: nextSettings,
+      }
+    };
   }
+
+  return nextState;
 };
 
 export const useSystemStore = create<SystemState & SystemActions>()(
@@ -349,14 +397,14 @@ export const useSystemStore = create<SystemState & SystemActions>()(
         const nextVariable = costs.variableCosts ? { ...state.financial.variableCosts, ...costs.variableCosts } : state.financial.variableCosts;
         const nextOperational = costs.operational ? { ...state.financial.operational, ...costs.operational } : state.financial.operational;
 
-        return {
+        return updateCompanyData(state, {
           financial: {
             ...state.financial,
             fixedCosts: nextFixed,
             variableCosts: nextVariable,
             operational: nextOperational,
           }
-        };
+        });
       }),
 
       addQuote: (quote) => set((state) => {
@@ -407,7 +455,7 @@ export const useSystemStore = create<SystemState & SystemActions>()(
           }
         }
 
-        return {
+        return updateCompanyData(state, {
           quotes: {
             list: [finalQuote, ...state.quotes.list]
           },
@@ -420,7 +468,7 @@ export const useSystemStore = create<SystemState & SystemActions>()(
             ...state.financial,
             revenueHistory: updatedRevenueHistory
           }
-        };
+        });
       }),
 
       updateQuoteStatus: (id, status) => set((state) => {
@@ -481,7 +529,7 @@ export const useSystemStore = create<SystemState & SystemActions>()(
           return q;
         });
 
-        return {
+        return updateCompanyData(state, {
           quotes: {
             list: nextQuotes
           },
@@ -494,50 +542,50 @@ export const useSystemStore = create<SystemState & SystemActions>()(
             ...state.financial,
             revenueHistory: updatedRevenueHistory
           }
-        };
+        });
       }),
 
-      addInventoryProduct: (product) => set((state) => ({
+      addInventoryProduct: (product) => set((state) => updateCompanyData(state, {
         inventory: {
           ...state.inventory,
           products: [...state.inventory.products, product]
         }
       })),
 
-      updateInventoryProduct: (id, data) => set((state) => ({
+      updateInventoryProduct: (id, data) => set((state) => updateCompanyData(state, {
         inventory: {
           ...state.inventory,
           products: state.inventory.products.map(p => p.id === id ? { ...p, ...data, lastUpdated: new Date().toISOString() } : p)
         }
       })),
 
-      removeInventoryProduct: (id) => set((state) => ({
+      removeInventoryProduct: (id) => set((state) => updateCompanyData(state, {
         inventory: {
           ...state.inventory,
           products: state.inventory.products.filter(p => p.id !== id)
         }
       })),
 
-      addInventoryMovement: (movement) => set((state) => ({
+      addInventoryMovement: (movement) => set((state) => updateCompanyData(state, {
         inventory: {
           ...state.inventory,
           movements: [movement, ...state.inventory.movements]
         }
       })),
 
-      addPOP: (procedure) => set((state) => ({
+      addPOP: (procedure) => set((state) => updateCompanyData(state, {
         pops: {
           procedures: [...state.pops.procedures, procedure]
         }
       })),
 
-      updatePOP: (id, data) => set((state) => ({
+      updatePOP: (id, data) => set((state) => updateCompanyData(state, {
         pops: {
           procedures: state.pops.procedures.map(p => p.id === id ? { ...p, ...data } : p)
         }
       })),
 
-      removePOP: (id) => set((state) => ({
+      removePOP: (id) => set((state) => updateCompanyData(state, {
         pops: {
           procedures: state.pops.procedures.filter(p => p.id !== id)
         }
@@ -568,11 +616,100 @@ export const useSystemStore = create<SystemState & SystemActions>()(
           };
         }
 
-        return {
+        return updateCompanyData(state, {
           settings: nextSettings,
           financial: nextFinancial
-        };
+        });
       }),
+
+      registerCompany: (displayName, password) => {
+        const nameKey = displayName.trim().toLowerCase();
+        if (!nameKey) return { success: false, error: 'O nome da empresa não pode ser vazio.' };
+        if (password.length < 3) return { success: false, error: 'A senha deve conter no mínimo 3 caracteres.' };
+
+        const currentCompanies = get().companies || {};
+        if (currentCompanies[nameKey]) {
+          return { success: false, error: 'Este nome de empresa já está cadastrado.' };
+        }
+
+        const emptyCompanyState = {
+          financial: {
+            fixedCosts: { vehicleRental: 0, salaries: 0, rent: 0, fuel: 0, insurance: 0, other: 0 },
+            variableCosts: { productsPerService: 0, laborPerHour: 0, equipmentDepreciation: 0 },
+            operational: { servicesPerMonth: 0, avgServiceDurationHours: 0, minimumMarginPercent: 35 },
+            revenueHistory: [],
+          },
+          inventory: { products: [], movements: [] },
+          pops: { procedures: [] },
+          quotes: { list: [] },
+          settings: {
+            companyName: displayName,
+            cnpj: '',
+            headquartersAddress: '',
+            city: '',
+            state: '',
+            phone: '',
+            operationalGoals: { targetServicesPerMonth: 0, minimumMarginPercent: 35, costPerKm: 0 },
+          }
+        };
+
+        const newCompany: CompanyAccount = {
+          name: nameKey,
+          displayName,
+          password,
+          ...emptyCompanyState
+        };
+
+        set((state) => ({
+          companies: {
+            ...(state.companies || {}),
+            [nameKey]: newCompany
+          },
+          currentCompany: nameKey,
+          // instantly load this company's empty state as the active state
+          ...emptyCompanyState
+        }));
+
+        return { success: true };
+      },
+
+      loginCompany: (displayName, password) => {
+        const nameKey = displayName.trim().toLowerCase();
+        const currentCompanies = get().companies || {};
+        const account = currentCompanies[nameKey];
+
+        if (!account) {
+          return { success: false, error: 'Empresa não encontrada.' };
+        }
+
+        if (account.password !== password) {
+          return { success: false, error: 'Senha incorreta para esta empresa.' };
+        }
+
+        // load this company's saved state into active state
+        set({
+          currentCompany: nameKey,
+          financial: account.financial,
+          inventory: account.inventory,
+          pops: account.pops,
+          quotes: account.quotes,
+          settings: account.settings,
+        });
+
+        return { success: true };
+      },
+
+      logoutCompany: () => {
+        set({
+          currentCompany: null,
+          // reset active state to generic values or empty
+          financial: INITIAL_STATE.financial,
+          inventory: INITIAL_STATE.inventory,
+          pops: INITIAL_STATE.pops,
+          quotes: INITIAL_STATE.quotes,
+          settings: INITIAL_STATE.settings,
+        });
+      },
 
       getDashboardKPIs: () => {
         const state = get();
@@ -777,7 +914,27 @@ export const useSystemStore = create<SystemState & SystemActions>()(
       }
     }),
     {
-      name: 'ddsulf_system_v1'
+      name: 'ddsulf_system_v1',
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          const companies = state.companies || {};
+          if (Object.keys(companies).length === 0) {
+            const defaultKey = 'ddsulf';
+            const defaultCompany: CompanyAccount = {
+              name: defaultKey,
+              displayName: state.settings?.companyName || 'DDSulf Dedetizadora',
+              password: 'admin',
+              financial: state.financial || INITIAL_STATE.financial,
+              inventory: state.inventory || INITIAL_STATE.inventory,
+              pops: state.pops || INITIAL_STATE.pops,
+              quotes: state.quotes || INITIAL_STATE.quotes,
+              settings: state.settings || INITIAL_STATE.settings,
+            };
+            state.companies = { [defaultKey]: defaultCompany };
+            state.currentCompany = defaultKey;
+          }
+        }
+      }
     }
   )
 );

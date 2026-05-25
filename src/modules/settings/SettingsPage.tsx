@@ -19,11 +19,11 @@ interface SettingsData {
 const DEFAULT_SETTINGS: SettingsData = {
   companyName: 'DDSulf Dedetizadora',
   cnpj: '00.000.000/0001-00',
-  address: 'Rua Principal, 100 - Bairro Industrial',
-  cityState: 'Passo Fundo / RS',
-  phone: '(54) 3333-4444',
+  address: 'Rua 33, 120 - Vila Santa Cecília, Volta Redonda - RJ',
+  cityState: 'Volta Redonda / RJ',
+  phone: '(24) 3344-5566',
   minMargin: 35,
-  monthlyServiceTarget: 150,
+  monthlyServiceTarget: 120,
   costPerKm: 2.50
 };
 
@@ -47,7 +47,7 @@ export function SettingsPage() {
           companyName: globalSettings.companyName || DEFAULT_SETTINGS.companyName,
           cnpj: globalSettings.cnpj || DEFAULT_SETTINGS.cnpj,
           address: globalSettings.headquartersAddress || DEFAULT_SETTINGS.address,
-          cityState: `${globalSettings.city || 'Passo Fundo'} / ${globalSettings.state || 'RS'}`,
+          cityState: `${globalSettings.city || 'Volta Redonda'} / ${globalSettings.state || 'RJ'}`,
           phone: globalSettings.phone || DEFAULT_SETTINGS.phone,
           minMargin: globalSettings.operationalGoals?.minimumMarginPercent ?? DEFAULT_SETTINGS.minMargin,
           monthlyServiceTarget: globalSettings.operationalGoals?.targetServicesPerMonth ?? DEFAULT_SETTINGS.monthlyServiceTarget,

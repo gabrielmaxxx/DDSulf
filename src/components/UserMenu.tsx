@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { LogOut, User as UserIcon, ShieldAlert, CheckCircle, Smartphone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { auth } from '@/services/firebase';
+import { useSystemStore } from '@/store/systemStore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ export function UserMenu() {
   const { user } = useAuth();
 
   const handleLogout = () => {
+    useSystemStore.getState().logoutCompany();
     auth.signOut();
   };
 
