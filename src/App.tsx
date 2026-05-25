@@ -16,14 +16,8 @@ import { CalculatorPage } from '@/modules/calculator/CalculatorPage';
 import { FinancialPage } from '@/modules/financial/FinancialPage';
 import { POPsPage } from '@/modules/pops/POPsPage';
 import { InventoryPage } from '@/modules/inventory/InventoryPage';
-import { HistoryPage } from '@/modules/dashboard/HistoryPage';
 import { AIPage } from '@/modules/ai/AIPage';
-import { LoginPage } from '@/modules/auth/LoginPage';
-import { ProductIntelligenceCockpit } from '@/product-intelligence/components/ProductIntelligenceCockpit';
-import { PlatformGovernanceCockpit } from '@/platform/components/PlatformGovernanceCockpit';
-import { AdoptionCockpit } from '@/adoption/AdoptionCockpit';
-import { IntegrationCockpit } from '@/integration/IntegrationCockpit';
-import { QualityCockpit } from '@/quality/QualityCockpit';
+import { SettingsPage } from '@/modules/settings/SettingsPage';
 
 import { AuthGuard } from '@/auth/guards/AuthGuard';
 
@@ -51,13 +45,8 @@ export default function App() {
           <Route path="/financial" element={<ProtectedLayout><FinancialPage /></ProtectedLayout>} />
           <Route path="/pops" element={<ProtectedLayout><POPsPage /></ProtectedLayout>} />
           <Route path="/inventory" element={<ProtectedLayout><InventoryPage /></ProtectedLayout>} />
-          <Route path="/history" element={<ProtectedLayout><HistoryPage /></ProtectedLayout>} />
           <Route path="/ai" element={<ProtectedLayout><AIPage /></ProtectedLayout>} />
-          <Route path="/intelligence" element={<ProtectedLayout><ProductIntelligenceCockpit /></ProtectedLayout>} />
-          <Route path="/governance" element={<ProtectedLayout><PlatformGovernanceCockpit /></ProtectedLayout>} />
-          <Route path="/adoption" element={<ProtectedLayout><AdoptionCockpit /></ProtectedLayout>} />
-          <Route path="/integration" element={<ProtectedLayout><IntegrationCockpit /></ProtectedLayout>} />
-          <Route path="/quality" element={<ProtectedLayout><QualityCockpit /></ProtectedLayout>} />
+          <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

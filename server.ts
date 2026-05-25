@@ -18,6 +18,29 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  // Google Maps Distance Matrix Proxy to bypass client CORS
+  app.get("/api/maps/distance", async (req, res) => {
+    try {
+      const { origins, destinations, key } = req.query;
+      if (!origins || !destinations) {
+        return res.status(400).json({ error: "origins and destinations are required" });
+      }
+
+      const apiKey = (key as string) || process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_PLATFORM_KEY || "";
+      if (!apiKey) {
+        return res.status(400).json({ error: "Google Maps API Key not configured." });
+      }
+
+      const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(origins as string)}&destinations=${encodeURIComponent(destinations as string)}&key=${apiKey}&language=pt-BR&units=metric`;
+      const response = await fetch(url);
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Distance Matrix Proxy Error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch distance" });
+    }
+  });
+
   // Lazy Gemini Initialization
   let aiInstance: GoogleGenAI | null = null;
   const getAi = () => {
@@ -86,6 +109,45 @@ async function startServer() {
       res.json({ text: response.text });
     } catch (error: any) {
       console.error("Gemini Error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate AI response" });
+    }
+  });
+
+  // Dedicated DDSulf Operational Client/Server Gemini API proxy
+  app.post("/api/ai/ddsulf-chat", async (req, res) => {
+    try {
+      const { message, systemContext, history } = req.body;
+      const ai = getAi();
+
+      const contentsList: any[] = [];
+      if (history && Array.isArray(history) && history.length > 0) {
+        for (const h of history) {
+          contentsList.push({
+            role: h.role === 'model' || h.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: h.content || h.text || "" }]
+          });
+        }
+      } else if (message) {
+        contentsList.push({
+          role: "user",
+          parts: [{ text: message }]
+        });
+      } else {
+        return res.status(400).json({ error: "message or history is required" });
+      }
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: contentsList,
+        config: {
+          systemInstruction: systemContext,
+          temperature: 0.3,
+        }
+      });
+
+      res.json({ text: response.text });
+    } catch (error: any) {
+      console.error("DDSulf Dedicated AI Error:", error);
       res.status(500).json({ error: error.message || "Failed to generate AI response" });
     }
   });

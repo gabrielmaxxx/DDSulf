@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calculator, Receipt, ClipboardCheck, Package, History, Settings, LogOut, Menu, UserCircle, BrainCircuit, Activity, ShieldCheck, Target, Network } from 'lucide-react';
+import { LayoutDashboard, Calculator, Receipt, ClipboardCheck, Package, Settings, LogOut, BrainCircuit } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
@@ -27,12 +27,6 @@ const menuItems = [
   { title: 'Financeiro', icon: Receipt, path: '/financial' },
   { title: 'POPs Operacionais', icon: ClipboardCheck, path: '/pops' },
   { title: 'Estoque', icon: Package, path: '/inventory' },
-  { title: 'Histórico', icon: History, path: '/history' },
-  { title: 'Qualidade e Resiliência', icon: ShieldCheck, path: '/quality' },
-  { title: 'Telemetria e IA', icon: Activity, path: '/intelligence' },
-  { title: 'Governança e Padrões', icon: ShieldCheck, path: '/governance' },
-  { title: 'Adoção e Rollout', icon: Target, path: '/adoption' },
-  { title: 'Integração e Eventos', icon: Network, path: '/integration' },
 ];
 
 export function AppSidebar() {
