@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { toast } from 'sonner';
 
 export interface FinancialCostConfig {
   fixedCosts: {
@@ -30,6 +31,16 @@ export interface FinancialCostConfig {
     estimatedCost: number;
     margin: number;
   }>;
+  costHistory?: Array<{
+    id: string;
+    date: string;
+    type: string;
+    value: number;
+    quoteRef: string;
+  }>;
+  markupDespesasVariaveisPercent?: number;  // %DV — default 15
+  markupMargemAlvoPercent?: number;          // %ML alvo — default 35
+  markupMargemMinimaPercent?: number;        // %ML mínima — default 20
 }
 
 export interface InventoryProduct {
@@ -120,13 +131,20 @@ export interface QuoteProductUsed {
 export interface Quote {
   id: string;
   createdAt: string;
-  status: 'rascunho' | 'enviado' | 'aprovado' | 'recusado' | 'executado';
+  status: 'rascunho' | 'enviado' | 'aprovado' | 'recusado' | 'executado' | 'retorno';
   client: QuoteClient;
   service: QuoteService;
   costs: QuoteCosts;
   pricing: QuotePricing;
   productsUsed: QuoteProductUsed[];
   inventoryDeducted: boolean;
+  confirmedAt?: string;           // ISO timestamp da confirmação do serviço
+  isRetorno?: boolean;            // true se for retorno gratuito
+  parentQuoteId?: string;         // ID do orçamento original vinculado ao retorno
+  returnCost?: number;            // custo estimado do retorno (deslocamento + MO)
+  confirmedBy?: string;           // nome/identificador de quem confirmou
+  serviceNotes?: string;          // observações do técnico no ato da confirmação
+  hasReturn?: boolean;            // true se possui retorno associado/ativo
 }
 
 export interface QuotesState {
@@ -144,6 +162,11 @@ export interface SystemSettings {
     targetServicesPerMonth: number;
     minimumMarginPercent: number;
     costPerKm: number;
+    variableExpensesPercent?: number;
+    minMarginPercent?: number;
+    targetMarginPercent?: number;
+    costPerHour?: number;
+    equipmentAmortization?: number;
   };
 }
 
@@ -200,6 +223,17 @@ export interface SystemActions {
   
   addQuote: (quote: Quote) => void;
   updateQuoteStatus: (id: string, status: Quote['status']) => void;
+  confirmServiceExecuted: (
+    id: string,
+    confirmedBy?: string,
+    serviceNotes?: string
+  ) => void;
+  markAsRetorno: (
+    originalQuoteId: string,
+    returnCostEstimate: number,
+    confirmedBy?: string,
+    notes?: string
+  ) => void;
   
   addInventoryProduct: (product: InventoryProduct) => void;
   updateInventoryProduct: (id: string, data: Partial<InventoryProduct>) => void;
@@ -249,6 +283,10 @@ const INITIAL_STATE: SystemState = {
       minimumMarginPercent: 35,
     },
     revenueHistory: [],
+    costHistory: [],
+    markupDespesasVariaveisPercent: 15,
+    markupMargemAlvoPercent: 35,
+    markupMargemMinimaPercent: 20,
   },
   inventory: {
     products: [
@@ -352,7 +390,12 @@ const INITIAL_STATE: SystemState = {
     operationalGoals: {
       targetServicesPerMonth: 120,
       minimumMarginPercent: 35,
-      costPerKm: 2.50
+      costPerKm: 2.40,
+      variableExpensesPercent: 15,
+      minMarginPercent: 20,
+      targetMarginPercent: 35,
+      costPerHour: 45,
+      equipmentAmortization: 35
     }
   },
   companies: {},
@@ -545,6 +588,160 @@ export const useSystemStore = create<SystemState & SystemActions>()(
         });
       }),
 
+      confirmServiceExecuted: (id, confirmedBy, serviceNotes) => set((state) => {
+        let updatedProducts = [...state.inventory.products];
+        let updatedMovements = [...state.inventory.movements];
+        let updatedRevenueHistory = [...state.financial.revenueHistory];
+        
+        let found = false;
+        const nextQuotes = state.quotes.list.map((q) => {
+          if (q.id === id) {
+            if (q.status === 'enviado' || q.status === 'aprovado') {
+              found = true;
+              let updatedQuote = { 
+                ...q, 
+                status: 'executado' as const,
+                confirmedAt: new Date().toISOString(),
+                inventoryDeducted: false,
+                confirmedBy: confirmedBy || q.confirmedBy,
+                serviceNotes: serviceNotes || q.serviceNotes
+              };
+
+              // Deduct stock if not yet deducted
+              if (!updatedQuote.inventoryDeducted) {
+                updatedQuote.productsUsed.forEach(used => {
+                  const prodIdx = updatedProducts.findIndex(p => p.id === used.productId);
+                  if (prodIdx > -1) {
+                    const prod = updatedProducts[prodIdx];
+                    updatedProducts[prodIdx] = {
+                      ...prod,
+                      quantity: Math.max(0, prod.quantity - used.quantity),
+                      lastUpdated: new Date().toISOString()
+                    };
+
+                    updatedMovements.push({
+                      id: `mov-${Math.random().toString(36).substring(2, 11)}`,
+                      date: new Date().toISOString(),
+                      productId: used.productId,
+                      type: 'saida',
+                      quantity: used.quantity,
+                      reason: `Baixa automática - Orçamento #${updatedQuote.id} (${updatedQuote.client.name})`,
+                      quoteId: updatedQuote.id
+                    });
+                  }
+                });
+                updatedQuote.inventoryDeducted = true;
+              }
+
+              // Add to revenue history
+              const exists = updatedRevenueHistory.some(item => item.id === updatedQuote.id);
+              if (!exists) {
+                updatedRevenueHistory.push({
+                  id: updatedQuote.id,
+                  date: updatedQuote.confirmedAt || updatedQuote.createdAt,
+                  clientName: updatedQuote.client.name,
+                  serviceType: updatedQuote.service.serviceType,
+                  pestType: updatedQuote.service.pestType,
+                  finalPrice: updatedQuote.pricing.finalPrice,
+                  estimatedCost: updatedQuote.costs.total,
+                  margin: updatedQuote.pricing.marginPercent
+                });
+              }
+
+              return updatedQuote;
+            }
+          }
+          return q;
+        });
+
+        if (!found) return state;
+
+        try {
+          toast.success(`Serviço #${id} confirmado como executado com sucesso!`);
+        } catch (e) {
+          console.warn(e);
+        }
+
+        return updateCompanyData(state, {
+          quotes: {
+            list: nextQuotes
+          },
+          inventory: {
+            ...state.inventory,
+            products: updatedProducts,
+            movements: updatedMovements
+          },
+          financial: {
+            ...state.financial,
+            revenueHistory: updatedRevenueHistory
+          }
+        });
+      }),
+
+      markAsRetorno: (originalQuoteId, returnCostEstimate, confirmedBy, notes) => set((state) => {
+        const originalQuoteIdx = state.quotes.list.findIndex(q => q.id === originalQuoteId);
+        if (originalQuoteIdx === -1) return state;
+        const originalQuote = state.quotes.list[originalQuoteIdx];
+
+        const nanoid = () => Math.random().toString(36).substring(2, 11);
+        const retId = `ret-${nanoid()}`;
+
+        const retQuote: Quote = {
+          ...originalQuote,
+          id: retId,
+          createdAt: new Date().toISOString(),
+          status: 'retorno',
+          isRetorno: true,
+          parentQuoteId: originalQuoteId,
+          pricing: {
+            ...originalQuote.pricing,
+            finalPrice: 0
+          },
+          returnCost: returnCostEstimate,
+          inventoryDeducted: false,
+          confirmedBy,
+          serviceNotes: notes
+        };
+
+        const updatedOriginalQuote = {
+          ...originalQuote,
+          hasReturn: true
+        };
+
+        const updatedQuotesList = state.quotes.list.map(q => {
+          if (q.id === originalQuoteId) {
+            return updatedOriginalQuote;
+          }
+          return q;
+        });
+        updatedQuotesList.unshift(retQuote);
+
+        const updatedCostHistory = [...(state.financial.costHistory || [])];
+        updatedCostHistory.push({
+          id: retId,
+          date: new Date().toISOString(),
+          type: 'retorno_gratuito',
+          value: returnCostEstimate,
+          quoteRef: originalQuoteId
+        });
+
+        try {
+          toast.success(`Retorno gratuito #${retId} registrado com sucesso!`);
+        } catch (e) {
+          console.warn(e);
+        }
+
+        return updateCompanyData(state, {
+          quotes: {
+            list: updatedQuotesList
+          },
+          financial: {
+            ...state.financial,
+            costHistory: updatedCostHistory
+          }
+        });
+      }),
+
       addInventoryProduct: (product) => set((state) => updateCompanyData(state, {
         inventory: {
           ...state.inventory,
@@ -615,6 +812,21 @@ export const useSystemStore = create<SystemState & SystemActions>()(
             servicesPerMonth: settings.operationalGoals.targetServicesPerMonth
           };
         }
+        if (settings.operationalGoals?.costPerHour !== undefined) {
+          nextFinancial.variableCosts = {
+            ...nextFinancial.variableCosts,
+            laborPerHour: settings.operationalGoals.costPerHour
+          };
+        }
+        if (settings.operationalGoals?.variableExpensesPercent !== undefined) {
+          nextFinancial.markupDespesasVariaveisPercent = settings.operationalGoals.variableExpensesPercent;
+        }
+        if (settings.operationalGoals?.targetMarginPercent !== undefined) {
+          nextFinancial.markupMargemAlvoPercent = settings.operationalGoals.targetMarginPercent;
+        }
+        if (settings.operationalGoals?.minMarginPercent !== undefined) {
+          nextFinancial.markupMargemMinimaPercent = settings.operationalGoals.minMarginPercent;
+        }
 
         return updateCompanyData(state, {
           settings: nextSettings,
@@ -638,6 +850,10 @@ export const useSystemStore = create<SystemState & SystemActions>()(
             variableCosts: { productsPerService: 0, laborPerHour: 0, equipmentDepreciation: 0 },
             operational: { servicesPerMonth: 0, avgServiceDurationHours: 0, minimumMarginPercent: 35 },
             revenueHistory: [],
+            costHistory: [],
+            markupDespesasVariaveisPercent: 15,
+            markupMargemAlvoPercent: 35,
+            markupMargemMinimaPercent: 20,
           },
           inventory: { products: [], movements: [] },
           pops: { procedures: [] },

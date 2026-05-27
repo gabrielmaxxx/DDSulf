@@ -3,6 +3,8 @@ import { useSystemStore } from '@/store';
 import { Button } from '@/components/ui/button';
 import { getPOPForService, calculateProductsForArea } from '@/utils/popUtils';
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps';
+import { calcularPrecoPorMarkup } from '@/calculator/calculations/pricingEngine';
+import { PestType, EnvironmentType, InfestationLevel, OperationalComplexity, Recurrence as DBRecurrence, UrgencyLevel } from '@/types/database';
 import { 
   MapPin, 
   Search, 
@@ -307,6 +309,33 @@ const PROPERTY_TYPES = [
   { value: 'Outros', label: 'Outros' }
 ];
 
+const mapPestType = (pest: string): PestType => {
+  const mapping: Record<string, PestType> = {
+    'baratas': 'Baratas',
+    'ratos': 'Ratos',
+    'cupins': 'Cupins',
+    'formigas': 'Formigas',
+    'escorpioes': 'Escorpiões',
+    'pulgas': 'Pulgas',
+    'mosquitos': 'Mosquitos',
+    'mosquitos/dengue': 'Mosquitos',
+    'percevejos': 'Percevejos',
+    'outros': 'Outros'
+  };
+  return mapping[pest] || 'Outros';
+};
+
+const mapEnvironmentType = (prop: string): EnvironmentType => {
+  const mapping: Record<string, EnvironmentType> = {
+    'Residencial': 'Residência',
+    'Comercial': 'Comércio',
+    'Industrial': 'Indústria',
+    'Condomínio': 'Condomínio',
+    'Outros': 'Área Externa'
+  };
+  return mapping[prop] || 'Residência';
+};
+
 export function CalculatorPage() {
   const { financial, inventory, pops, settings, addQuote } = useSystemStore();
 
@@ -328,6 +357,20 @@ export function CalculatorPage() {
   const [serviceType, setServiceType] = useState('dedetizacao');
   const [areaM2, setAreaM2] = useState<number>(100);
   const [propertyType, setPropertyType] = useState('Residencial');
+
+  // STEP 2 FIELDS Extra parameters for pricing:
+  const [infestationLevel, setInfestationLevel] = useState<InfestationLevel>('Médio');
+  const [complexity, setComplexity] = useState<OperationalComplexity>('Normal');
+  const [technicians, setTechnicians] = useState<number>(1);
+  const [urgency, setUrgency] = useState<UrgencyLevel>('Normal');
+  const [recurrence, setRecurrence] = useState<'Único' | 'Mensal' | 'Trimestral' | 'Semestral' | 'Anual'>('Único');
+  const [customMargin, setCustomMargin] = useState<number>(35);
+
+  // Synchronize customMargin once target percentage is loaded
+  useEffect(() => {
+    const targetVal = financial?.markupMargemAlvoPercent ?? settings?.operationalGoals?.targetMarginPercent ?? 35;
+    setCustomMargin(targetVal);
+  }, [financial?.markupMargemAlvoPercent, settings?.operationalGoals?.targetMarginPercent]);
 
   // Active matched POP Procedure
   const [matchedPop, setMatchedPop] = useState<any>(null);
@@ -377,32 +420,59 @@ export function CalculatorPage() {
     };
   });
 
-  const totalProductsCost: number = parseFloat(productsWithStockCosts.reduce((acc, curr) => acc + curr.totalCost, 0).toFixed(2));
+  // Calculate markup settings with fallbacks from store
+  const markupSettings = {
+    costPerHour: Number(financial?.variableCosts?.laborPerHour || settings?.operationalGoals?.costPerHour || 45),
+    costPerKm: Number(settings?.operationalGoals?.costPerKm || 2.40),
+    baseEquipmentAmortization: Number(settings?.operationalGoals?.equipmentAmortization || 35),
+    despesasVariaveisPercent: Number(financial?.markupDespesasVariaveisPercent ?? settings?.operationalGoals?.variableExpensesPercent ?? 15),
+    margemAlvoPercent: Number(financial?.markupMargemAlvoPercent ?? settings?.operationalGoals?.targetMarginPercent ?? 35),
+    margemMinimaPercent: Number(financial?.markupMargemMinimaPercent ?? settings?.operationalGoals?.minMarginPercent ?? 20),
+  };
 
-  // 2. LABOR CALCULATION
-  const estHourPer100 = matchedPop ? Number(matchedPop.estimatedTimeHoursPer100m2) : 1;
-  const estimatedHours: number = parseFloat((estHourPer100 * (Number(areaM2) / 100)).toFixed(2));
-  const laborCostPerHour: number = Number(financial?.variableCosts?.laborPerHour || 25);
-  const totalLaborCost: number = parseFloat((estimatedHours * laborCostPerHour).toFixed(2));
+  const selectedProductsMapped = productsWithStockCosts.map(p => {
+    // Resolve dosage per m2 from POP required product quantity per 100m2
+    const popProd = matchedPop?.requiredProducts?.find(rp => rp.productId === p.productId);
+    const qtyPer100 = popProd ? popProd.quantityPer100m2 : 0;
+    const dosagePerM2 = parseFloat((qtyPer100 / 100).toFixed(6));
 
-  // 3. TRANSPORT CALCULATION
-  const costPerKm: number = Number(settings?.operationalGoals?.costPerKm || 2.5);
-  const totalTransportCost: number = parseFloat(((Number(distanceKm) * 2) * costPerKm).toFixed(2));
+    return {
+      id: p.productId,
+      name: p.productName,
+      dosagePerM2: dosagePerM2,
+      unitCost: p.costPerUnit,
+      unitLabel: p.unit as 'ml' | 'g',
+      amountUsed: p.quantity,
+      totalCost: p.totalCost
+    };
+  });
 
-  // 4. OVERHEAD CALCULATION
-  const fc = financial?.fixedCosts || {};
-  const totalFixedCosts: number = Object.values(fc).reduce((acc: number, val: any) => acc + (Number(val) || 0), 0) as number;
-  const targetServicesPerMonth: number = Number(financial?.operational?.servicesPerMonth || settings?.operationalGoals?.targetServicesPerMonth || 120);
-  const totalOverheadCost: number = parseFloat((targetServicesPerMonth > 0 ? totalFixedCosts / targetServicesPerMonth : 0).toFixed(2));
+  const pricingInputs = {
+    clientName,
+    pestType: mapPestType(pestType),
+    environmentType: mapEnvironmentType(propertyType),
+    areaSize: areaM2,
+    infestationLevel,
+    complexity,
+    displacement: distanceKm,
+    technicians,
+    urgency,
+    recurrence,
+    selectedProducts: selectedProductsMapped,
+    customMargin: customMargin,
+  };
 
-  // 5. TOTAL ACCUMULATED COSTS
-  const totalCosts: number = parseFloat((totalProductsCost + totalLaborCost + totalTransportCost + totalOverheadCost).toFixed(2));
+  const pricingResult = calcularPrecoPorMarkup(pricingInputs, markupSettings);
 
-  // 6. MINIMUM PRICING SUGGESTING
-  const minMarginPercent: number = Number(settings?.operationalGoals?.minimumMarginPercent ?? financial?.operational?.minimumMarginPercent ?? 35);
-  const marginFactor = 1 - (minMarginPercent / 100);
-  const calculatedSuggestedPriceInput = marginFactor > 0 ? totalCosts / marginFactor : totalCosts * 1.5;
-  const suggestedPrice: number = parseFloat(calculatedSuggestedPriceInput.toFixed(2));
+  // Expose standard variables to maintain backward compatibility with components & shares
+  const totalProductsCost = pricingResult.cdv.produtos;
+  const totalLaborCost = pricingResult.cdv.maoDeObra;
+  const totalTransportCost = pricingResult.cdv.transporte;
+  const totalOverheadCost = pricingResult.cdv.equipamentos;
+  const totalCosts = pricingResult.cdv.total;
+  
+  const estimatedHours = pricingResult.estimatedTimeHours;
+  const suggestedPrice = pricingResult.precoFinalSugerido;
 
   // Set default raw price on Step 3 init or when cost calculation factors update
   useEffect(() => {
@@ -411,9 +481,12 @@ export function CalculatorPage() {
     }
   }, [suggestedPrice, isPriceManuallyEdited]);
 
-  // Resulting margin calculated in real time
-  const resultingMargin = finalPrice > 0 ? ((finalPrice - totalCosts) / finalPrice) * 100 : 0;
-  const isMarginHealthy = resultingMargin >= minMarginPercent;
+  // Resulting margin calculated in real time (accounts for manual edit adjustments)
+  const resultingMargin = finalPrice > 0 
+    ? ((finalPrice * (1 - markupSettings.despesasVariaveisPercent / 100) - totalCosts) / finalPrice) * 100 
+    : 0;
+
+  const isMarginHealthy = resultingMargin >= markupSettings.margemMinimaPercent;
 
   // Handles Google Maps matrix request bypassing client-side CORS via our proxy
   const handleCalculateDistance = async () => {
@@ -530,7 +603,7 @@ export function CalculatorPage() {
   };
 
   // Submit quote to store and set appropriate quote state / status
-  const handleSaveQuote = (status: 'rascunho' | 'enviado' | 'executado') => {
+  const handleSaveQuote = (status: 'rascunho' | 'enviado') => {
     // 1. Build beautiful Quote structure matching interface
     const quoteId = `qto-${Math.random().toString(36).substring(2, 11)}`;
     const newQuote: any = {
@@ -566,7 +639,7 @@ export function CalculatorPage() {
         quantity: p.quantity,
         unit: p.unit
       })),
-      inventoryDeducted: status === 'executado'
+      inventoryDeducted: false
     };
 
     // Save in systemStore State
@@ -575,11 +648,6 @@ export function CalculatorPage() {
     if (status === 'rascunho') {
       toast.success('Rascunho criado!', {
         description: `Orçamento #${quoteId} para "${clientName}" salvo em rascunhos sem dar baixa no estoque.`
-      });
-      resetForm();
-    } else if (status === 'executado') {
-      toast.success('Orçamento executado com sucesso!', {
-        description: `O estoque de insumos foi baixado automaticamente conforme a matriz correspondente do POP.`
       });
       resetForm();
     } else if (status === 'enviado') {
@@ -678,7 +746,7 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
         {/* Card compacto mostrando margem mínima configurada */}
         <div className="bg-[#1B3A2D] text-white rounded-xl px-4 py-3 text-right">
           <p className="kpi-label text-[#A8CDB8] mb-0.5">Margem Mínima</p>
-          <p className="font-display text-2xl">{minMarginPercent}%</p>
+          <p className="font-display text-2xl">{markupSettings.margemMinimaPercent}%</p>
         </div>
       </div>
 
@@ -845,7 +913,7 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
               {/* STEP 2: SERVICE PARAMETERS */}
               {currentStep === 2 && (
                 <div className="space-y-5">
-                  <div className="grid gap-5 md:grid-cols-2">
+                  <div className="grid gap-5 md:grid-cols-2 text-left">
                     <div>
                       <label className="kpi-label text-[#6B6B5F] block mb-2">Tipo de Praga Alvo</label>
                       <select
@@ -908,6 +976,85 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
                         ))}
                       </select>
                     </div>
+
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-2">Grau de Infestação</label>
+                      <select
+                        value={infestationLevel}
+                        onChange={(e) => setInfestationLevel(e.target.value as InfestationLevel)}
+                        className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                   text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                   transition-all"
+                      >
+                        <option value="Baixo">Baixo (Atendimento Preventivo)</option>
+                        <option value="Médio">Médio (Infestação Moderada)</option>
+                        <option value="Alto">Alto (Foco de Infestação Amplo)</option>
+                        <option value="Crítico">Crítico (Bloqueio Emergencial)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-2">Complexidade Operacional</label>
+                      <select
+                        value={complexity}
+                        onChange={(e) => setComplexity(e.target.value as OperationalComplexity)}
+                        className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                   text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                   transition-all"
+                      >
+                        <option value="Simples">Simples (Acesso livre e sem obstáculos)</option>
+                        <option value="Normal">Normal (Padrão de mercado)</option>
+                        <option value="Complexo">Complexo (Trabalho em altura / Espaço confinado)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-2">Equipe Recomendada</label>
+                      <select
+                        value={technicians}
+                        onChange={(e) => setTechnicians(Number(e.target.value))}
+                        className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                   text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                   transition-all font-mono"
+                      >
+                        <option value={1}>1 Técnico Especialista</option>
+                        <option value={2}>2 Técnicos Operacionais</option>
+                        <option value={3}>3 Técnicos (Equipe Ampla)</option>
+                        <option value={4}>4 Técnicos (Grandes Plantas)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-2">Nível de Urgência</label>
+                      <select
+                        value={urgency}
+                        onChange={(e) => setUrgency(e.target.value as UrgencyLevel)}
+                        className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                   text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                   transition-all"
+                      >
+                        <option value="Normal">Normal (Agendamento Convencional)</option>
+                        <option value="Prioritário">Prioritário (Atendimento em até 24h)</option>
+                        <option value="Emergência">Emergência (Mobilização Imediata)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="kpi-label text-[#6B6B5F] block mb-2">Frequência da Operação</label>
+                      <select
+                        value={recurrence}
+                        onChange={(e) => setRecurrence(e.target.value as any)}
+                        className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
+                                   text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
+                                   transition-all"
+                      >
+                        <option value="Único">Avulso / Único (Garantia Padrão)</option>
+                        <option value="Mensal">Contrato Mensal (-15% Desconto)</option>
+                        <option value="Trimestral">Contrato Trimestral (-8% Desconto)</option>
+                        <option value="Semestral">Contrato Semestral (-5% Desconto)</option>
+                        <option value="Anual">Contrato Anual (-10% Desconto)</option>
+                      </select>
+                    </div>
                   </div>
 
                   {/* POP DETECTED METRIC CARD */}
@@ -948,141 +1095,174 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
               {/* STEP 3: COST SHEET & SUGGESTION */}
               {currentStep === 3 && (
                 <div className="space-y-6">
-                  {/* Custo Cards Bento Grid */}
-                  <div className="grid gap-5 md:grid-cols-2 text-left">
-                    
-                    {/* CARD 1: PRODUCTS INSUMS */}
-                    <div className="border-l-4 border-l-[#2D6A4F] bg-[#FAFAF9] px-6 py-5 rounded-r-2xl border-y border-r border-[#E8E6E1] space-y-4">
-                      <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-2.5">
-                        <div className="flex items-center gap-2">
-                          <Beaker className="size-4 text-[#2D6A4F]" />
-                          <span className="text-[10px] uppercase font-bold tracking-wider text-[#6B6B5F]">1. Produtos Químicos</span>
-                        </div>
-                        <span className="font-display text-xl text-[#141410]">R$ {formatCurrency(totalProductsCost)}</span>
-                      </div>
-
-                      <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
-                        {productsWithStockCosts.map((p, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[11px] border-b border-[#E8E6E1]/40 pb-1.5 last:border-0 last:pb-0">
-                            <div className="space-y-0.5">
-                              <span className="text-[#141410] font-bold block">{p.productName}</span>
-                              <span className="text-[#6B6B5F] font-bold font-mono">
-                                Estoque: {p.availableQty} {p.unit} ({p.isInsufficient ? 'INSUFICIENTE' : 'OK'})
-                              </span>
-                            </div>
-                            <div className="text-right font-mono font-bold">
-                              <span className={`block font-extrabold ${p.isInsufficient ? 'text-[#C1361A]' : 'text-[#141410]'}`}>
-                                {p.quantity} {p.unit}
-                              </span>
-                              <span className="text-[#6B6B5F] text-[9px]">R$ {formatCurrency(p.totalCost)}</span>
-                            </div>
-                          </div>
-                        ))}
-
-                        {productsWithStockCosts.length === 0 && (
-                          <p className="text-[10px] text-[#6B6B5F] italic">Sem produtos calculados por POP.</p>
-                        )}
-                      </div>
+                  {/* SLIDER DE MARGEM DE LUCRO DESEJADA */}
+                  <div className="space-y-3 bg-[#FAFAF9] p-6 rounded-2xl border border-[#E8E6E1] text-left">
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-[#6B6B5F]">
+                        Margem de Lucro Desejada (%)
+                      </label>
+                      <span className="font-mono font-bold text-xs text-[#1B3A2D] bg-[#D8EDE3] px-2.5 py-1 rounded-md self-start sm:self-auto">
+                        Margem: {customMargin}% &rarr; Markup Fator: {pricingResult.markupMultiplicador.toFixed(2)}&times;
+                      </span>
                     </div>
-
-                    {/* CARD 2: LABOR COSTS */}
-                    <div className="border-l-4 border-l-[#2B4C8C] bg-[#FAFAF9] px-6 py-5 rounded-r-2xl border-y border-r border-[#E8E6E1] space-y-4">
-                      <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-2.5">
-                        <div className="flex items-center gap-2">
-                          <Clock className="size-4 text-[#2B4C8C]" />
-                          <span className="text-[10px] uppercase font-bold tracking-wider text-[#6B6B5F]">2. Mão de Obra</span>
-                        </div>
-                        <span className="font-display text-xl text-[#141410]">R$ {formatCurrency(totalLaborCost)}</span>
-                      </div>
-
-                      <div className="space-y-2.5 pt-1 text-xs text-[#6B6B5F] flex flex-col justify-center min-h-[100px]">
-                        <div className="flex justify-between font-semibold">
-                          <span>Horas Estimadas:</span>
-                          <strong className="text-[#141410] font-mono">{estimatedHours} Hrs</strong>
-                        </div>
-                        <div className="flex justify-between font-semibold">
-                          <span>Custo/Hora:</span>
-                          <strong className="text-[#141410] font-mono">R$ {laborCostPerHour.toFixed(2)}</strong>
-                        </div>
-                      </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="80"
+                      step="1"
+                      value={customMargin}
+                      onChange={(e) => {
+                        setCustomMargin(Number(e.target.value));
+                        setIsPriceManuallyEdited(false);
+                      }}
+                      className="w-full h-2 bg-[#E8E6E1] rounded-lg appearance-none cursor-pointer accent-[#1B3A2D]"
+                    />
+                    <div className="flex justify-between text-[10px] text-[#6B6B5F] font-mono leading-none">
+                      <span>Mínima: {markupSettings.margemMinimaPercent}%</span>
+                      <span>Alvo Cadastrado: {markupSettings.margemAlvoPercent}%</span>
+                      <span>Máx: 80%</span>
                     </div>
-
-                    {/* CARD 3: TRANSPORTATION */}
-                    <div className="border-l-4 border-l-[#D4A017] bg-[#FAFAF9] px-6 py-5 rounded-r-2xl border-y border-r border-[#E8E6E1] space-y-4">
-                      <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-2.5">
-                        <div className="flex items-center gap-2">
-                          <Truck className="size-4 text-[#D4A017]" />
-                          <span className="text-[10px] uppercase font-bold tracking-wider text-[#6B6B5F]">3. Transporte (Rotas)</span>
-                        </div>
-                        <span className="font-display text-xl text-[#141410]">R$ {formatCurrency(totalTransportCost)}</span>
-                      </div>
-
-                      <div className="space-y-1.5 pt-1 text-xs text-[#6B6B5F] flex flex-col justify-center min-h-[100px]">
-                        <div className="flex justify-between font-semibold">
-                          <span>Distância Mapeada (Ida):</span>
-                          <strong className="text-[#141410] font-mono">{distanceKm} Km</strong>
-                        </div>
-                        <div className="flex justify-between font-semibold">
-                          <span>Distância Mapeada (Volta):</span>
-                          <strong className="text-[#141410] font-mono">{distanceKm} Km</strong>
-                        </div>
-                        <div className="flex justify-between font-semibold">
-                          <span>Custo por KM:</span>
-                          <strong className="text-[#141410] font-mono font-sans">R$ {costPerKm.toFixed(2)}/Km</strong>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* CARD 4: FIXED OVERHEAD PORTION */}
-                    <div className="border-l-4 border-l-[#6B6B5F] bg-[#FAFAF9] px-6 py-5 rounded-r-2xl border-y border-r border-[#E8E6E1] space-y-4">
-                      <div className="flex items-center justify-between border-b border-[#E8E6E1] pb-2.5">
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="size-4 text-[#6B6B5F]" />
-                          <span className="text-[10px] uppercase font-bold tracking-wider text-[#6B6B5F]">4. Overhead Fixo</span>
-                        </div>
-                        <span className="font-display text-xl text-[#141410]">R$ {formatCurrency(totalOverheadCost)}</span>
-                      </div>
-
-                      <div className="space-y-1.5 pt-1 text-xs text-[#6B6B5F] flex flex-col justify-center min-h-[100px]">
-                        <div className="flex justify-between font-semibold">
-                          <span>Custos Fixos Mensal Sede:</span>
-                          <strong className="text-[#141410] font-mono">R$ {formatCurrency(totalFixedCosts)}</strong>
-                        </div>
-                        <div className="flex justify-between font-semibold">
-                          <span>Metas Atendimento/Mês:</span>
-                          <strong className="text-[#141410] font-mono">{targetServicesPerMonth} orçamentos</strong>
-                        </div>
-                        <div className="flex justify-between font-semibold">
-                          <span>Injeção por Chamado:</span>
-                          <strong className="text-[#141410] font-mono">R$ {totalOverheadCost.toFixed(2)}</strong>
-                        </div>
-                      </div>
-                    </div>
-
                   </div>
 
-                  {/* Resumo de Custos Acumulado Técnico antes do Resultado */}
-                  <div className="bg-[#F0EDE8] border border-[#E8E6E1] rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  {/* TABELA DE COMPOSIÇÃO - DIAGRAMA DE MARKUP */}
+                  <div className="border border-[#E8E6E1] rounded-2xl bg-white overflow-hidden text-[#141410] font-sans text-xs text-left shadow-sm">
+                    {/* COMPOSIÇÃO DO CUSTO DIRETO VARIÁVEL (CDV) */}
+                    <div className="bg-[#FAFAF9] border-b border-[#E8E6E1] px-5 py-4">
+                      <h4 className="font-bold text-[10px] tracking-wider text-[#6B6B5F] uppercase font-display">
+                        COMPOSIÇÃO DO CUSTO DIRETO VARIÁVEL (CDV)
+                      </h4>
+                    </div>
+                    <div className="p-5 space-y-3 font-mono font-bold border-b border-[#E8E6E1]">
+                      <div className="flex justify-between items-center text-[#4B4B43]">
+                        <span>Produtos Químicos:</span>
+                        <span className="text-[#141410]">R$ {formatCurrency(pricingResult.cdv.produtos)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[#4B4B43]">
+                        <span>Mão de Obra (Nh):</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-medium text-[#6B6B5F]">({estimatedHours} h &times; R$ {markupSettings.costPerHour.toFixed(2)}/h)</span>
+                          <span className="text-[#141410]">R$ {formatCurrency(pricingResult.cdv.maoDeObra)}</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center text-[#4B4B43]">
+                        <span>Transporte (Xkm):</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-medium text-[#6B6B5F]">({distanceKm} km &times; R$ {markupSettings.costPerKm.toFixed(2)})</span>
+                          <span className="text-[#141410]">R$ {formatCurrency(pricingResult.cdv.transporte)}</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center text-[#4B4B43]">
+                        <span>Equipamentos:</span>
+                        <span className="text-[#141410]">R$ {formatCurrency(pricingResult.cdv.equipamentos)}</span>
+                      </div>
+                      <div className="border-t border-[#E8E6E1]/60 pt-2.5 flex justify-between items-center text-sm font-extrabold text-[#1B3A2D]">
+                        <span>CDV Total:</span>
+                        <span>R$ {formatCurrency(pricingResult.cdv.total)}</span>
+                      </div>
+                    </div>
+
+                    {/* MARKUP DIVISOR & FATOR */}
+                    <div className="bg-[#FAFAF9] border-b border-[#E8E6E1] px-5 py-3.5">
+                      <h4 className="font-bold text-[10px] tracking-wider text-[#6B6B5F] uppercase font-display">MARKUP</h4>
+                    </div>
+                    <div className="p-5 space-y-3 font-mono font-bold border-b border-[#E8E6E1] text-[#4B4B43]">
+                      <div className="flex justify-between items-center">
+                        <span>Markup Divisor:</span>
+                        <span className="text-[#141410]">
+                          1 - ({markupSettings.despesasVariaveisPercent}% + {customMargin}%) = {pricingResult.markupDivisor.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>Markup Fator:</span>
+                        <span className="text-[#1B3A2D] font-extrabold">&times; {pricingResult.markupMultiplicador.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    {/* AJUSTES E ADICIONAIS */}
+                    <div className="bg-[#FAFAF9] border-b border-[#E8E6E1] px-5 py-3.5">
+                      <h4 className="font-bold text-[10px] tracking-wider text-[#6B6B5F] uppercase font-display">PREÇO BASE &amp; AJUSTES</h4>
+                    </div>
+                    <div className="p-5 space-y-3 font-mono font-bold bg-[#FCFCFB] text-[#4B4B43]">
+                      <div className="flex justify-between items-center">
+                        <span>Preço Base Markup:</span>
+                        <span className="text-[#141410]">R$ {formatCurrency(pricingResult.precoBaseMarkup)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>+ Ajuste Ambiente:</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-medium text-[#6B6B5F] font-sans">({mapEnvironmentType(propertyType).toLowerCase()})</span>
+                          <span className={`font-mono ${pricingResult.ajusteAmbiente !== 1 ? 'text-[#1B3A2D]' : 'text-[#6B6B5F]'}`}>
+                            &times; {pricingResult.ajusteAmbiente.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>+ Ajuste Urgência:</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-medium text-[#6B6B5F] font-sans">({urgency.toLowerCase()})</span>
+                          <span className={`font-mono ${pricingResult.ajusteUrgencia !== 1 ? 'text-[#1B3A2D]' : 'text-[#6B6B5F]'}`}>
+                            &times; {pricingResult.ajusteUrgencia.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>- Desconto Recorrência:</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-medium text-[#6B6B5F] font-sans">({recurrence.toLowerCase()})</span>
+                          <span className={`font-mono ${pricingResult.ajusteRecorrencia !== 1 ? 'text-[#2D6A4F]' : 'text-[#6B6B5F]'}`}>
+                            &times; {pricingResult.ajusteRecorrencia.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ALERTAS COMPORTAMENTAIS */}
+                  {(resultingMargin < markupSettings.margemMinimaPercent || suggestedPrice === pricingResult.precoMinimo) && (
+                    <div className="space-y-2 text-left">
+                      {resultingMargin < markupSettings.margemMinimaPercent && (
+                        <div className="bg-red-50 text-red-900 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-2.5 text-xs font-bold leading-relaxed shadow-sm">
+                          <span className="text-sm">⚠️</span>
+                          <span>Margem abaixo do mínimo configurado ({markupSettings.margemMinimaPercent.toFixed(1)}%)</span>
+                        </div>
+                      )}
+                      {suggestedPrice === pricingResult.precoMinimo && (
+                        <div className="bg-amber-50 text-amber-900 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2.5 text-xs font-bold leading-relaxed shadow-sm">
+                          <span className="text-sm">⚡</span>
+                          <span>Preço ajustado ao break-even mínimo</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* CARD SUGGESTION & FINAL DE PREÇO */}
+                  <div className="bg-[#1B3A2D] rounded-3xl p-6 text-white text-left space-y-4 shadow-md">
                     <div>
-                      <span className="kpi-label text-[#6B6B5F] text-[9px]">Custo Técnico Acumulado</span>
-                      <p className="font-display text-2xl text-[#141410]">R$ {formatCurrency(totalCosts)}</p>
+                      <p className="text-[10px] uppercase font-bold tracking-wider text-[#A8CDB8] mb-1">💰 PREÇO SUGERIDO</p>
+                      <p className="font-display text-4xl font-extrabold select-none">
+                        R$ {formatCurrency(suggestedPrice)}
+                      </p>
                     </div>
-                    <div className="text-left sm:text-right">
-                      <span className="kpi-label text-[#6B6B5F] text-[9px]">Garantia Regulamentar</span>
-                      <p className="text-xs font-bold text-[#141410] uppercase">90 dias com emissão de laudo</p>
-                    </div>
-                  </div>
 
-                  {/* CARD DE RESULTADO (PREÇO FINAL) */}
-                  <div className="bg-[#1B3A2D] rounded-2xl p-6 text-white mt-6 text-left">
-                    <p className="kpi-label text-[#A8CDB8] mb-1">Preço Sugerido</p>
-                    <p className="font-display text-5xl mb-4">R$ {formatCurrency(suggestedPrice)}</p>
-                    {/* Input para preço final editável */}
-                    <div className="bg-[#2D6A4F] rounded-xl p-4 flex items-center gap-4">
-                      <div className="flex-1">
-                        <p className="text-[11px] text-[#A8CDB8] uppercase tracking-wider mb-1">Preço Final</p>
-                        <div className="flex items-center text-white text-2xl font-display">
-                          <span className="mr-1 select-none">R$</span>
+                    <div className="grid grid-cols-2 gap-4 border-t border-[#2D6A4F] pt-4 text-xs font-mono font-bold">
+                      <div>
+                        <p className="text-[#A8CDB8] text-[9px] uppercase tracking-wider mb-0.5">📉 Preço Mínimo (break-even)</p>
+                        <p className="text-sm">R$ {formatCurrency(pricingResult.precoMinimo)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[#A8CDB8] text-[9px] uppercase tracking-wider mb-0.5">📊 Margem Real</p>
+                        <p className={`text-sm ${isMarginHealthy ? 'text-[#D4A017]' : 'text-[#EF4444]'}`}>
+                          {resultingMargin.toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Preço de fechamento final editável */}
+                    <div className="bg-[#2D6A4F] rounded-2xl p-4 flex items-center justify-between gap-4 mt-2">
+                      <div className="flex-1 text-left">
+                        <p className="text-[9px] text-[#A8CDB8] uppercase tracking-wider mb-1">Preço Final Negociado</p>
+                        <div className="flex items-center text-white text-xl font-display">
+                          <span className="mr-1 select-none font-bold text-lg select-all">R$</span>
                           <input
                             type="number"
                             step="0.01"
@@ -1092,19 +1272,25 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
                               setFinalPrice(parseFloat(e.target.value) || 0);
                               setIsPriceManuallyEdited(true);
                             }}
-                            className="bg-transparent text-white font-display w-full focus:outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="bg-transparent text-white font-display w-full focus:outline-none border-none font-bold text-2xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-[11px] text-[#A8CDB8] mb-1">Margem</p>
-                        <p className={`text-xl font-bold font-mono ${isMarginHealthy ? 'text-[#D4A017]' : 'text-[#C1361A]'}`}>
-                          {resultingMargin.toFixed(1)}%
-                        </p>
-                      </div>
+                      {isPriceManuallyEdited && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsPriceManuallyEdited(false);
+                            setFinalPrice(suggestedPrice);
+                          }}
+                          className="text-[#A8CDB8] hover:text-white hover:bg-white/10 p-2 rounded-lg transition-colors cursor-pointer"
+                          title="Restaurar preço sugerido"
+                        >
+                          <RefreshCw className="size-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
-
                 </div>
               )}
 
@@ -1251,15 +1437,7 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
               onClick={() => handleSaveQuote('enviado')}
               className="flex items-center justify-center gap-1.5 px-4 h-11 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm"
             >
-              Gerar Orçamento
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSaveQuote('executado')}
-              className="flex items-center justify-center gap-1.5 px-5 h-11 bg-emerald-600 hover:bg-[#2D6A4F] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm"
-            >
-              Marcar como Executado
+              Enviar Orçamento
             </button>
 
           </div>

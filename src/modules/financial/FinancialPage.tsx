@@ -20,7 +20,8 @@ import {
   Percent,
   Calculator,
   PieChartIcon,
-  HelpCircleIcon
+  HelpCircleIcon,
+  RotateCcw
 } from 'lucide-react';
 import { useSystemStore } from '@/store';
 import { motion, AnimatePresence } from 'motion/react';
@@ -155,9 +156,10 @@ function getColumnLetter(colIndex: number): string {
 }
 
 export function FinancialPage() {
-  const { financial, updateFinancialCosts } = useSystemStore();
+  const { financial, updateFinancialCosts, quotes } = useSystemStore();
 
   const [activeTab, setActiveTab] = useState<'costs' | 'spreadsheet' | 'overview'>('costs');
+  const [selectedPeriod, setSelectedPeriod] = useState<'current_month' | 'all'>('current_month');
   const [saving, setSaving] = useState(false);
 
   // Form Inputs States
@@ -226,6 +228,41 @@ export function FinancialPage() {
   
   const savedMarginFactor = 1 - (financial.operational.minimumMarginPercent / 100);
   const savedSuggestedMinPrice = savedMarginFactor > 0 ? savedTotalCostPerService / savedMarginFactor : savedTotalCostPerService;
+
+  // Date Filtering Helper for selected period (DRE & KPIs)
+  const nowForDate = new Date();
+  const currentMonthNum = nowForDate.getMonth();
+  const currentYearNum = nowForDate.getFullYear();
+
+  const isFromCurrentMonth = (dateString?: string) => {
+    if (!dateString) return false;
+    const d = new Date(dateString);
+    return d.getMonth() === currentMonthNum && d.getFullYear() === currentYearNum;
+  };
+
+  const filteredQuotes = (quotes?.list || []).filter(q => {
+    if (selectedPeriod === 'current_month') {
+      return isFromCurrentMonth(q.createdAt);
+    }
+    return true;
+  });
+
+  // Executed Services
+  const executedServices = filteredQuotes.filter(q => q.status === 'executado');
+  const countServicosExecutados = executedServices.length;
+  const receitaBruta = executedServices.reduce((sum, q) => sum + (q.pricing?.finalPrice || 0), 0);
+  const custoServicos = executedServices.reduce((sum, q) => sum + (q.costs?.total || 0), 0);
+
+  // Retornos Gratuitos
+  const retornos = filteredQuotes.filter(q => q.status === 'retorno' || q.isRetorno === true);
+  const custoRetornos = retornos.reduce((sum, q) => sum + (q.returnCost || 0), 0);
+  const countRetornos = retornos.length;
+
+  // Resultado Operacional
+  const resultadoOperacional = receitaBruta - custoServicos - custoRetornos;
+
+  // Taxa de Retorno Ratio
+  const taxaRetornoRaw = countServicosExecutados > 0 ? (countRetornos / countServicosExecutados) * 100 : 0;
 
   const handleSave = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -1124,108 +1161,335 @@ export function FinancialPage() {
             className="space-y-6"
           >
             
+            {/* Filtro de Período / Competência */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-4 border border-[#E8E6E1] rounded-2xl gap-4">
+              <div>
+                <h3 className="text-sm font-semibold font-display text-[#141410] flex items-center gap-1.5">
+                  <Sliders className="size-4 text-[#2D6A4F]" />
+                  Competência de Análise Financeira
+                </h3>
+                <p className="text-[11px] text-[#6B6B5F]">Filtre as receitas e despesas ocorridas de acordo com o intervalo do faturamento.</p>
+              </div>
+              <div className="flex gap-2 p-1 bg-[#F0EDE8] rounded-xl self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPeriod('current_month')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    selectedPeriod === 'current_month'
+                      ? 'bg-[#1B3A2D] text-white shadow-sm'
+                      : 'text-[#6B6B5F] hover:text-[#141410]'
+                  }`}
+                >
+                  Mês Atual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPeriod('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    selectedPeriod === 'all'
+                      ? 'bg-[#1B3A2D] text-white shadow-sm'
+                      : 'text-[#6B6B5F] hover:text-[#141410]'
+                  }`}
+                >
+                  Todos os Períodos
+                </button>
+              </div>
+            </div>
+
             {/* KPI Cards Grid */}
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4" id="overview-kpi-grid">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6" id="overview-kpi-grid">
               
               {/* Card 1: Custo Fixo Mensal */}
-              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4 hover:shadow-xs transition-shadow" id="overview-card-fixed-total">
-                <div className="flex items-center justify-between text-[#6B6B5F]">
-                  <span className="text-[10px] font-bold uppercase tracking-wider font-sans">Custos Fixos Totais</span>
-                  <Truck className="size-4 text-[#2D6A4F]" />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-3xl font-display text-[#141410]">R$ {savedTotalFixedCosts.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
-                  <p className="text-[10px] text-[#6B6B5F]">Rateio para {savedSafeServicesPerMonth} metas de atendimentos</p>
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4 hover:shadow-xs transition-shadow flex flex-col justify-between" id="overview-card-fixed-total">
+                <div>
+                  <div className="flex items-center justify-between text-[#6B6B5F] mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider font-sans">Custos Fixos Totais</span>
+                    <Truck className="size-4 text-[#2D6A4F]" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xl font-display font-bold text-[#141410]">R$ {savedTotalFixedCosts.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
+                    <p className="text-[9px] text-[#6B6B5F]">Rateio para {savedSafeServicesPerMonth} atendimentos</p>
+                  </div>
                 </div>
                 
                 {/* Visual items list breakdown */}
-                <div className="border-t border-[#E8E6E1] pt-3 space-y-1 text-xs text-[#6B6B5F]">
+                <div className="border-t border-[#E8E6E1] pt-3 space-y-1 text-[11px] text-[#6B6B5F]">
                   <div className="flex justify-between">
                     <span>Veículos:</span>
                     <span className="font-bold text-[#141410] font-mono">R$ {(financial.fixedCosts.vehicleRental || 0).toLocaleString('pt-BR')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Funcionários:</span>
+                    <span>Mão de Obra:</span>
                     <span className="font-bold text-[#141410] font-mono">R$ {(financial.fixedCosts.salaries || 0).toLocaleString('pt-BR')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Sede Física:</span>
-                    <span className="font-bold text-[#141410] font-mono">R$ {(financial.fixedCosts.rent || 0).toLocaleString('pt-BR')}</span>
                   </div>
                 </div>
               </div>
 
               {/* Card 2: Custo Por Serviço */}
-              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4 hover:shadow-xs transition-shadow" id="overview-card-per-service">
-                <div className="flex items-center justify-between text-[#6B6B5F]">
-                  <span className="text-[10px] font-bold uppercase tracking-wider font-sans">Custo Médio / Atendimento</span>
-                  <Coins className="size-4 text-[#2D6A4F]" />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-3xl font-display text-[#141410]">R$ {savedTotalCostPerService.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
-                  <p className="text-[10px] text-[#6B6B5F]">Fixo Rateado + Categoria do serviço</p>
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4 hover:shadow-xs transition-shadow flex flex-col justify-between" id="overview-card-per-service">
+                <div>
+                  <div className="flex items-center justify-between text-[#6B6B5F] mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider font-sans">Custo Médio / Atend.</span>
+                    <Coins className="size-4 text-[#2D6A4F]" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xl font-display font-bold text-[#141410]">R$ {savedTotalCostPerService.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
+                    <p className="text-[9px] text-[#6B6B5F]">Fixo rateado + insumos técnicos</p>
+                  </div>
                 </div>
 
-                <div className="border-t border-[#E8E6E1] pt-3 space-y-1 text-xs text-[#6B6B5F]">
+                <div className="border-t border-[#E8E6E1] pt-3 space-y-1 text-[11px] text-[#6B6B5F]">
                   <div className="flex justify-between">
-                    <span>Fração Fixa:</span>
-                    <span className="font-bold text-[#141410] font-mono">R$ {savedFixedCostPerService.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Insumos Médios:</span>
+                    <span>Produtos:</span>
                     <span className="font-bold text-[#141410] font-mono">R$ {(financial.variableCosts.productsPerService || 0).toLocaleString('pt-BR')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Mão de Obra estim.:</span>
-                    <span className="font-bold text-[#141410] font-mono">R$ {(financial.variableCosts.laborPerHour * financial.operational.avgServiceDurationHours).toLocaleString('pt-BR')}</span>
+                    <span>Fração Fixa:</span>
+                    <span className="font-bold text-[#141410] font-mono">R$ {savedFixedCostPerService.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
                   </div>
                 </div>
               </div>
 
               {/* Card 3: Preço Mínimo */}
-              <div className="bg-[#1B3A2D] text-white rounded-2xl p-6 space-y-4 relative overflow-hidden shadow-sm" id="overview-card-suggested-price">
-                <div className="flex items-center justify-between opacity-80">
-                  <span className="text-[10px] font-bold uppercase tracking-wider font-sans text-[#A8CDB8]">Mínimo Sugerido Base</span>
-                  <TrendingUp className="size-4 text-[#D4A017]" />
-                </div>
-                <div className="space-y-1 z-10 relative">
-                  <h4 className="text-3xl font-display text-white">R$ {savedSuggestedMinPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
-                  <p className="text-[10px] text-[#A8CDB8]">Para preservar a rentabilidade definida</p>
+              <div className="bg-[#1B3A2D] text-white rounded-2xl p-6 space-y-4 relative overflow-hidden shadow-sm flex flex-col justify-between" id="overview-card-suggested-price">
+                <div className="z-10">
+                  <div className="flex items-center justify-between opacity-80 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider font-sans text-[#A8CDB8]">Precificação Min</span>
+                    <TrendingUp className="size-4 text-[#D4A017]" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xl font-display font-black text-white">R$ {savedSuggestedMinPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
+                    <p className="text-[9px] text-[#A8CDB8]">Para margem mínima alvo de {financial.operational.minimumMarginPercent}%</p>
+                  </div>
                 </div>
 
-                <div className="border-t border-[#2D6A4F] pt-3 space-y-1 text-xs text-[#A8CDB8] z-10 relative">
+                <div className="border-t border-[#2D6A4F] pt-3 space-y-1 text-[11px] text-[#A8CDB8] z-10">
                   <div className="flex justify-between">
-                    <span>Custo do Atendimento:</span>
-                    <span className="font-mono text-white">R$ {savedTotalCostPerService.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Margem Mínima Segura:</span>
-                    <span className="text-[#D4A017] font-bold font-mono">{financial.operational.minimumMarginPercent}%</span>
+                    <span>Preço Sugerido:</span>
+                    <span className="font-mono text-white">R$ {savedSuggestedMinPrice.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
                   </div>
                 </div>
-                <div className="absolute -bottom-16 -right-16 size-36 bg-[#2D6A4F]/30 rounded-full blur-xl pointer-events-none" />
+                <div className="absolute -bottom-16 -right-16 size-24 bg-[#2D6A4F]/30 rounded-full blur-xl pointer-events-none" />
               </div>
 
               {/* Card 4: Margem Operacional */}
-              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4 hover:shadow-xs transition-shadow" id="overview-card-margin-goal">
-                <div className="flex items-center justify-between text-[#6B6B5F]">
-                  <span className="text-[10px] font-bold uppercase tracking-wider font-sans">Configuração da Margem</span>
-                  <Percent className="size-4 text-[#2D6A4F]" />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-3xl font-display text-[#141410]">{financial.operational.minimumMarginPercent}%</h4>
-                  <p className="text-[10px] text-[#6B6B5F]">Margem mínima em cotações</p>
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4 hover:shadow-xs transition-shadow flex flex-col justify-between" id="overview-card-margin-goal">
+                <div>
+                  <div className="flex items-center justify-between text-[#6B6B5F] mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider font-sans">Margem Meta</span>
+                    <Percent className="size-4 text-[#2D6A4F]" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xl font-display font-bold text-[#141410]">{financial.operational.minimumMarginPercent}%</h4>
+                    <p className="text-[9px] text-[#6B6B5F]">Margem em chamados padrão</p>
+                  </div>
                 </div>
 
-                <div className="border-t border-[#E8E6E1] pt-3 space-y-1 text-xs text-[#6B6B5F]">
+                <div className="border-t border-[#E8E6E1] pt-3 space-y-1 text-[11px] text-[#6B6B5F]">
                   <div className="flex justify-between">
-                    <span>Serviços / Mês (Meta):</span>
+                    <span>Volume Meta:</span>
                     <span className="font-bold text-[#141410] font-sans">{financial.operational.servicesPerMonth} serv.</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Duração Média:</span>
-                    <span className="font-bold text-[#141410] font-sans">{financial.operational.avgServiceDurationHours} horas</span>
+                    <span>Média Horas:</span>
+                    <span className="font-bold text-[#141410] font-sans">{financial.operational.avgServiceDurationHours}h</span>
                   </div>
+                </div>
+              </div>
+
+              {/* Card 5: Retornos do Período */}
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4 hover:shadow-xs transition-shadow flex flex-col justify-between" id="overview-card-retornos-total">
+                <div>
+                  <div className="flex items-center justify-between text-[#6B6B5F] mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider font-sans">Retornos do Período</span>
+                    <RotateCcw className="size-4 text-rose-500 animate-spin-slow" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xl font-display font-bold text-rose-600">
+                      R$ {custoRetornos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </h4>
+                    <p className="text-[9px] text-slate-400 capitalize">
+                      {countRetornos} retorno{countRetornos !== 1 ? 's' : ''} executado{countRetornos !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border-t border-[#E8E6E1] pt-3 space-y-1 text-[11px] text-[#6B6B5F]">
+                  <div className="flex justify-between">
+                    <span>Nº Chamados:</span>
+                    <span className="font-bold text-[#141410] font-sans">{countRetornos} chamados</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Custo Médio:</span>
+                    <span className="font-bold text-[#141410] font-mono">
+                      R$ {(countRetornos > 0 ? custoRetornos / countRetornos : 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 6: Taxa de Retorno */}
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4 hover:shadow-xs transition-shadow flex flex-col justify-between" id="overview-card-taxa-retorno">
+                <div>
+                  <div className="flex items-center justify-between text-[#6B6B5F] mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider font-sans">Taxa de Retorno</span>
+                    <Percent className="size-4 text-amber-500" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className={`text-xl font-display font-bold ${taxaRetornoRaw > 10 ? 'text-rose-600' : taxaRetornoRaw > 5 ? 'text-amber-500' : 'text-emerald-700'}`}>
+                      {taxaRetornoRaw.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+                    </h4>
+                    <p className="text-[9px] text-[#6B6B5F]">Retorno / executados x 100</p>
+                  </div>
+                </div>
+
+                <div className="border-t border-[#E8E6E1] pt-3 space-y-1 text-[11px] text-[#6B6B5F]">
+                  <div className="flex justify-between">
+                    <span>Executados:</span>
+                    <span className="font-bold text-[#141410] font-mono">{countServicosExecutados} serv.</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Status:</span>
+                    <span className={`font-bold ${taxaRetornoRaw > 10 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {taxaRetornoRaw > 10 ? 'Crítico' : 'Saudável'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Seções Adicionais: DRE Gerencial & Lista de Custos Ocultos de Retornos */}
+            <div className="grid gap-6 md:grid-cols-2" id="overview-dre-hidden-costs-section">
+              
+              {/* Card 1: Demonstrativo de Resultado de Exercício (DRE) */}
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 flex flex-col justify-between" id="card-overview-dre">
+                <div className="space-y-1 border-b border-[#E8E6E1] pb-4">
+                  <h3 className="text-base font-semibold font-display text-[#141410] flex items-center gap-2">
+                    <FileCheck2 className="size-4 text-[#2D6A4F]" />
+                    Demonstrativo de Resultado do Exercício (DRE)
+                  </h3>
+                  <p className="text-xs text-[#6B6B5F]">
+                    Escopo financeiro do período selecionado em relação às garantias técnicas.
+                  </p>
+                </div>
+
+                <div className="py-6 space-y-4 flex-1">
+                  {/* Receita Bruta */}
+                  <div className="flex justify-between items-center text-sm border-b border-slate-50 pb-2.5">
+                    <span className="font-semibold text-slate-700">Receita Bruta:</span>
+                    <span className="font-mono font-bold text-emerald-700 text-base">
+                      R$ {receitaBruta.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  {/* Custo dos Serviços */}
+                  <div className="flex justify-between items-center text-sm border-b border-slate-50 pb-2.5">
+                    <span className="font-medium text-slate-500">(-) Custo dos Serviços:</span>
+                    <span className="font-mono text-rose-500 font-semibold">
+                      R$ {custoServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  {/* Retornos Gratuitos (NOVA LINHA) */}
+                  <div className="flex justify-between items-center text-sm border-b border-[#E8E6E1] pb-3">
+                    <div className="flex items-center gap-1.5 text-slate-500">
+                      <span className="font-medium">(-) Retornos Gratuitos:</span>
+                      <span className="bg-rose-50 text-rose-700 font-bold text-[9px] px-1.5 py-0.5 rounded uppercase">
+                        Custo Oculto
+                      </span>
+                    </div>
+                    <span className="font-mono font-semibold text-rose-600">
+                      R$ {custoRetornos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  {/* Resultado Operacional */}
+                  <div className="flex justify-between items-center pt-3">
+                    <span className="text-sm font-black uppercase tracking-wider text-[#141410]">
+                      = Resultado Operacional:
+                    </span>
+                    <span className={`font-mono text-lg font-black ${resultadoOperacional >= 0 ? 'text-[#2D6A4F]' : 'text-rose-600'}`}>
+                      R$ {resultadoOperacional.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Status indicator pill based on performance */}
+                <div className="pt-4 border-t border-[#E8E6E1] flex items-center justify-between text-[11px] text-[#6B6B5F]">
+                  <span className="font-medium">Margem Operacional Efetiva:</span>
+                  <span className={`font-bold px-2 py-1 rounded uppercase font-mono ${
+                    resultadoOperacional >= 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-700'
+                  }`}>
+                    {receitaBruta > 0 
+                      ? `${((resultadoOperacional / receitaBruta) * 100).toFixed(1)}%` 
+                      : '0.0% (sem faturamento)'
+                    }
+                  </span>
+                </div>
+              </div>
+
+              {/* Card 2: Custos Ocultos — Retornos Gratuitos */}
+              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 flex flex-col justify-between" id="card-overview-hidden-costs">
+                <div className="space-y-1 border-b border-[#E8E6E1] pb-4">
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-base font-semibold font-display text-[#141410] flex items-center gap-2">
+                      <RotateCcw className="size-4 text-rose-500" />
+                      Custos Ocultos — Retornos Gratuitos
+                    </h3>
+                  </div>
+                  <p className="text-xs text-[#6B6B5F]">
+                    Listagem de todos os retornos sob garantia no período selecionado.
+                  </p>
+                </div>
+
+                {/* Scrollable list of items */}
+                <div className="flex-1 min-h-[160px] max-h-[220px] overflow-y-auto py-4 space-y-3 pr-1" id="list-retornos-gratuitos">
+                  {retornos.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center text-[#6B6B5F]/70 py-10 space-y-2">
+                      <Check className="size-6 text-emerald-600 rounded-full bg-emerald-50 p-1" />
+                      <p className="text-xs font-semibold text-[#141410]">Nenhum chamado de retorno no período.</p>
+                      <p className="text-[10px] text-slate-400">Eficiência perfeita de aplicação!</p>
+                    </div>
+                  ) : (
+                    retornos.map(r => (
+                      <div key={r.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-2 text-xs">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <strong className="text-[#141410] block text-xs">{r.client?.name || 'Cliente Sem Nome'}</strong>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              Cód #{r.id} • Original: #{r.parentQuoteId || 'N/A'}
+                            </span>
+                          </div>
+                          <span className="font-mono font-bold text-rose-600 border border-rose-100 bg-rose-50/50 px-2 rounded py-0.5">
+                            R$ {(r.returnCost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+
+                        {r.serviceNotes && (
+                          <div className="bg-white/80 p-2 rounded-lg border border-slate-100 text-[11px] text-slate-600 italic">
+                            &ldquo;{r.serviceNotes}&rdquo;
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-center text-[10px] text-slate-400">
+                          <span>Registrado: {new Date(r.createdAt).toLocaleDateString('pt-BR')}</span>
+                          {r.confirmedBy && (
+                            <span className="bg-slate-100 text-[#141410] px-1.5 py-0.5 rounded font-medium">
+                              Técnico: {r.confirmedBy}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-[#E8E6E1] text-[10px] text-[#6B6B5F] leading-relaxed flex items-center gap-1.5">
+                  <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
+                  <span>
+                    Chamados de retorno absorvem combustível e horas operacionais sob garantia contratual.
+                  </span>
                 </div>
               </div>
 

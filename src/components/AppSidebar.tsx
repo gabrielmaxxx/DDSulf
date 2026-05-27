@@ -1,4 +1,4 @@
-import { Shield, LayoutDashboard, Calculator, Receipt, ClipboardCheck, Package, Settings, LogOut, BrainCircuit } from 'lucide-react';
+import { Shield, LayoutDashboard, Calculator, Receipt, ClipboardCheck, Package, Settings, LogOut, BrainCircuit, CheckSquare } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
@@ -19,7 +19,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 export function AppSidebar() {
   const location = useLocation();
   const { user } = useAuth();
-  const { currentCompany, companies } = useSystemStore();
+  const { quotes, currentCompany, companies } = useSystemStore();
+  const pendingCount = (quotes?.list || []).filter(q => q.status === 'enviado' || q.status === 'aprovado').length;
 
   const handleLogout = () => {
     useSystemStore.getState().logoutCompany();
@@ -38,8 +39,9 @@ export function AppSidebar() {
 
   const operationGroup = [
     { title: 'Calculadora', icon: Calculator, path: '/calculator' },
+    { title: 'Confirmação de Serviços', icon: ClipboardCheck, path: '/confirmacoes' },
     { title: 'Financeiro', icon: Receipt, path: '/financial' },
-    { title: 'POPs Operacionais', icon: ClipboardCheck, path: '/pops' },
+    { title: 'POPs Operacionais', icon: CheckSquare, path: '/pops' },
     { title: 'Estoque', icon: Package, path: '/inventory' },
   ];
 
@@ -62,6 +64,11 @@ export function AppSidebar() {
         >
           <Icon className={cn("size-[18px] shrink-0", isActive ? "text-[#1B3A2D]" : "text-[#E8F4EE]/85")} />
           <span className="text-xs tracking-tight">{item.title}</span>
+          {item.path === '/confirmacoes' && pendingCount > 0 && (
+            <span className="ml-auto bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+              {pendingCount}
+            </span>
+          )}
           {item.aiBadge && (
             <span className="ml-auto flex items-center justify-center">
               <span className="relative flex h-2 w-2 mr-1">

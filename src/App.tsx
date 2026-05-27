@@ -18,6 +18,7 @@ import { POPsPage } from '@/modules/pops/POPsPage';
 import { InventoryPage } from '@/modules/inventory/InventoryPage';
 import { AIPage } from '@/modules/ai/AIPage';
 import { SettingsPage } from '@/modules/settings/SettingsPage';
+import { ServicoConfirmacaoPage } from '@/modules/confirmacoes/ServicoConfirmacaoPage';
 
 import { AuthGuard } from '@/auth/guards/AuthGuard';
 
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/financial" element={<ProtectedLayout><FinancialPage /></ProtectedLayout>} />
           <Route path="/pops" element={<ProtectedLayout><POPsPage /></ProtectedLayout>} />
           <Route path="/inventory" element={<ProtectedLayout><InventoryPage /></ProtectedLayout>} />
+          <Route path="/confirmacoes" element={<ProtectedLayout><ServicoConfirmacaoPage /></ProtectedLayout>} />
           <Route path="/ai" element={<ProtectedLayout><AIPage /></ProtectedLayout>} />
           <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
           

@@ -6,21 +6,25 @@ import {
   Receipt, 
   ClipboardCheck, 
   Package,
-  BrainCircuit
+  BrainCircuit,
+  CheckSquare
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
+import { useSystemStore } from '@/store/systemStore';
 
 const mobileItems = [
   { title: 'Home', icon: LayoutDashboard, path: '/' },
   { title: 'IA', icon: BrainCircuit, path: '/ai', highlighted: true },
   { title: 'Calc', icon: Calculator, path: '/calculator' },
+  { title: 'Confirmar', icon: ClipboardCheck, path: '/confirmacoes' },
   { title: 'Finanças', icon: Receipt, path: '/financial' },
-  { title: 'Estoque', icon: Package, path: '/inventory' },
 ];
 
 export function MobileNav() {
   const location = useLocation();
+  const { quotes } = useSystemStore();
+  const pendingCount = (quotes?.list || []).filter(q => q.status === 'enviado' || q.status === 'aprovado').length;
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/90 backdrop-blur-xl border-t border-slate-200/60 z-30 px-4 flex items-center justify-around pb-1 shadow-lg">
@@ -42,6 +46,11 @@ export function MobileNav() {
               )}
             >
               <item.icon className={cn("size-4.5", item.highlighted && isActive ? "text-emerald-500" : "")} />
+              {item.path === '/confirmacoes' && pendingCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-rose-600 text-white font-bold text-[8px] size-3.5 rounded-full flex items-center justify-center leading-none">
+                  {pendingCount}
+                </span>
+              )}
               {isActive && (
                 <motion.span 
                   layoutId="activeTabIndicator"

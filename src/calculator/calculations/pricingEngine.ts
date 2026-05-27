@@ -144,87 +144,200 @@ export function computeChemicalCosts(
   };
 }
 
+// ============================================================
+// NOVA INTERFACE DE SETTINGS
+// ============================================================
+export interface MarkupPricingSettings {
+  // CDV Components
+  costPerHour: number;           // Custo/hora do técnico
+  costPerKm: number;             // Custo/km de deslocamento
+  baseEquipmentAmortization: number;  // Amortização equipamentos por serviço
+
+  // Markup Parameters
+  despesasVariaveisPercent: number;  // %DV (impostos + taxas sobre faturamento)
+  margemAlvoPercent: number;         // %ML desejada
+  margemMinimaPercent: number;       // %ML mínima (floor de alerta)
+}
+
+export const DEFAULT_MARKUP_SETTINGS: MarkupPricingSettings = {
+  costPerHour: 45,
+  costPerKm: 2.40,
+  baseEquipmentAmortization: 35,
+  despesasVariaveisPercent: 15,
+  margemAlvoPercent: 35,
+  margemMinimaPercent: 20,
+};
+
+// ============================================================
+// NOVO TIPO DE RETORNO
+// ============================================================
+export interface MarkupPricingResult {
+  // CDV Breakdown
+  cdv: {
+    produtos: number;
+    maoDeObra: number;
+    transporte: number;
+    equipamentos: number;
+    total: number;              // CDV total
+  };
+
+  // Markup
+  markupDivisor: number;        // ex: 0.50
+  markupMultiplicador: number;  // ex: 2.0
+  
+  // Preços
+  precoBaseMarkup: number;      // CDV × Multiplicador (sem ajustes)
+  ajusteAmbiente: number;       // fator de risco ambiental (ex: hospital +20%)
+  ajusteRecorrencia: number;    // desconto recorrência (ex: -12% trimestral)
+  ajusteUrgencia: number;       // adicional urgência (ex: +35% emergência)
+  precoFinalSugerido: number;   // preço final recomendado
+  precoMinimo: number;          // CDV / (1 - %DV) ← break-even real
+
+  // Margem real resultante
+  margemRealPercent: number;
+  lucroAbsoluto: number;
+
+  // Alertas
+  abaixoMargemMinima: boolean;
+  abaixoBreakEven: boolean;
+  
+  // Dados auxiliares
+  estimatedTimeHours: number;
+  produtosUsados: ProductCostItem[];
+}
+
+// ============================================================
+// NOVA FUNÇÃO PRINCIPAL
+// ============================================================
+export function calcularPrecoPorMarkup(
+  inputs: PricingInputs,
+  settings: MarkupPricingSettings = DEFAULT_MARKUP_SETTINGS
+): MarkupPricingResult {
+
+  // ETAPA 1: Calcular CDV
+  const estimatedTimeHours = estimateDurationHours(
+    inputs.areaSize, inputs.pestType, inputs.complexity, inputs.infestationLevel
+  );
+
+  const { totalChemicalCost, items: produtosUsados } = computeChemicalCosts(
+    inputs.areaSize, inputs.pestType, inputs.infestationLevel, inputs.selectedProducts
+  );
+
+  const maoDeObra = inputs.technicians * estimatedTimeHours * settings.costPerHour;
+  const transporte = inputs.displacement * settings.costPerKm;
+  const equipamentos = settings.baseEquipmentAmortization
+    + (inputs.complexity === 'Complexo' ? 25 : 0);
+
+  const cdvTotal = totalChemicalCost + maoDeObra + transporte + equipamentos;
+
+  // ETAPA 2: Calcular Markup
+  const dv = settings.despesasVariaveisPercent / 100;
+  const ml = (inputs.customMargin !== undefined
+    ? inputs.customMargin
+    : settings.margemAlvoPercent) / 100;
+
+  const markupDivisor = 1 - (dv + ml);
+
+  // Proteção: divisor nunca pode ser <= 0
+  const divisorSeguro = markupDivisor <= 0.01 ? 0.01 : markupDivisor;
+  const markupMultiplicador = 1 / divisorSeguro;
+
+  // ETAPA 3: Preço base
+  let precoBase = cdvTotal * markupMultiplicador;
+
+  // ETAPA 4: Ajuste de risco ambiental (apenas sobre o preço, não sobre o CDV)
+  const riskFactor = ENVIRONMENT_FACTORS[inputs.environmentType]?.riskFactor ?? 1.0;
+  const ajusteAmbiente = riskFactor;
+  precoBase *= riskFactor;
+
+  // ETAPA 5: Ajuste de recorrência (desconto por fidelidade)
+  let descontoRecorrencia = 0;
+  if (inputs.recurrence === 'Mensal') descontoRecorrencia = 0.10;
+  if (inputs.recurrence === 'Trimestral') descontoRecorrencia = 0.06;
+  if (inputs.recurrence === 'Semestral') descontoRecorrencia = 0.03;
+  const ajusteRecorrencia = 1 - descontoRecorrencia;
+  precoBase *= ajusteRecorrencia;
+
+  // ETAPA 6: Adicional de urgência
+  let urgencyFactor = 1.0;
+  if (inputs.urgency === 'Prioritário') urgencyFactor = 1.15;
+  if (inputs.urgency === 'Emergência') urgencyFactor = 1.35;
+  const ajusteUrgencia = urgencyFactor;
+  let precoFinalSugerido = Math.round(precoBase * urgencyFactor);
+
+  // ETAPA 7: Preço mínimo real (break-even considerando impostos)
+  // Para cobrir apenas o CDV + impostos:
+  //   precoMinimo × (1 - %DV) = CDV
+  //   precoMinimo = CDV / (1 - %DV)
+  const precoMinimo = Math.round(cdvTotal / (1 - dv));
+
+  // Garantia de floor: nunca cobrar abaixo do break-even
+  if (precoFinalSugerido < precoMinimo) {
+    precoFinalSugerido = precoMinimo;
+  }
+
+  // ETAPA 8: Calcular margem real resultante
+  const receitaLiquida = precoFinalSugerido * (1 - dv);  // descontando impostos
+  const lucroAbsoluto = receitaLiquida - cdvTotal;
+  const margemRealPercent = precoFinalSugerido > 0
+    ? (lucroAbsoluto / precoFinalSugerido) * 100
+    : 0;
+
+  return {
+    cdv: {
+      produtos: Math.round(totalChemicalCost * 100) / 100,
+      maoDeObra: Math.round(maoDeObra * 100) / 100,
+      transporte: Math.round(transporte * 100) / 100,
+      equipamentos: Math.round(equipamentos * 100) / 100,
+      total: Math.round(cdvTotal * 100) / 100,
+    },
+    markupDivisor: Math.round(markupDivisor * 1000) / 1000,
+    markupMultiplicador: Math.round(markupMultiplicador * 100) / 100,
+    precoBaseMarkup: Math.round(cdvTotal * markupMultiplicador),
+    ajusteAmbiente,
+    ajusteRecorrencia,
+    ajusteUrgencia,
+    precoFinalSugerido,
+    precoMinimo,
+    margemRealPercent: Math.round(margemRealPercent * 10) / 10,
+    lucroAbsoluto: Math.round(lucroAbsoluto * 100) / 100,
+    abaixoMargemMinima: margemRealPercent < settings.margemMinimaPercent,
+    abaixoBreakEven: precoFinalSugerido < precoMinimo,
+    estimatedTimeHours,
+    produtosUsados,
+  };
+}
+
 /**
- * Computes entire pricing breakdown based on active settings
+ * Computes entire pricing breakdown based on active settings (backwards compatible wrapper)
  */
 export function processOperationalPricing(
   inputs: PricingInputs,
-  settings: PricingEngineSettings = DEFAULT_ENGINE_SETTINGS
+  settings: any = DEFAULT_ENGINE_SETTINGS
 ): PricingBreakdown {
-  const { areaSize, pestType, environmentType, complexity, infestationLevel, displacement, technicians, recurrence, customMargin } = inputs;
-  
-  // 1. Calculate operational variables
-  const estimatedTimeHours = estimateDurationHours(areaSize, pestType, complexity, infestationLevel);
-  
-  // 2. Direct Costs
-  const chemicalsData = computeChemicalCosts(areaSize, pestType, infestationLevel, inputs.selectedProducts);
-  const directLaborCost = technicians * estimatedTimeHours * settings.costPerHour;
-  const displacementCost = displacement * settings.costPerKm;
-  const equipmentsCost = settings.baseEquipmentAmortization + (complexity === 'Complexo' ? 25 : 0);
-  const baseOverhead = settings.baseOperationalCost;
+  // Safe mapping to MarkupPricingSettings
+  const markupSettings: MarkupPricingSettings = {
+    costPerHour: settings.costPerHour ?? 45,
+    costPerKm: settings.costPerKm ?? 2.40,
+    baseEquipmentAmortization: settings.baseEquipmentAmortization ?? settings.baseOperationalCost ?? 35,
+    despesasVariaveisPercent: settings.despesasVariaveisPercent ?? 15,
+    margemAlvoPercent: inputs.customMargin !== undefined ? inputs.customMargin : (settings.targetMarginDefault ?? 35),
+    margemMinimaPercent: settings.margemMinimaPercent ?? 20,
+  };
 
-  // 3. Total Operational Direct Cost
-  const directCostsOnly = directLaborCost + displacementCost + chemicalsData.totalChemicalCost + equipmentsCost + baseOverhead;
-  
-  // 4. Indirect Overhead (finance, operational backup, safety)
-  const envOverheadFactor = (ENVIRONMENT_FACTORS[environmentType]?.overheadFactor ?? 1.0) - 1.0;
-  const totalIndirectOverheadRate = settings.indirectOverheadRate + envOverheadFactor;
-  const indirectOverheadCost = directCostsOnly * totalIndirectOverheadRate;
-  
-  const totalOperationalCost = Math.round((directCostsOnly + indirectOverheadCost) * 100) / 100;
-
-  // 5. Margin Determination
-  // Use customMargin if provided (scenario simulation), otherwise fallback to config default
-  const targetMargin = (customMargin !== undefined ? customMargin : settings.targetMarginDefault) / 100;
-  
-  // Prevent division by zero if targetMargin is 100% or more
-  const billingFactor = targetMargin >= 1 ? 0.05 : 1 - targetMargin;
-  
-  // Base calculated price before urgencies and recurring discounts
-  let calculatedPrice = totalOperationalCost / billingFactor;
-
-  // Apply environment risk premium
-  const riskMult = ENVIRONMENT_FACTORS[environmentType]?.riskFactor ?? 1.0;
-  calculatedPrice *= riskMult;
-
-  // Apply application frequencies discount/adjustment
-  let frequencyDiscount = 0;
-  if (recurrence === 'Mensal') frequencyDiscount = 0.20; // 20% recurrency optimization
-  if (recurrence === 'Trimestral') frequencyDiscount = 0.12; 
-  if (recurrence === 'Semestral') frequencyDiscount = 0.06;
-
-  calculatedPrice *= (1 - frequencyDiscount);
-
-  // Apply urgency priority adjustment
-  let urgencyPremium = 1.0;
-  if (inputs.urgency === 'Prioritário') urgencyPremium = 1.15;
-  if (inputs.urgency === 'Emergência') urgencyPremium = 1.35; // 35% premium for night/urgent responses
-
-  let suggestedPrice = Math.round(calculatedPrice * urgencyPremium);
-
-  // Hard floor: break even price is the raw operational costs with zero margin
-  const breakEvenPrice = totalOperationalCost;
-  
-  // Never charge below break-even + 15% floor to avoid immediate operational loss
-  if (suggestedPrice < breakEvenPrice * 1.15) {
-    suggestedPrice = Math.round(breakEvenPrice * 1.15);
-  }
-
-  // Recalculate true actual margin percentage
-  const profitAmount = suggestedPrice - totalOperationalCost;
-  const actualMarginPercent = suggestedPrice > 0 ? (profitAmount / suggestedPrice) * 100 : 0;
+  const result = calcularPrecoPorMarkup(inputs, markupSettings);
 
   return {
-    directLaborCost: Math.round(directLaborCost * 100) / 100,
-    displacementCost: Math.round(displacementCost * 100) / 100,
-    chemicalsCost: Math.round(chemicalsData.totalChemicalCost * 100) / 100,
-    indirectOverheadCost: Math.round(indirectOverheadCost * 100) / 100,
-    equipmentsCost: Math.round(equipmentsCost * 100) / 100,
-    totalOperationalCost,
-    suggestedPrice,
-    actualMarginPercent,
-    profitAmount: Math.round(profitAmount * 100) / 100,
-    estimatedTimeHours,
-    breakEvenPrice: Math.round(breakEvenPrice * 100) / 100
+    directLaborCost: result.cdv.maoDeObra,
+    displacementCost: result.cdv.transporte,
+    chemicalsCost: result.cdv.produtos,
+    indirectOverheadCost: 0,
+    equipmentsCost: result.cdv.equipamentos,
+    totalOperationalCost: result.cdv.total,
+    suggestedPrice: result.precoFinalSugerido,
+    actualMarginPercent: result.margemRealPercent,
+    profitAmount: result.lucroAbsoluto,
+    estimatedTimeHours: result.estimatedTimeHours,
+    breakEvenPrice: result.precoMinimo
   };
 }
