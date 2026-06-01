@@ -414,20 +414,8 @@ export function ServicoConfirmacaoPage() {
                             className="flex-1 h-11 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1"
                             id={`btn-confirm-${q.id}`}
                           >
-                            <CheckCircle2 className="size-3.5" /> Confirmar Exercício
+                            <CheckCircle2 className="size-3.5" /> Confirmar Execução
                           </button>
-
-                          {!q.hasReturn && (
-                            <button
-                              type="button"
-                              onClick={() => triggerReturnModal(q)}
-                              className="px-3 h-11 border border-amber-300 bg-amber-50/50 hover:bg-amber-100/70 text-amber-800 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center"
-                              id={`btn-return-${q.id}`}
-                              title="Gerar atendimento de retorno"
-                            >
-                              <RotateCcw className="size-4" />
-                            </button>
-                          )}
                         </div>
 
                       </div>
@@ -508,11 +496,23 @@ export function ServicoConfirmacaoPage() {
                           </div>
                         </div>
 
-                        {q.hasReturn && (
-                          <div className="mt-4 p-2 bg-rose-50 rounded-xl text-[10px] text-rose-700 font-bold text-center border border-rose-100">
-                            ⚠️ Este serviço possui um retorno em garantia ativo
-                          </div>
-                        )}
+                                        {/* Retorno button for confirmed services */}
+                        <div className="mt-4 flex gap-2">
+                          {!q.hasReturn ? (
+                            <button
+                              type="button"
+                              onClick={() => triggerReturnModal(q)}
+                              className="flex-1 h-10 border border-amber-300 bg-amber-50/50 hover:bg-amber-100/70 text-amber-800 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                              id={`btn-return-confirmed-${q.id}`}
+                            >
+                              <RotateCcw className="size-3.5" /> Registrar Retorno em Garantia
+                            </button>
+                          ) : (
+                            <div className="flex-1 p-2 bg-rose-50 rounded-xl text-[10px] text-rose-700 font-bold text-center border border-rose-100">
+                              ⚠️ Este serviço possui um retorno em garantia ativo
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                 </div>
