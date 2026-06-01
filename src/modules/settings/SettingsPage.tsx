@@ -38,9 +38,10 @@ const DEFAULT_SETTINGS: SettingsData = {
 };
 
 export function SettingsPage() {
-  const { settings: globalSettings, updateSettings } = useSystemStore();
+  const { settings: globalSettings, updateSettings, resetSystemData } = useSystemStore();
   const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [saving, setSaving] = useState(false);
+  const [showConfirmReset, setShowConfirmReset] = useState(false);
 
   // Load from localStorage on mount, falling back to global settings
   useEffect(() => {
@@ -511,6 +512,57 @@ export function SettingsPage() {
               <div className="absolute -bottom-16 -right-16 size-48 bg-emerald-100/20 rounded-full blur-2xl pointer-events-none" />
             </div>
 
+          </div>
+        </Card>
+
+        {/* Zona de Perigo */}
+        <Card className="border border-red-200 bg-red-50/10 rounded-3xl p-6 space-y-4">
+          <div className="flex items-center gap-2 text-red-700">
+            <span className="text-lg">⚠️</span>
+            <span className="text-xs font-black uppercase tracking-widest font-display">ZONA DE PERIGO — APAGAR DADOS</span>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h3 className="text-sm font-extrabold text-red-900">Zerar Todos os Dados do Sistema e POPs</h3>
+              <p className="text-xs text-red-700 font-medium">Isso apagará permanentemente todos os orçamentos, procedimentos POPs, estoque de produtos, histórico de movimentações e lançamentos financeiros.</p>
+            </div>
+            <div className="shrink-0">
+              {!showConfirmReset ? (
+                <Button
+                  type="button"
+                  onClick={() => setShowConfirmReset(true)}
+                  className="bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-widest rounded-xl h-11 px-5 transition-all text-center cursor-pointer shadow-sm"
+                >
+                  Zerar Dados & POPs
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      resetSystemData();
+                      // Clear settings inside setSettings & localStorage as well
+                      localStorage.removeItem('ddsulf_settings');
+                      setSettings(DEFAULT_SETTINGS);
+                      setShowConfirmReset(false);
+                      toast.success('Todos os dados foram completamente apagados!', {
+                        description: 'Orçamentos, POPs, Estoque, Movimentações e Históricos foram zerados.',
+                      });
+                    }}
+                    className="bg-red-800 hover:bg-red-900 text-white font-black text-xs uppercase tracking-widest rounded-xl h-11 px-5 transition-all text-center cursor-pointer shadow-md"
+                  >
+                    Confirmar Exclusão?
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => setShowConfirmReset(false)}
+                    className="bg-slate-200 hover:bg-slate-300 text-slate-850 font-bold text-xs rounded-xl h-11 px-4 transition-all text-center cursor-pointer"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </Card>
 

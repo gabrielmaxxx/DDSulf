@@ -260,22 +260,23 @@ export interface SystemActions {
   registerCompany: (displayName: string, password: string) => { success: boolean; error?: string };
   loginCompany: (displayName: string, password: string) => { success: boolean; error?: string };
   logoutCompany: () => void;
+  resetSystemData: () => void;
 }
 
 const INITIAL_STATE: SystemState = {
   financial: {
     fixedCosts: {
-      vehicleRental: 3500,
-      salaries: 12000,
-      rent: 2500,
-      fuel: 1800,
-      insurance: 600,
-      other: 1000,
+      vehicleRental: 0,
+      salaries: 0,
+      rent: 0,
+      fuel: 0,
+      insurance: 0,
+      other: 0,
     },
     variableCosts: {
-      productsPerService: 45,
-      laborPerHour: 25,
-      equipmentDepreciation: 500,
+      productsPerService: 0,
+      laborPerHour: 0,
+      equipmentDepreciation: 0,
     },
     operational: {
       servicesPerMonth: 120,
@@ -289,93 +290,11 @@ const INITIAL_STATE: SystemState = {
     markupMargemMinimaPercent: 20,
   },
   inventory: {
-    products: [
-      {
-        id: 'prod-1',
-        name: 'Fendona 60 SC (Inseticida)',
-        category: 'inseticida',
-        unit: 'ml',
-        quantity: 5000,
-        minQuantity: 1000,
-        costPerUnit: 0.18,
-        supplier: 'BASF',
-        lastUpdated: '2026-05-24T15:00:00Z',
-      },
-      {
-        id: 'prod-2',
-        name: 'K-Othrine WG 250 (Inseticida)',
-        category: 'inseticida',
-        unit: 'g',
-        quantity: 1200,
-        minQuantity: 300,
-        costPerUnit: 1.25,
-        supplier: 'Bayer',
-        lastUpdated: '2026-05-24T15:00:00Z',
-      },
-      {
-        id: 'prod-3',
-        name: 'Rodilon Bloco (Raticida)',
-        category: 'raticida',
-        unit: 'g',
-        quantity: 8000,
-        minQuantity: 2000,
-        costPerUnit: 0.05,
-        supplier: 'Bayer',
-        lastUpdated: '2026-05-24T15:00:00Z',
-      },
-      {
-        id: 'prod-4',
-        name: 'Termidor 25 CE (Inseticida p/ Cupim)',
-        category: 'inseticida',
-        unit: 'ml',
-        quantity: 3000,
-        minQuantity: 800,
-        costPerUnit: 0.35,
-        supplier: 'BASF',
-        lastUpdated: '2026-05-24T15:00:00Z',
-      }
-    ],
+    products: [],
     movements: []
   },
   pops: {
-    procedures: [
-      {
-        id: 'pop-1',
-        name: 'Desinsetização de Baratas (Blattella germanica)',
-        pestType: 'baratas',
-        serviceType: 'dedetizacao',
-        requiredProducts: [
-          { productId: 'prod-1', productName: 'Fendona 60 SC (Inseticida)', quantityPer100m2: 50, unit: 'ml' }
-        ],
-        estimatedTimeHoursPer100m2: 1.5,
-        instructions: 'Realizar pulverização em frestas, ralos e superfícies de pouso. Usar EPI completo: máscara com filtro de carvão, luvas nitrílicas, macacão impermeável. Evitar aplicação direta em alimentos e utensílios.',
-        createdAt: '2026-05-24T12:00:00Z'
-      },
-      {
-        id: 'pop-2',
-        name: 'Desratização com Rodilon Bloco',
-        pestType: 'ratos',
-        serviceType: 'desratizacao',
-        requiredProducts: [
-          { productId: 'prod-3', productName: 'Rodilon Bloco (Raticida)', quantityPer100m2: 100, unit: 'g' }
-        ],
-        estimatedTimeHoursPer100m2: 1,
-        instructions: 'Alocar blocos parafinados dentro de porta-iscas lacrados. Identificar os pontos e preencher a ficha de monitoramento. Evitar áreas acessíveis a animais domésticos.',
-        createdAt: '2026-05-24T12:00:00Z'
-      },
-      {
-        id: 'pop-3',
-        name: 'Descupinização de Solo (Barreira Química)',
-        pestType: 'cupins',
-        serviceType: 'descupinizacao',
-        requiredProducts: [
-          { productId: 'prod-4', productName: 'Termidor 25 CE (Inseticida p/ Cupim)', quantityPer100m2: 200, unit: 'ml' }
-        ],
-        estimatedTimeHoursPer100m2: 3,
-        instructions: 'Injetar calda cupinicida no perímetro da construção em furos com distância de 30cm entre si. Profundidade mínima de 40cm. Utilizar bomba de alta pressão e certificar a ausência de tubulações hidráulicas ou elétricas.',
-        createdAt: '2026-05-24T12:00:00Z'
-      }
-    ]
+    procedures: []
   },
   quotes: {
     list: []
@@ -390,12 +309,12 @@ const INITIAL_STATE: SystemState = {
     operationalGoals: {
       targetServicesPerMonth: 120,
       minimumMarginPercent: 35,
-      costPerKm: 2.40,
+      costPerKm: 0,
       variableExpensesPercent: 15,
       minMarginPercent: 20,
       targetMarginPercent: 35,
-      costPerHour: 45,
-      equipmentAmortization: 35
+      costPerHour: 0,
+      equipmentAmortization: 0
     }
   },
   companies: {},
@@ -927,6 +846,59 @@ export const useSystemStore = create<SystemState & SystemActions>()(
         });
       },
 
+      resetSystemData: () => set((state) => {
+        const clearedFinancial = {
+          ...state.financial,
+          fixedCosts: {
+            vehicleRental: 0,
+            salaries: 0,
+            rent: 0,
+            fuel: 0,
+            insurance: 0,
+            other: 0,
+          },
+          variableCosts: {
+            productsPerService: 0,
+            laborPerHour: 0,
+            equipmentDepreciation: 0,
+          },
+          revenueHistory: [],
+          costHistory: [],
+        };
+        const clearedInventory = {
+          ...state.inventory,
+          products: [],
+          movements: [],
+        };
+        const clearedPops = {
+          ...state.pops,
+          procedures: [],
+        };
+        const clearedQuotes = {
+          ...state.quotes,
+          list: [],
+        };
+        const clearedSettings = {
+          ...state.settings,
+          operationalGoals: {
+            ...state.settings.operationalGoals,
+            costPerKm: 0,
+            costPerHour: 0,
+            equipmentAmortization: 0,
+          }
+        };
+
+        const updates = {
+          financial: clearedFinancial,
+          inventory: clearedInventory,
+          pops: clearedPops,
+          quotes: clearedQuotes,
+          settings: clearedSettings,
+        };
+
+        return updateCompanyData(state, updates);
+      }),
+
       getDashboardKPIs: () => {
         const state = get();
         const approvedQuotes = state.quotes.list.filter(
@@ -1130,7 +1102,7 @@ export const useSystemStore = create<SystemState & SystemActions>()(
       }
     }),
     {
-      name: 'ddsulf_system_v1',
+      name: 'ddsulf_system_v2',
       onRehydrateStorage: () => (state) => {
         if (state) {
           const companies = state.companies || {};
