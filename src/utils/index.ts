@@ -71,3 +71,5 @@ export function formatPhone(phone: string): string {
   }
   return phone;
 }
+
+export * from './ddsulfClassifier';

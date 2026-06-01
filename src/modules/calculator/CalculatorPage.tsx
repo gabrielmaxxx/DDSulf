@@ -918,7 +918,20 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
                       <label className="kpi-label text-[#6B6B5F] block mb-2">Tipo de Praga Alvo</label>
                       <select
                         value={pestType}
-                        onChange={(e) => setPestType(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPestType(val);
+                          // Auto load best-matching serviceType based on pest selected (Fluxos correlatos)
+                          if (val === 'ratos') {
+                            setServiceType('desratizacao');
+                          } else if (val === 'cupins') {
+                            setServiceType('descupinizacao');
+                          } else if (val === 'mosquitos' || val === 'mosquitos/dengue') {
+                            setServiceType('sanitizacao');
+                          } else {
+                            setServiceType('dedetizacao');
+                          }
+                        }}
                         className="w-full h-12 px-4 rounded-xl border border-[#E8E6E1] bg-white text-[#141410] 
                                    text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/20 focus:border-[#2D6A4F]
                                    transition-all"

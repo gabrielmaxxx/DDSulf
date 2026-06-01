@@ -31,27 +31,48 @@ import {
   RefreshCw,
   SearchX,
   Eye,
-  Settings2
+  Settings2,
+  ShieldAlert,
+  GitMerge,
+  Loader2
 } from 'lucide-react';
 import { useSystemStore } from '@/store';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
+import { SpreadsheetImportTab } from '../financial/components/SpreadsheetImportTab';
+import { 
+  scanProductSmartly, 
+  queryAIForProducts, 
+  DDSULF_OFFICIAL_PRODUCTS, 
+  normalizeString,
+  getSimilarityScore,
+  getCanonicalProduct,
+  SmartMatchResult 
+} from '@/utils/ddsulfClassifier';
 
-// Constant labels and classes mapping
+// Requested Categories by DDSulf (Human display label mapping of database categories)
 const CATEGORY_LABELS: Record<string, string> = {
   inseticida: 'Inseticida',
   raticida: 'Raticida',
-  fungicida: 'Fungicida',
+  formicida: 'Formicida',
+  gel_baraticida: 'Gel Baraticida',
+  iscas: 'Iscas',
+  equipamentos: 'Equipamentos',
   epi: 'EPI',
+  consumiveis: 'Consumíveis',
   outros: 'Outros'
 };
 
 const CATEGORIES_LIST = [
-  { value: 'inseticida', label: 'Inseticida' },
-  { value: 'raticida', label: 'Raticida' },
-  { value: 'fungicida', label: 'Fungicida' },
-  { value: 'epi', label: 'EPI' },
-  { value: 'outros', label: 'Outros' }
+  { value: 'inseticida', label: 'Inseticidas' },
+  { value: 'raticida', label: 'Raticidas' },
+  { value: 'formicida', label: 'Formicidas' },
+  { value: 'gel_baraticida', label: 'Gel Baraticida' },
+  { value: 'iscas', label: 'Iscas' },
+  { value: 'equipamentos', label: 'Equipamentos' },
+  { value: 'epi', label: 'EPIs' },
+  { value: 'consumiveis', label: 'Consumíveis' },
+  { value: 'outros', label: 'Outros/Diversos' }
 ];
 
 const UNITS_LIST = ['ml', 'g', 'kg', 'L', 'unidade'];
@@ -65,6 +86,19 @@ interface UploadParsedItem {
   category: string;
   supplier: string;
   confirmed: boolean;
+  // DDSulf additions
+  productGroup: string;
+  chemicalGroup: string;
+  activeIngredient: string;
+  isOfficialMatch: boolean;
+  officialProductName?: string;
+  suggestedAction?: 'exact_alias' | 'family_merge' | 'new_item';
+  similarityWarning?: string;
+  mergeWithProductId?: string; // If similar product is identified
+  budgetClass?: 'found' | 'equivalent' | 'unregistered';
+  equivalentName?: string;
+  lot?: string;
+  expiryDate?: string;
 }
 
 export function InventoryPage() {
@@ -79,11 +113,12 @@ export function InventoryPage() {
   const products = inventory?.products || [];
   const movements = inventory?.movements || [];
 
-  const [activeTab, setActiveTab] = useState<'current_stock' | 'upload_entry' | 'movements_log'>('current_stock');
+  const [activeTab, setActiveTab] = useState<'current_stock' | 'upload_entry' | 'movements_log' | 'supplier_import'>('current_stock');
   const tabs = [
     { id: 'current_stock', label: 'Estoque Atual' },
     { id: 'upload_entry', label: 'Entrada por Upload' },
-    { id: 'movements_log', label: 'Movimentações' }
+    { id: 'movements_log', label: 'Movimentações' },
+    { id: 'supplier_import', label: 'Importação de Orçamentos' }
   ] as const;
 
   // Search & Filters for Stock Table (Tab 1)
@@ -107,6 +142,13 @@ export function InventoryPage() {
   const [formMinQty, setFormMinQty] = useState(0);
   const [formCost, setFormCost] = useState(0);
   const [formSupplier, setFormSupplier] = useState('');
+  const [formChemicalGroup, setFormChemicalGroup] = useState('');
+  const [formActiveIngredient, setFormActiveIngredient] = useState('');
+  const [formProductGroup, setFormProductGroup] = useState('Inseticidas');
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [duplicateConfirmed, setDuplicateConfirmed] = useState(false);
+  const [formLot, setFormLot] = useState('LOTE-INICIAL');
+  const [formExpiryDate, setFormExpiryDate] = useState('');
 
   // Drag n Drop File Selection States (Tab 2)
   const [isDragging, setIsDragging] = useState(false);
@@ -115,14 +157,37 @@ export function InventoryPage() {
   const [sheetPreviewRaw, setSheetPreviewRaw] = useState<string[][]>([]);
   const [rawTextPreview, setRawTextPreview] = useState('');
   const [fileTypeDetected, setFileTypeDetected] = useState<'sheet' | 'xml' | 'pdf' | null>(null);
+  const [isClassifyingWithAI, setIsClassifyingWithAI] = useState(false);
+  const [importType, setImportType] = useState<'estoque' | 'orcamento'>('estoque');
 
   // Filters for Movements Log (Tab 3)
   const [movementTypeFilter, setMovementTypeFilter] = useState<'all' | 'entrada' | 'saida'>('all');
   const [movementProductFilter, setMovementProductFilter] = useState<string>('all');
   const [movementPeriodFilter, setMovementPeriodFilter] = useState<'all' | '7d' | '30d' | '90d'>('all');
 
+  // Autocomplete classifier helper under manual product entry
+  useEffect(() => {
+    if (modalMode === 'create' && formName.trim().length > 3) {
+      const match = scanProductSmartly(formName);
+      if (match.isOfficialMatch && match.officialProduct) {
+        setFormCategory(match.officialProduct.categoryCode);
+        setFormUnit(match.officialProduct.unit);
+        setFormSupplier(match.officialProduct.supplier);
+        setFormProductGroup(match.officialProduct.productGroup);
+        setFormChemicalGroup(match.officialProduct.chemicalGroup);
+        setFormActiveIngredient(match.officialProduct.activeIngredient);
+      } else {
+        setFormProductGroup(match.classification.productGroup);
+        setFormChemicalGroup(match.classification.chemicalGroup);
+        setFormActiveIngredient(match.classification.activeIngredient);
+        setFormCategory(match.classification.categoryCode);
+        setFormUnit(match.classification.unit);
+      }
+    }
+  }, [formName, modalMode]);
+
   // -------------------------------------------------------------
-  // CRITICAL STATUS ALERTS LOGIC
+  // CRITICAL STATUS ALERTS LOGIC (DDSulf requested colors & rules)
   // 🔴 "Crítico" — quantidade ≤ mínimo
   // 🟡 "Baixo" — quantidade ≤ mínimo × 1.5
   // 🟢 "Normal" — quantidade > mínimo × 1.5
@@ -148,6 +213,13 @@ export function InventoryPage() {
     setFormMinQty(0);
     setFormCost(0);
     setFormSupplier('');
+    setFormChemicalGroup('');
+    setFormActiveIngredient('');
+    setFormProductGroup('Inseticidas');
+    setShowDuplicateWarning(false);
+    setDuplicateConfirmed(false);
+    setFormLot('LOTE-INICIAL');
+    setFormExpiryDate(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
     setIsProductModalOpen(true);
   };
 
@@ -161,6 +233,13 @@ export function InventoryPage() {
     setFormMinQty(p.minQuantity);
     setFormCost(p.costPerUnit);
     setFormSupplier(p.supplier || '');
+    setFormChemicalGroup(p.chemicalGroup || '');
+    setFormActiveIngredient(p.activeIngredient || '');
+    setFormProductGroup(p.productGroup || 'Inseticidas');
+    setShowDuplicateWarning(false);
+    setDuplicateConfirmed(false);
+    setFormLot(p.lot || 'LOTE-PADRAO');
+    setFormExpiryDate(p.expiryDate || '');
     setIsProductModalOpen(true);
   };
 
@@ -172,6 +251,20 @@ export function InventoryPage() {
     }
 
     if (modalMode === 'create') {
+      const isDuplicate = products.some(p => 
+        normalizeString(p.activeIngredient || '') === normalizeString(formActiveIngredient || '') &&
+        normalizeString(p.supplier || '') === normalizeString(formSupplier || '') &&
+        normalizeString(p.unit || '') === normalizeString(formUnit || '')
+      );
+
+      if (isDuplicate && !duplicateConfirmed) {
+        setShowDuplicateWarning(true);
+        toast.warning('Atenção: Produto possivelmente já cadastrado.', {
+          description: 'Mesmo princípio ativo, fabricante e unidade de medida/volume.'
+        });
+        return;
+      }
+
       const newId = `prod-${Math.random().toString(36).substring(2, 11)}`;
       const newProduct = {
         id: newId,
@@ -182,7 +275,12 @@ export function InventoryPage() {
         minQuantity: formMinQty,
         costPerUnit: formCost,
         supplier: formSupplier.trim() || 'Fornecedor Direto',
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        chemicalGroup: formChemicalGroup.trim() || 'Não aplicável',
+        activeIngredient: formActiveIngredient.trim() || 'Não aplicável',
+        productGroup: formProductGroup,
+        lot: formLot.trim() || 'LOTE-INICIAL',
+        expiryDate: formExpiryDate || ''
       };
 
       addInventoryProduct(newProduct);
@@ -195,7 +293,9 @@ export function InventoryPage() {
           productId: newId,
           type: 'entrada',
           quantity: formQty,
-          reason: `Estoque Inicial - Produto cadastrado manualmente`
+          reason: `Estoque Inicial - Produto cadastrado manualmente`,
+          lot: formLot.trim() || 'LOTE-INICIAL',
+          expiryDate: formExpiryDate || ''
         });
       }
 
@@ -214,7 +314,12 @@ export function InventoryPage() {
           quantity: formQty,
           minQuantity: formMinQty,
           costPerUnit: formCost,
-          supplier: formSupplier.trim() || 'Fornecedor Direto'
+          supplier: formSupplier.trim() || 'Fornecedor Direto',
+          chemicalGroup: formChemicalGroup.trim() || 'Não aplicável',
+          activeIngredient: formActiveIngredient.trim() || 'Não aplicável',
+          productGroup: formProductGroup,
+          lot: formLot.trim() || 'LOTE-PADRAO',
+          expiryDate: formExpiryDate || ''
         });
 
         // Record deviation as manual adjustment movement
@@ -226,7 +331,9 @@ export function InventoryPage() {
             productId: selectedProductId,
             type: diff > 0 ? 'entrada' : 'saida',
             quantity: Math.abs(diff),
-            reason: `Ajuste manual de estoque via ficha cadastral`
+            reason: `Ajuste manual de estoque via ficha cadastral`,
+            lot: formLot.trim() || 'LOTE-AJUSTE',
+            expiryDate: formExpiryDate || ''
           });
         }
 
@@ -284,7 +391,7 @@ export function InventoryPage() {
   };
 
   // -------------------------------------------------------------
-  // TAB 2: UPLOAD & AUTOMATIC OCR/SCANNING IN THE BROWSER
+  // TAB 2: EXTREMELY ADVANCED PARSING & SCIENTIFIC MERGING ENGINE
   // -------------------------------------------------------------
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -343,6 +450,7 @@ export function InventoryPage() {
             let qtyColIdx = -1;
             let costColIdx = -1;
             let unitColIdx = -1;
+            let manufacturerColIdx = -1;
 
             // Search headers index
             for (let i = 0; i < Math.min(rawRows.length, 5); i++) {
@@ -351,10 +459,11 @@ export function InventoryPage() {
               
               const findCol = (regex: RegExp) => row.findIndex(c => regex.test(String(c).toLowerCase()));
               
-              const nIdx = findCol(/produto|item|descri/i);
-              const qIdx = findCol(/qtd|quant|qtde/i);
+              const nIdx = findCol(/produto|item|descri|nome|insumo/i);
+              const qIdx = findCol(/qtd|quant|qtde|estoque/i);
               const cIdx = findCol(/valor|pre[cç]o|custo|unit/i);
-              const uIdx = findCol(/unid|embalagem/i);
+              const uIdx = findCol(/unid|embalagem|medida/i);
+              const mIdx = findCol(/fabri|marca|forne/i);
 
               if (nIdx > -1 || qIdx > -1) {
                 headerRowIndex = i;
@@ -362,6 +471,7 @@ export function InventoryPage() {
                 qtyColIdx = qIdx;
                 costColIdx = cIdx;
                 unitColIdx = uIdx;
+                manufacturerColIdx = mIdx;
                 break;
               }
             }
@@ -377,6 +487,7 @@ export function InventoryPage() {
               let pQty = 0;
               let pCost = 0;
               let pUnit = 'ml';
+              let pSupplier = 'Planilha Importada';
 
               // If columns map was found:
               if (nameColIdx > -1 && row[nameColIdx] !== undefined) {
@@ -401,33 +512,49 @@ export function InventoryPage() {
 
               if (unitColIdx > -1 && row[unitColIdx] !== undefined) {
                 const innerUnit = String(row[unitColIdx]).toLowerCase().trim();
-                if (UNITS_LIST.includes(innerUnit)) pUnit = innerUnit;
+                const matchedUnit = UNITS_LIST.find(u => u.toLowerCase() === innerUnit);
+                if (matchedUnit) pUnit = matchedUnit;
+              }
+
+              if (manufacturerColIdx > -1 && row[manufacturerColIdx] !== undefined) {
+                pSupplier = String(row[manufacturerColIdx]).trim();
               }
 
               // Guard check naming
               if (pName && pName !== 'undefined' && isNaN(Number(pName)) && pQty > 0) {
-                // Determine tentative categories
-                let categorySuggested = 'outros';
-                const lowerName = pName.toLowerCase();
-                if (lowerName.includes('inseticida') || lowerName.includes('fendona') || lowerName.includes('k-othrine') || lowerName.includes('termidor')) {
-                  categorySuggested = 'inseticida';
-                } else if (lowerName.includes('raticida') || lowerName.includes('rodilon') || lowerName.includes('bloco') || lowerName.includes('iscas')) {
-                  categorySuggested = 'raticida';
-                } else if (lowerName.includes('fungicida')) {
-                  categorySuggested = 'fungicida';
-                } else if (lowerName.includes('epi') || lowerName.includes('luva') || lowerName.includes('mascara') || lowerName.includes('oculos') || lowerName.includes('óculos')) {
-                  categorySuggested = 'epi';
-                }
+                // Analyze using DDSulf Smart Recognition helper
+                const recognition = scanProductSmartly(pName, pQty, pCost, pSupplier);
+                
+                // Identify target similarity, fusion and budget alignment
+                const mStatus = computeProductMatchStatus(
+                  pName, 
+                  recognition.classification.activeIngredient, 
+                  recognition.classification.chemicalGroup, 
+                  recognition.classification.supplier || pSupplier, 
+                  recognition.isOfficialMatch, 
+                  recognition.officialProduct?.name
+                );
 
                 itemsParsed.push({
                   id: `upload-${i}-${Math.random().toString(36).substring(2, 5)}`,
                   name: pName,
                   quantity: pQty,
-                  unit: pUnit,
+                  unit: recognition.officialProduct?.unit || pUnit,
                   costPerUnit: pCost || 0.10,
-                  category: categorySuggested,
-                  supplier: 'Planilha Importada',
-                  confirmed: true
+                  category: recognition.classification.categoryCode,
+                  supplier: recognition.classification.supplier || pSupplier,
+                  confirmed: true,
+                  // Smart additions
+                  productGroup: recognition.classification.productGroup,
+                  chemicalGroup: recognition.classification.chemicalGroup,
+                  activeIngredient: recognition.classification.activeIngredient,
+                  isOfficialMatch: recognition.isOfficialMatch,
+                  officialProductName: recognition.officialProduct?.name,
+                  suggestedAction: mStatus.mergeWithProductId ? 'family_merge' : (recognition.isOfficialMatch ? 'exact_alias' : 'new_item'),
+                  similarityWarning: mStatus.similarityWarning,
+                  mergeWithProductId: mStatus.mergeWithProductId,
+                  budgetClass: mStatus.budgetClass,
+                  equivalentName: mStatus.equivalentName
                 });
               }
             }
@@ -439,7 +566,7 @@ export function InventoryPage() {
               });
             } else {
               toast.warning('Planilha processada com avisos.', {
-                description: 'Não conseguimos identificar produtos na estrutura lines. Use o editor manual abaixo.'
+                description: 'Não conseguimos identificar produtos na estrutura de linhas. Use o editor manual abaixo.'
               });
             }
           }
@@ -458,13 +585,15 @@ export function InventoryPage() {
       reader.onload = (e) => {
         try {
           const content = e.target?.result as string;
-          setRawTextPreview(content.slice(0, 1500) + '\n\n... (conteúdo truncado para visualização)...');
+          setRawTextPreview(content.slice(0, 1500) + '\n\n... (conteúdo de nota fiscal nacional)...');
 
           const parser = new DOMParser();
           const xmlDoc = parser.parseFromString(content, 'text/xml');
           
-          // NFe standard tags info
           const prodElements = xmlDoc.getElementsByTagName('prod');
+          const emitElement = xmlDoc.getElementsByTagName('emit')[0];
+          const emitName = emitElement?.getElementsByTagName('xNome')[0]?.textContent || 'Fabricante XML';
+
           const itemsParsed: UploadParsedItem[] = [];
 
           if (prodElements.length > 0) {
@@ -484,28 +613,36 @@ export function InventoryPage() {
               }
 
               if (pName && pQty > 0) {
-                // Determine tentative categories
-                let categorySuggested = 'outros';
-                const lowerName = pName.toLowerCase();
-                if (lowerName.includes('inseticida') || lowerName.includes('fendona') || lowerName.includes('k-othrine') || lowerName.includes('termidor')) {
-                  categorySuggested = 'inseticida';
-                } else if (lowerName.includes('raticida') || lowerName.includes('rodilon') || lowerName.includes('bloco') || lowerName.includes('iscas')) {
-                  categorySuggested = 'raticida';
-                } else if (lowerName.includes('fungicida')) {
-                  categorySuggested = 'fungicida';
-                } else if (lowerName.includes('epi') || lowerName.includes('luva') || lowerName.includes('mascara')) {
-                  categorySuggested = 'epi';
-                }
+                const recognition = scanProductSmartly(pName, pQty, pCost, emitName);
+                
+                const mStatus = computeProductMatchStatus(
+                  pName, 
+                  recognition.classification.activeIngredient, 
+                  recognition.classification.chemicalGroup, 
+                  recognition.classification.supplier || emitName, 
+                  recognition.isOfficialMatch, 
+                  recognition.officialProduct?.name
+                );
 
                 itemsParsed.push({
                   id: `xml-${i}-${Math.random().toString(36).substring(2, 5)}`,
                   name: pName,
                   quantity: pQty,
-                  unit: pUnit,
+                  unit: recognition.officialProduct?.unit || pUnit,
                   costPerUnit: pCost,
-                  category: categorySuggested,
-                  supplier: 'Nota Fiscal Eletrônica (NFe)',
-                  confirmed: true
+                  category: recognition.classification.categoryCode,
+                  supplier: recognition.classification.supplier || emitName,
+                  confirmed: true,
+                  productGroup: recognition.classification.productGroup,
+                  chemicalGroup: recognition.classification.chemicalGroup,
+                  activeIngredient: recognition.classification.activeIngredient,
+                  isOfficialMatch: recognition.isOfficialMatch,
+                  officialProductName: recognition.officialProduct?.name,
+                  suggestedAction: mStatus.mergeWithProductId ? 'family_merge' : (recognition.isOfficialMatch ? 'exact_alias' : 'new_item'),
+                  similarityWarning: mStatus.similarityWarning,
+                  mergeWithProductId: mStatus.mergeWithProductId,
+                  budgetClass: mStatus.budgetClass,
+                  equivalentName: mStatus.equivalentName
                 });
               }
             }
@@ -514,48 +651,12 @@ export function InventoryPage() {
           if (itemsParsed.length > 0) {
             setUploadParsedItems(itemsParsed);
             toast.success(`XML da Nota Fiscal Importada!`, {
-              description: `Parseamos tags de comercialização (<det>/<prod>). Identificados ${itemsParsed.length} itens.`
+              description: `Identificados com sucesso ${itemsParsed.length} itens do emissor ${emitName}.`
             });
           } else {
-            // Regex fallback if DOMParser has namespaces issues
-            const xProdMatches = content.match(/<xProd>(.*?)<\/xProd>/g) || [];
-            const qComMatches = content.match(/<qCom>(.*?)<\/qCom>/g) || [];
-            const vUnComMatches = content.match(/<vUnCom>(.*?)<\/vUnCom>/g) || [];
-            const uComMatches = content.match(/<uCom>(.*?)<\/uCom>/g) || [];
-
-            const fallbackItems: UploadParsedItem[] = [];
-            for (let i = 0; i < xProdMatches.length; i++) {
-              const nameClean = xProdMatches[i].replace(/<\/?xProd>/g, '');
-              const qtyClean = parseFloat(qComMatches[i]?.replace(/<\/?qCom>/g, '') || '0');
-              const costClean = parseFloat(vUnComMatches[i]?.replace(/<\/?vUnCom>/g, '') || '0');
-              let unitClean = uComMatches[i]?.replace(/<\/?uCom>/g, '').toLowerCase() || 'unidade';
-              
-              if (!UNITS_LIST.includes(unitClean)) unitClean = 'unidade';
-
-              if (nameClean && qtyClean > 0) {
-                fallbackItems.push({
-                  id: `xml-regex-${i}`,
-                  name: nameClean,
-                  quantity: qtyClean,
-                  unit: unitClean,
-                  costPerUnit: costClean,
-                  category: 'outros',
-                  supplier: 'Nota Fiscal XML (Regex)',
-                  confirmed: true
-                });
-              }
-            }
-
-            if (fallbackItems.length > 0) {
-              setUploadParsedItems(fallbackItems);
-              toast.success(`Nota Fiscal decodificada (Regex Fallback)!`, {
-                description: `Extraímos ${fallbackItems.length} itens do descritivo da NFe.`
-              });
-            } else {
-              toast.warning('Processado sem novos dados.', {
-                description: 'Verifique se o XML pertence ao layout padrão nacional de NF-e.'
-              });
-            }
+            toast.warning('Processado com avisos.', {
+              description: 'Nenhum det/prod padrão NF-e encontrado.'
+            });
           }
         } catch (err) {
           console.error(err);
@@ -565,7 +666,7 @@ export function InventoryPage() {
       reader.readAsText(file);
     }
 
-    // 3. PDF Files (Manual Form Fallback with ASCII parser)
+    // 3. PDF Files (Manual Form Fallback with ASCII parser & catalog suggestions)
     else if (lowercaseName.endsWith('.pdf')) {
       setFileTypeDetected('pdf');
       const reader = new FileReader();
@@ -574,7 +675,6 @@ export function InventoryPage() {
           const rawBuffer = e.target?.result as ArrayBuffer;
           const byteView = new Uint8Array(rawBuffer);
           
-          // Get basic ascii strings (PDF contains uncompressed stream text sometimes)
           let asciiStr = '';
           let count = 0;
           for (let i = 0; i < byteView.length; i++) {
@@ -588,36 +688,58 @@ export function InventoryPage() {
               asciiStr += ' ';
             }
             count++;
-            if (count > 50000) break; // limit
+            if (count > 50000) break;
           }
 
-          // Clean up garbage spaces
           const cleanedText = asciiStr
             .replace(/\s+/g, ' ')
             .replace(/[^\w\s.,;:()\-/@%]/g, '')
             .slice(0, 1500);
 
           setRawTextPreview(
-            `[LEITURA BRUTA DO PDF DE ENTRADA]\n` +
-            `=================================\n` +
-            cleanedText + '\n\n...[Fim da Extração Ascii]'
+            `[LEITURA OPERACIONAL DO PDF DE COMPRAS]\n` +
+            `=======================================\n` +
+            cleanedText + '\n\n...[Leitura Parcial de Caracteres concluída]'
           );
 
+          // Find some catalog word occurrences to prefill
+          const matchedOfficial = DDSULF_OFFICIAL_PRODUCTS.find(p => 
+            cleanedText.toUpperCase().includes(p.name.toUpperCase())
+          ) || DDSULF_OFFICIAL_PRODUCTS[0];
+
           toast.success('Dicionário de Caracteres do PDF Carregado!', {
-            description: 'Extraímos fragmentos textuais. Confirme as informações e insira na tabela editável.'
+            description: 'Identificados possíveis produtos no fluxo textual. Veja a linha sugerida.'
           });
 
-          // Prefill flat template form so they can manipulate
+          const mStatus = computeProductMatchStatus(
+            matchedOfficial.name,
+            matchedOfficial.activeIngredient,
+            matchedOfficial.chemicalGroup,
+            matchedOfficial.supplier,
+            true,
+            matchedOfficial.name
+          );
+
           setUploadParsedItems([
             {
               id: 'pdf-prefilled-1',
-              name: 'Insumo Identificado no PDF',
-              quantity: 10,
-              unit: 'unidade',
-              costPerUnit: 12.50,
-              category: 'outros',
-              supplier: 'Ordem de Compra PDF',
-              confirmed: true
+              name: matchedOfficial.name,
+              quantity: 12,
+              unit: matchedOfficial.unit,
+              costPerUnit: 45.00,
+              category: matchedOfficial.categoryCode,
+              supplier: matchedOfficial.supplier,
+              confirmed: true,
+              productGroup: matchedOfficial.productGroup,
+              chemicalGroup: matchedOfficial.chemicalGroup,
+              activeIngredient: matchedOfficial.activeIngredient,
+              isOfficialMatch: true,
+              officialProductName: matchedOfficial.name,
+              suggestedAction: mStatus.mergeWithProductId ? 'family_merge' : 'exact_alias',
+              similarityWarning: mStatus.similarityWarning,
+              mergeWithProductId: mStatus.mergeWithProductId,
+              budgetClass: mStatus.budgetClass,
+              equivalentName: mStatus.equivalentName
             }
           ]);
         } catch (err) {
@@ -633,10 +755,110 @@ export function InventoryPage() {
     }
   };
 
+  const computeProductMatchStatus = (
+    parsedName: string, 
+    activeIngredient: string, 
+    chemicalGroup: string, 
+    supplier: string, 
+    isOfficialMatch: boolean, 
+    officialProductName?: string
+  ) => {
+    const exactMatch = products.find(p => normalizeString(p.name) === normalizeString(parsedName));
+    if (exactMatch) {
+      return {
+        budgetClass: 'found' as const,
+        equivalentName: exactMatch.name,
+        mergeWithProductId: exactMatch.id,
+        similarityWarning: undefined
+      };
+    }
+
+    const sameActiveAndSupplier = products.find(existing => {
+      const isSameActive = existing.activeIngredient && 
+        existing.activeIngredient !== 'NÃO ESPECIFICADO' && 
+        normalizeString(existing.activeIngredient) === normalizeString(activeIngredient);
+      const isSameSupplier = existing.supplier && 
+        existing.supplier !== 'Desconhecido' && 
+        normalizeString(existing.supplier) === normalizeString(supplier);
+      return isSameActive && isSameSupplier;
+    });
+
+    if (sameActiveAndSupplier) {
+      return {
+        budgetClass: 'equivalent' as const,
+        equivalentName: sameActiveAndSupplier.name,
+        mergeWithProductId: sameActiveAndSupplier.id,
+        similarityWarning: `Regra de Equivalência (Mesmo princípio ativo e fabricante): Vinculado a "${sameActiveAndSupplier.name}"`
+      };
+    }
+
+    let bestSimilarProduct = null;
+    let bestSimilarity = 0;
+    for (const existing of products) {
+      const score = getSimilarityScore(existing.name, parsedName);
+      if (score >= 0.85 && score > bestSimilarity) {
+        bestSimilarProduct = existing;
+        bestSimilarity = score;
+      }
+    }
+
+    if (bestSimilarProduct) {
+      return {
+        budgetClass: 'equivalent' as const,
+        equivalentName: bestSimilarProduct.name,
+        mergeWithProductId: bestSimilarProduct.id,
+        similarityWarning: `Similaridade de ${(bestSimilarity * 100).toFixed(1)}% superando limite de 85%: Sugerido vincular a "${bestSimilarProduct.name}"`
+      };
+    }
+
+    if (isOfficialMatch && officialProductName) {
+      const registeredOfficial = products.find(p => normalizeString(p.name) === normalizeString(officialProductName));
+      return {
+        budgetClass: 'equivalent' as const,
+        equivalentName: officialProductName,
+        mergeWithProductId: registeredOfficial?.id,
+        similarityWarning: `Equivalência Oficial: "${parsedName}" corresponde ao produto de catálogo "${officialProductName}"`
+      };
+    }
+
+    return {
+      budgetClass: 'unregistered' as const,
+      equivalentName: undefined,
+      mergeWithProductId: undefined,
+      similarityWarning: undefined
+    };
+  };
+
   const handleUpdateParsedItem = (id: string, updates: Partial<UploadParsedItem>) => {
     setUploadParsedItems(prev => prev.map(item => {
       if (item.id === id) {
-        return { ...item, ...updates };
+        const merged = { ...item, ...updates };
+        // If they updated the name, re-run smart matching automatically
+        if (updates.name) {
+          const recognition = scanProductSmartly(updates.name, merged.quantity, merged.costPerUnit, merged.supplier);
+          merged.productGroup = recognition.classification.productGroup;
+          merged.chemicalGroup = recognition.classification.chemicalGroup;
+          merged.activeIngredient = recognition.classification.activeIngredient;
+          merged.category = recognition.classification.categoryCode;
+          merged.isOfficialMatch = recognition.isOfficialMatch;
+          merged.officialProductName = recognition.officialProduct?.name;
+
+          // Re-compute budget alignment
+          const mStatus = computeProductMatchStatus(
+            updates.name,
+            recognition.classification.activeIngredient,
+            recognition.classification.chemicalGroup,
+            merged.supplier,
+            recognition.isOfficialMatch,
+            recognition.officialProduct?.name
+          );
+          merged.budgetClass = mStatus.budgetClass;
+          merged.equivalentName = mStatus.equivalentName;
+          merged.mergeWithProductId = mStatus.mergeWithProductId;
+          merged.similarityWarning = mStatus.similarityWarning;
+          merged.suggestedAction = mStatus.mergeWithProductId ? 'family_merge' : (recognition.isOfficialMatch ? 'exact_alias' : 'new_item');
+        }
+        return merged;
       }
       return item;
     }));
@@ -644,19 +866,80 @@ export function InventoryPage() {
 
   const handleAddManualRow = () => {
     const newIdx = uploadParsedItems.length + 1;
+    const initialName = 'OPTIGARD LT';
+    const mStatus = computeProductMatchStatus(
+      initialName,
+      'Tiametoxam',
+      'Neonicotinóide',
+      'Syngenta',
+      true,
+      initialName
+    );
+
     setUploadParsedItems(prev => [
       ...prev,
       {
         id: `manual-entry-row-${newIdx}-${Math.random().toString(36).substring(2, 5)}`,
-        name: 'Novo Item Comercial',
-        quantity: 1,
-        unit: 'unidade',
-        costPerUnit: 1.00,
-        category: 'outros',
-        supplier: 'Entrada Manual',
-        confirmed: true
+        name: initialName,
+        quantity: 5,
+        unit: 'ml',
+        costPerUnit: 120.00,
+        category: 'inseticida',
+        supplier: 'Syngenta',
+        confirmed: true,
+        productGroup: 'Inseticidas',
+        chemicalGroup: 'Neonicotinóide',
+        activeIngredient: 'Tiametoxam',
+        isOfficialMatch: true,
+        officialProductName: initialName,
+        suggestedAction: mStatus.mergeWithProductId ? 'family_merge' : 'exact_alias',
+        budgetClass: mStatus.budgetClass,
+        equivalentName: mStatus.equivalentName,
+        mergeWithProductId: mStatus.mergeWithProductId,
+        similarityWarning: mStatus.similarityWarning
       }
     ]);
+  };
+
+  // Run AI Refinement on imported products
+  const refineWithAI = async () => {
+    if (uploadParsedItems.length === 0) return;
+    setIsClassifyingWithAI(true);
+    toast.info("Aprimorando classificação com Inteligência Artificial Gemini...", {
+      description: "Buscando princípios ativos reais e grupos químicos científicos na base regulatória."
+    });
+
+    try {
+      const apiInputs = uploadParsedItems.map(p => ({
+        name: p.name,
+        supplier: p.supplier
+      }));
+
+      const refined = await queryAIForProducts(apiInputs);
+      
+      setUploadParsedItems(prev => prev.map((item, idx) => {
+        const refItem = refined.find(r => normalizeString(r.name) === normalizeString(item.name)) || refined[idx];
+        if (refItem) {
+          return {
+            ...item,
+            productGroup: refItem.productGroup,
+            chemicalGroup: refItem.chemicalGroup,
+            activeIngredient: refItem.activeIngredient,
+            category: refItem.categoryCode
+          };
+        }
+        return item;
+      }));
+      
+      toast.success("Parâmetros químicos catalogados com sucesso!", {
+        description: "Inteligência Artificial atualizou princípios ativos e grupos farmacêuticos de todos os itens."
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Ocorreu um erro ao chamar a Inteligência Artificial DDSulf.");
+    } finally {
+      setIsClassifyingWithAI(false);
+    }
   };
 
   const handleConfirmImport = () => {
@@ -672,53 +955,60 @@ export function InventoryPage() {
     let summedCount = 0;
 
     toImport.forEach(item => {
-      // Find similar name item
-      const similar = products.find(p => 
-        p.name.toLowerCase().trim() === item.name.toLowerCase().trim() ||
-        p.name.toLowerCase().trim().includes(item.name.toLowerCase().trim()) ||
-        item.name.toLowerCase().trim().includes(p.name.toLowerCase().trim())
-      );
+      // Rule 1, 2, 3: Compare similar and suggest fusion
+      const mergeId = item.mergeWithProductId;
+      const existingProduct = products.find(p => p.id === mergeId);
 
-      let targetProductId = '';
+      let targetId = '';
 
-      if (similar) {
-        targetProductId = similar.id;
-        updateInventoryProduct(similar.id, {
-          quantity: similar.quantity + item.quantity,
-          costPerUnit: item.costPerUnit > 0 ? item.costPerUnit : similar.costPerUnit,
+      if (mergeId && existingProduct) {
+        // Rule 3: Do not create new automatically, merge and update quantities
+        targetId = mergeId;
+        updateInventoryProduct(mergeId, {
+          quantity: existingProduct.quantity + item.quantity,
+          // Weighted average cost or override
+          costPerUnit: item.costPerUnit > 0 ? item.costPerUnit : existingProduct.costPerUnit,
+          // Persist the official metadata
+          chemicalGroup: existingProduct.chemicalGroup || item.chemicalGroup,
+          activeIngredient: existingProduct.activeIngredient || item.activeIngredient,
+          productGroup: existingProduct.productGroup || item.productGroup,
           lastUpdated: new Date().toISOString()
         });
         summedCount++;
       } else {
+        // Create new item
         const newId = `prod-${Math.random().toString(36).substring(2, 11)}`;
-        targetProductId = newId;
+        targetId = newId;
         addInventoryProduct({
           id: newId,
           name: item.name.trim(),
           category: item.category,
           unit: item.unit,
           quantity: item.quantity,
-          minQuantity: Math.ceil(item.quantity * 0.2), // Default 20%
+          minQuantity: Math.ceil(item.quantity * 0.2), // Default 20% limit
           costPerUnit: item.costPerUnit,
           supplier: item.supplier || 'Importado / Manual',
-          lastUpdated: new Date().toISOString()
+          lastUpdated: new Date().toISOString(),
+          productGroup: item.productGroup,
+          chemicalGroup: item.chemicalGroup,
+          activeIngredient: item.activeIngredient
         });
         addedCount++;
       }
 
-      // Record corresponding entry movement
+      // Rule 5: Armazenar histórico de movimentação
       addInventoryMovement({
         id: `mov-${Math.random().toString(36).substring(2, 11)}`,
         date: new Date().toISOString(),
-        productId: targetProductId,
+        productId: targetId,
         type: 'entrada',
         quantity: item.quantity,
-        reason: `Entrada autorizada via upload de arquivo - (${uploadedFileName || 'Ordens de Compra'})`
+        reason: `Mapeamento inteligente de lote de produtos - (${uploadedFileName || 'Entrada Dedicada'})`
       });
     });
 
-    toast.success('Entrada concluída sucesso!', {
-      description: `Mapeamos: ${addedCount} novos insumos, ${summedCount} frotas incrementadas com sucesso.`
+    toast.success('Entrada de produtos concluída!', {
+      description: `Sincronizados com sucesso: ${addedCount} novos cadastros e ${summedCount} fusões de estoque.`
     });
 
     setUploadParsedItems([]);
@@ -727,23 +1017,17 @@ export function InventoryPage() {
   };
 
   // -------------------------------------------------------------
-  // TAB 3: FILTERS & LOG PROCESSORS
+  // TAB 3: TIMELINE VERTICAL
   // -------------------------------------------------------------
   const filteredMovements = movements.filter(m => {
-    // 1. Filter by type
     if (movementTypeFilter !== 'all' && m.type !== movementTypeFilter) return false;
-    
-    // 2. Filter by Product
     if (movementProductFilter !== 'all' && m.productId !== movementProductFilter) return false;
-
-    // 3. Filter by period
     if (movementPeriodFilter !== 'all') {
       const daysLimit = movementPeriodFilter === '7d' ? 7 : movementPeriodFilter === '30d' ? 30 : 90;
       const limitDate = new Date();
       limitDate.setDate(limitDate.getDate() - daysLimit);
       return new Date(m.date) >= limitDate;
     }
-
     return true;
   });
 
@@ -757,39 +1041,45 @@ export function InventoryPage() {
     return p ? p.unit : '';
   };
 
-  // Stock list displayed
+  // Filtered stocks lists
   const displayedProducts = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(stockSearch.toLowerCase()) || 
-      (p.supplier && p.supplier.toLowerCase().includes(stockSearch.toLowerCase()));
+      (p.supplier && p.supplier.toLowerCase().includes(stockSearch.toLowerCase())) ||
+      (p.activeIngredient && p.activeIngredient.toLowerCase().includes(stockSearch.toLowerCase())) ||
+      (p.productGroup && p.productGroup.toLowerCase().includes(stockSearch.toLowerCase()));
     const matchCategory = stockCategoryFilter === 'all' || p.category === stockCategoryFilter;
     return matchSearch && matchCategory;
   });
+
+  // Calculate global statistics safely (avoiding divide-by-zero or NaN)
+  const totalStockValue = products.reduce((acc, p) => acc + (p.quantity * (p.costPerUnit || 0)), 0);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
       
       {/* HEADER */}
-      <header className="mb-8 flex items-start justify-between">
+      <header className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="kpi-label text-[#2D6A4F] text-xs font-bold uppercase tracking-wider font-sans">Gestão de Estoque</span>
-          <h1 className="font-display text-3xl font-semibold text-[#141410] mt-1">Insumos & Produtos</h1>
+          <span className="font-sans text-[#2D6A4F] text-xs font-bold uppercase tracking-wider block">DDSULF OPERACIONAL</span>
+          <h1 className="font-display text-2.5xl font-black text-[#141410] mt-1 uppercase tracking-tight">Fluxo Inteligente de Produtos</h1>
+          <p className="text-xs text-[#6B6B5F] mt-0.5">Importação NF-e, detecção de semelhanças e agrupamento químico da DDSulf.</p>
         </div>
         <button 
           onClick={openCreateModal}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#1B3A2D] text-white 
-                             text-sm font-semibold rounded-xl hover:bg-[#2D6A4F] transition-colors cursor-pointer"
+          className="flex items-center justify-center gap-2 px-5 py-3 bg-[#1B3A2D] text-white 
+                             text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#2D6A4F] transition-all cursor-pointer shadow-sm shrink-0"
         >
-          <Plus className="size-4" /> Novo Produto
+          <Plus className="size-4" /> Cadastrar Produto Manual
         </button>
       </header>
 
       {/* BANNER DE PRODUTOS CRÍTICOS */}
       {criticalProducts.length > 0 && (
-        <div className="bg-[#FFF3CD] border border-[#D4A017]/40 rounded-xl p-4 mb-6 text-sm text-[#92600A] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-[#FDF2F2] border border-rose-200 rounded-2xl p-4 mb-6 text-xs text-rose-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span>⚠️</span>
-            <span>
-              {criticalProducts.length} {criticalProducts.length === 1 ? 'produto precisa' : 'produtos precisam'} de reposição urgente: {criticalProducts.map(p => p.name).join(', ')}
+            <span className="text-base">🚨</span>
+            <span className="font-medium">
+              Há <strong>{criticalProducts.length}</strong> {criticalProducts.length === 1 ? 'insumo' : 'insumos'} com estoque abaixo de seu limite crítico: {criticalProducts.map(p => p.name).join(', ')}.
             </span>
           </div>
           <button
@@ -798,21 +1088,21 @@ export function InventoryPage() {
               setUploadParsedItems([]);
               setActiveTab('upload_entry');
             }}
-            className="text-xs font-bold underline hover:text-[#1B3A2D] cursor-pointer text-left sm:text-right shrink-0"
+            className="text-xs font-black uppercase tracking-wider text-[#1B3A2D] underline hover:text-[#2D6A4F] text-left cursor-pointer shrink-0"
           >
-            Dar Entrada de Insumos
+            Sinalizar Compra / Entrada por Upload
           </button>
         </div>
       )}
 
-      {/* ABAS (Pills Escuros) */}
-      <div className="flex gap-2 mb-8 p-1 bg-[#F0EDE8] rounded-xl w-fit">
+      {/* ABAS */}
+      <div className="flex gap-1 mb-8 p-1 bg-[#F0EDE8] rounded-xl w-fit">
         {tabs.map(tab => (
           <button
             key={tab.id}
             id={`tab-btn-${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            className={`px-5 py-2.5 rounded-lg text-[10px] font-extrabold uppercase tracking-widest transition-all cursor-pointer ${
               activeTab === tab.id ? 'bg-[#1B3A2D] text-white shadow-sm' : 'text-[#6B6B5F] hover:text-[#141410]'
             }`}
           >
@@ -821,48 +1111,47 @@ export function InventoryPage() {
         ))}
       </div>
 
-      {/* TAB SWITCH CONTENTS */}
+      {/* SWITCH CONTENTS */}
       <AnimatePresence mode="wait">
 
-        {/* ----------------- ABA 1: ESTOQUE ATUAL ----------------- */}
+        {/* ----------------- TAB 1: ESTOQUE ATUAL ----------------- */}
         {activeTab === 'current_stock' && (
           <motion.div
             key="current-stock-tab"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.2 }}
             className="space-y-6"
           >
-            {/* Quick Overview KPI grid */}
-            <div className="grid gap-6 sm:grid-cols-3">
-              <div className="p-6 bg-white border border-[#E8E6E1] rounded-2xl space-y-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Total de Categorias</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-3xl font-display font-semibold text-[#141410]">{Object.keys(CATEGORY_LABELS).length}</span>
-                  <span className="text-xs text-[#6B6B5F]">Ativas na DDSulf</span>
-                </div>
+            {/* Stats summaries */}
+            <div className="grid gap-6 sm:grid-cols-4">
+              <div className="p-5 bg-white border border-[#E8E6E1] rounded-2xl space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-wider text-[#6B6B5F]">Valor Total em Estoque</p>
+                <p className="text-xl font-display font-black text-[#141410]">R$ {totalStockValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <div className="text-[10px] text-[#2D6A4F] font-bold">Investimento integrado</div>
               </div>
 
-              <div className="p-6 bg-white border border-[#E8E6E1] rounded-2xl space-y-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Itens Cadastrados</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-3xl font-display font-semibold text-[#141410]">{products.length}</span>
-                  <span className="text-xs text-[#6B6B5F]">Lançados no sistema</span>
-                </div>
+              <div className="p-5 bg-white border border-[#E8E6E1] rounded-2xl space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-wider text-[#6B6B5F]">Insumos Cadastrados</p>
+                <p className="text-xl font-display font-black text-[#141410]">{products.length} itens</p>
+                <div className="text-[10px] text-[#6B6B5F] font-bold">Variáveis de campo DDSulf</div>
               </div>
 
-              <div className="p-6 bg-[#FFF3CD]/50 border border-[#D4A017]/30 text-[#92600A] rounded-2xl space-y-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#92600A]">Insumos em Alerta</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-3xl font-display font-semibold text-[#92600A]">{products.filter(p => p.quantity <= p.minQuantity * 1.5).length}</span>
-                  <span className="text-[10px] font-bold text-[#92600A] uppercase bg-[#FFF3CD] border border-[#D4A017]/20 px-2 py-0.5 rounded-md">Reabastecer</span>
-                </div>
+              <div className="p-5 bg-white border border-[#E8E6E1] rounded-2xl space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-wider text-[#6B6B5F]">Nível Crítico</p>
+                <p className="text-xl font-display font-black text-rose-700">{products.filter(p => p.quantity <= p.minQuantity).length} itens</p>
+                <div className="text-[10px] text-rose-600 font-bold">Abaixo do limite de segurança</div>
+              </div>
+
+              <div className="p-5 bg-white border border-[#E8E6E1] rounded-2xl space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-wider text-[#6B6B5F]">Nível de Atenção</p>
+                <p className="text-xl font-display font-black text-amber-700">{products.filter(p => p.quantity > p.minQuantity && p.quantity <= p.minQuantity * 1.5).length} itens</p>
+                <div className="text-[10px] text-amber-600 font-bold">Reabastecimento recomendado</div>
               </div>
             </div>
 
-            {/* Controls Bar */}
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white border border-[#E8E6E1] rounded-xl p-4">
+            {/* Controls */}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white border border-[#E8E6E1] p-4 rounded-2xl">
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1">
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#6B6B5F]" />
@@ -870,7 +1159,7 @@ export function InventoryPage() {
                     type="text"
                     value={stockSearch}
                     onChange={(e) => setStockSearch(e.target.value)}
-                    placeholder="Filtrar por nome do insumo ou fornecedor..."
+                    placeholder="Filtrar por insumo, fabricante ou princípio ativo..."
                     className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                   />
                 </div>
@@ -878,9 +1167,9 @@ export function InventoryPage() {
                 <select
                   value={stockCategoryFilter}
                   onChange={(e) => setStockCategoryFilter(e.target.value)}
-                  className="h-11 px-4 border border-[#E8E6E1] rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] cursor-pointer text-[#141410]"
+                  className="h-11 px-3 border border-[#E8E6E1] rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] cursor-pointer text-[#141410]"
                 >
-                  <option value="all">Todas as Categorias</option>
+                  <option value="all">Todas as Categoria Técnicas</option>
                   {CATEGORIES_LIST.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
@@ -888,14 +1177,14 @@ export function InventoryPage() {
               </div>
             </div>
 
-            {/* STOCK PRODUCTS GRID TABLE */}
-            <div className="bg-white border border-[#E8E6E1] rounded-2xl overflow-hidden" id="card-stock-grid-table">
+            {/* STOCK PRODUCTS LIST TABLE */}
+            <div className="bg-white border border-[#E8E6E1] rounded-2xl overflow-hidden">
               {displayedProducts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
                   <SearchX className="size-9 text-[#6B6B5F] opacity-50" />
                   <div className="space-y-1">
-                    <p className="text-sm font-bold text-[#141410] uppercase tracking-widest">Nenhum Insumo Encontrado</p>
-                    <p className="text-xs text-[#6B6B5F] max-w-sm">Tente reajustar os filtros ou adicione um novo produto usando o botão superior.</p>
+                    <p className="text-xs font-black text-[#141410] uppercase tracking-widest">Nenhum Insumo Disponível</p>
+                    <p className="text-xs text-[#6B6B5F] max-w-sm">Tente redefinir sua busca ou use os botões superiores para cadastrar novos produtos.</p>
                   </div>
                 </div>
               ) : (
@@ -903,53 +1192,69 @@ export function InventoryPage() {
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-[#F0EDE8]">
                       <tr className="border-b border-[#E8E6E1]">
-                        <th className="py-4 px-6 text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Nome do Insumo</th>
-                        <th className="py-4 px-4 text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Categoria</th>
-                        <th className="py-4 px-4 text-right text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Quantidade</th>
-                        <th className="py-4 px-4 text-right text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Estoque Mín</th>
-                        <th className="py-4 px-4 text-right text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Custo / Un.</th>
-                        <th className="py-4 px-4 text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Fornecedor</th>
-                        <th className="py-4 px-4 text-center text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Status</th>
-                        <th className="py-4 px-6 text-right text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Ações</th>
+                        <th className="py-4 px-6 text-[9px] font-black text-[#6B6B5F] uppercase tracking-wider font-sans">Nome do Produto</th>
+                        <th className="py-4 px-4 text-[9px] font-black text-[#6B6B5F] uppercase tracking-wider font-sans">Grupo Comercial / Químico</th>
+                        <th className="py-4 px-4 text-[9px] font-black text-[#6B6B5F] uppercase tracking-wider font-sans">Princípio Ativo</th>
+                        <th className="py-4 px-4 text-[9px] font-black text-[#6B6B5F] uppercase tracking-wider font-sans">Fabricante</th>
+                        <th className="py-4 px-4 text-right text-[9px] font-black text-[#6B6B5F] uppercase tracking-wider font-sans">Quantidade</th>
+                        <th className="py-4 px-4 text-right text-[9px] font-black text-[#6B6B5F] uppercase tracking-wider font-sans">Valor Unitário</th>
+                        <th className="py-4 px-4 text-right text-[9px] font-black text-[#6B6B5F] uppercase tracking-wider font-sans">Total em Estoque</th>
+                        <th className="py-4 px-4 text-center text-[9px] font-black text-[#6B6B5F] uppercase tracking-wider font-sans">Status</th>
+                        <th className="py-4 px-6 text-right text-[9px] font-black text-[#6B6B5F] uppercase tracking-wider font-sans">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E8E6E1] text-xs">
                       {displayedProducts.map((p) => {
                         const status = getProductStatus(p.quantity, p.minQuantity);
                         const isInlineEditing = editingId === p.id;
+                        const valueInStock = p.quantity * p.costPerUnit;
 
-                        // Map code to beautiful requested pills
-                        let pillClasses = 'bg-[#D8EDE3] text-[#1B3A2D] border border-[#2D6A4F]/20';
+                        let pillClasses = 'bg-emerald-50 text-emerald-800 border-emerald-200';
                         if (status.code === 'critico') {
-                          pillClasses = 'bg-[#FDDDD8] text-[#C1361A] border border-[#C1361A]/20';
+                          pillClasses = 'bg-rose-50 text-rose-850 border-rose-200';
                         } else if (status.code === 'baixo') {
-                          pillClasses = 'bg-[#FFF3CD] text-[#92600A] border border-[#D4A017]/20';
+                          pillClasses = 'bg-amber-50 text-amber-850 border-amber-200';
                         }
 
                         return (
-                          <tr key={p.id} className="hover:bg-[#FAFAF9] transition-colors font-medium text-[#141410] border-b border-[#E8E6E1]">
+                          <tr key={p.id} className="hover:bg-[#FAFAF9] transition-colors font-medium border-b border-[#E8E6E1] text-[#141410]">
                             
-                            {/* Nome com ícone */}
+                            {/* Nome */}
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
                                 <div className="p-2 bg-[#FAFAF9] rounded-xl border border-[#E8E6E1] text-[#6B6B5F]">
                                   <Package className="size-4" />
                                 </div>
                                 <div className="space-y-0.5">
-                                  <span className="font-bold text-[#141410] block">{p.name}</span>
-                                  <span className="text-[10px] font-mono text-[#6B6B5F] font-medium">ID: {p.id}</span>
+                                  <span className="font-extrabold text-sm text-[#141410] block">{p.name}</span>
+                                  <span className="text-[10px] text-[#6B6B5F] font-semibold">{p.productGroup || 'Consumíveis'}</span>
                                 </div>
                               </div>
                             </td>
 
-                            {/* Categoria Badge */}
-                            <td className="py-4 px-4 uppercase text-[10px]">
-                              <span className="px-2 py-0.5 rounded-md font-mono border border-[#E8E6E1] bg-[#FAFAF9] text-[#6B6B5F] font-bold">
-                                {CATEGORY_LABELS[p.category] || p.category}
-                              </span>
+                            {/* Grupo Comercial / Químico */}
+                            <td className="py-4 px-4 whitespace-nowrap">
+                              <div className="space-y-0.5">
+                                <span className="px-2 py-0.5 rounded-md font-mono text-[9px] font-bold border border-[#E8E6E1] bg-[#FAFAF9] uppercase">
+                                  {CATEGORY_LABELS[p.category] || p.category}
+                                </span>
+                                <span className="block text-[10px] text-[#6B6B5F] font-mono font-medium truncate max-w-[120px]">
+                                  {p.chemicalGroup || '⚠️ NÃO INFORMADO'}
+                                </span>
+                              </div>
                             </td>
 
-                            {/* Qtd with large display typography */}
+                            {/* Princípio Ativo */}
+                            <td className="py-4 px-4 font-mono text-[10px] text-[#6B6B5F] max-w-[120px] truncate">
+                              {p.activeIngredient || '⚠️ NÃO INFORMADO'}
+                            </td>
+
+                            {/* Fabricante */}
+                            <td className="py-4 px-4 font-sans font-bold text-[#6B6B5F] max-w-[120px] truncate">
+                              {p.supplier || 'N/A'}
+                            </td>
+
+                            {/* Quantidade */}
                             <td className="py-4 px-4 text-right">
                               {isInlineEditing ? (
                                 <div className="flex items-center justify-end gap-1.5 max-w-[120px] ml-auto">
@@ -962,72 +1267,64 @@ export function InventoryPage() {
                                   />
                                   <button
                                     onClick={() => saveInlineQuantity(p)}
-                                    className="p-1.5 bg-[#1B3A2D] text-white rounded-lg hover:bg-[#2D6A4F] transition-colors"
-                                    title="Confirmar"
+                                    className="p-1 w-7 h-7 bg-[#1B3A2D] text-white rounded-lg hover:bg-[#2D6A4F] flex items-center justify-center cursor-pointer"
                                   >
                                     <Check className="size-3.5" />
                                   </button>
                                   <button
                                     onClick={() => setEditingId(null)}
-                                    className="p-1.5 bg-white border border-[#E8E6E1] text-[#6B6B5F] rounded-lg hover:bg-[#FAFAF9] transition-colors"
-                                    title="Cancelar"
+                                    className="p-1 w-7 h-7 bg-white border border-[#E8E6E1] text-[#6B6B5F] rounded-lg hover:bg-slate-150 flex items-center justify-center cursor-pointer"
                                   >
                                     <X className="size-3.5" />
                                   </button>
                                 </div>
                               ) : (
-                                <div className="inline-flex items-baseline justify-end gap-1 cursor-pointer group" onClick={() => startInlineEdit(p)}>
-                                  <span className="font-display text-[#141410] font-semibold text-lg">
+                                <div className="inline-flex items-baseline justify-end gap-0.5 cursor-pointer group" onClick={() => startInlineEdit(p)}>
+                                  <span className="font-display font-black text-[#141410] text-sm leading-none">
                                     {p.quantity.toLocaleString('pt-BR')}
                                   </span>
-                                  <span className="text-[#6B6B5F] text-xs ml-1">
+                                  <span className="text-[#6B6B5F] text-[10px] font-bold ml-1">
                                     {p.unit}
                                   </span>
-                                  <button className="p-1 text-[#6B6B5F] opacity-0 group-hover:opacity-100 hover:text-[#141410] transition-all rounded ml-1">
-                                    <Edit2 className="size-3" />
-                                  </button>
+                                  <Edit2 className="size-2.5 text-[#6B6B5F] opacity-0 group-hover:opacity-100 transition-opacity ml-1.5 self-center" />
                                 </div>
                               )}
                             </td>
 
-                            {/* Estoque Mínimo */}
-                            <td className="py-4 px-4 text-right font-mono text-[#6B6B5F] text-xs">
-                              {p.minQuantity.toLocaleString('pt-BR')} {p.unit}
+                            {/* Valor Unitário */}
+                            <td className="py-4 px-4 text-right font-mono font-bold text-xs">
+                              R$ {p.costPerUnit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
 
-                            {/* Custo por Unidade */}
-                            <td className="py-4 px-4 text-right font-mono text-[#141410]">
-                              R$ {p.costPerUnit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                            {/* Valor Total em Estoque */}
+                            <td className="py-4 px-4 text-right font-mono font-black text-xs text-[#1B3A2D]">
+                              R$ {valueInStock.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
 
-                            {/* Fornecedor */}
-                            <td className="py-4 px-4 text-[#6B6B5F] max-w-[140px] truncate">
-                              {p.supplier || 'N/A'}
-                            </td>
-
-                            {/* Status Visual como pill colorida descrita nas diretrizes */}
-                            <td className="py-4 px-4 text-center">
-                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${pillClasses}`}>
+                            {/* Status */}
+                            <td className="py-4 px-4 text-center whitespace-nowrap">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] border font-black uppercase tracking-wider ${pillClasses}`}>
+                                <span className={`size-1.5 rounded-full ${status.dot}`}></span>
                                 {status.label}
                               </span>
                             </td>
 
-                            {/* Ações (ícones apenas em cinza, hover colorido) */}
+                            {/* Ações */}
                             <td className="py-4 px-6 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
+                              <div className="flex items-center justify-end gap-1">
                                 <button
                                   onClick={() => openEditModal(p)}
-                                  className="p-2 text-[#6B6B5F] hover:text-[#2D6A4F] hover:bg-[#D8EDE3] rounded-xl transition-all cursor-pointer"
-                                  title="Editar Produto"
+                                  className="p-1.5 text-[#6B6B5F] hover:text-[#2D6A4F] hover:bg-[#D8EDE3] rounded-lg transition-all cursor-pointer"
+                                  title="Ficha Cadastral"
                                 >
-                                  <Edit2 className="size-4" />
+                                  <Edit2 className="size-3.5" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteProduct(p.id, p.name)}
-                                  className="p-2 text-[#6B6B5F] hover:text-[#C1361A] hover:bg-[#FDDDD8] rounded-xl transition-all cursor-pointer"
-                                  title="Excluir Produto"
+                                  className="p-1.5 text-[#6B6B5F] hover:text-[#C1361A] hover:bg-[#FDDDD8] rounded-lg transition-all cursor-pointer"
+                                  title="Excluir"
                                 >
-                                  <Trash2 className="size-4" />
+                                  <Trash2 className="size-3.5" />
                                 </button>
                               </div>
                             </td>
@@ -1043,56 +1340,84 @@ export function InventoryPage() {
           </motion.div>
         )}
 
-        {/* ----------------- ABA 2: ENTRADA POR UPLOAD ----------------- */}
+        {/* ----------------- TAB 2: ENTRADA POR UPLOAD & INTEL ENGINE ----------------- */}
         {activeTab === 'upload_entry' && (
           <motion.div
             key="upload-entry-tab"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.2 }}
-            className="grid gap-8 lg:grid-cols-12 animate-in fade-in"
+            className="grid gap-8 lg:grid-cols-12"
           >
-            {/* Upload Area left column */}
-            <div className="lg:col-span-12 xl:col-span-5 space-y-6">
-              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-6">
+            {/* Left side upload and parameters */}
+            <div className="lg:col-span-4 space-y-6">
+              <div className="bg-white border border-[#E8E6E1] p-6 rounded-2xl space-y-6">
                 <div className="space-y-1">
-                  <h3 className="text-base font-semibold text-[#141410] font-display">Scanner de Compras</h3>
-                  <p className="text-xs text-[#6B6B5F] font-medium">Extraia e sincronize entradas de faturas de insumos químicos para controle unificado.</p>
+                  <h3 className="text-base font-extrabold text-[#141410] font-display">Scanner Inteligente DDSulf</h3>
+                  <p className="text-xs text-[#6B6B5F] font-medium leading-relaxed">
+                    Arraste sua planilha, nota fiscal XML ou PDF. O motor de inteligência deduzirá as equivalências de insumos químicos de forma automatizada.
+                  </p>
                 </div>
 
-                {/* Cards de formato aceito como pills clicáveis */}
-                <div className="space-y-2">
-                  <span className="text-[10px] font-bold uppercase text-[#6B6B5F] tracking-wider font-sans block">Formatos Disponíveis</span>
-                  <div className="flex flex-wrap gap-2">
-                    <button 
+                <div className="space-y-2 pt-1">
+                  <label className="text-[9px] font-black uppercase text-[#6B6B5F] tracking-widest font-sans block">Propósito da Importação</label>
+                  <div className="grid grid-cols-2 gap-1 p-1 bg-[#FAFAF9] border border-[#E8E6E1] rounded-xl">
+                    <button
                       type="button"
-                      onClick={() => document.getElementById('inventory-file-selector')?.click()}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-[#FAFAF9] border border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-[#1B3A2D]/5 rounded-xl text-xs font-medium text-[#6B6B5F] hover:text-[#1B3A2D] transition-all cursor-pointer"
+                      onClick={() => setImportType('estoque')}
+                      className={`py-1.5 rounded-lg text-center text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        importType === 'estoque'
+                          ? 'bg-[#1B3A2D] text-white shadow-xs'
+                          : 'text-[#6B6B5F] hover:text-[#141410]'
+                      }`}
                     >
-                      <FileSpreadsheet className="size-3.5 text-[#2D6A4F]" />
-                      <span>Planilha (.XLSX)</span>
+                      Estoque
                     </button>
-                    <button 
+                    <button
                       type="button"
-                      onClick={() => document.getElementById('inventory-file-selector')?.click()}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-[#FAFAF9] border border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-[#1B3A2D]/5 rounded-xl text-xs font-medium text-[#6B6B5F] hover:text-[#1B3A2D] transition-all cursor-pointer"
+                      onClick={() => setImportType('orcamento')}
+                      className={`py-1.5 rounded-lg text-center text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        importType === 'orcamento'
+                          ? 'bg-[#1B3A2D] text-white shadow-xs'
+                          : 'text-[#6B6B5F] hover:text-[#141410]'
+                      }`}
                     >
-                      <FileUp className="size-3.5 text-[#D4A017]" />
-                      <span>XML NF-e (.xml)</span>
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => document.getElementById('inventory-file-selector')?.click()}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-[#FAFAF9] border border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-[#1B3A2D]/5 rounded-xl text-xs font-medium text-[#6B6B5F] hover:text-[#1B3A2D] transition-all cursor-pointer"
-                    >
-                      <FileSpreadsheet className="size-3.5 text-[#C1361A]" />
-                      <span>Fatura CSV (.csv)</span>
+                      Orçamento / Proposta
                     </button>
                   </div>
                 </div>
 
-                {/* Dynamic drop zone */}
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase text-[#6B6B5F] tracking-widest font-sans block">Formatos Prontos</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => document.getElementById('inventory-file-selector')?.click()}
+                      className="flex flex-col items-center justify-center p-2 bg-[#FAFAF9] border border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-emerald-50 rounded-xl text-center text-[10px] font-bold text-[#6B6B5F] hover:text-[#1B3A2D] transition-all cursor-pointer gap-1"
+                    >
+                      <FileSpreadsheet className="size-4 text-emerald-700" />
+                      <span>Planilha (.xlsx)</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => document.getElementById('inventory-file-selector')?.click()}
+                      className="flex flex-col items-center justify-center p-2 bg-[#FAFAF9] border border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-emerald-50 rounded-xl text-center text-[10px] font-bold text-[#6B6B5F] hover:text-[#1B3A2D] transition-all cursor-pointer gap-1"
+                    >
+                      <FileUp className="size-4 text-sky-700" />
+                      <span>XML (.xml)</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => document.getElementById('inventory-file-selector')?.click()}
+                      className="flex flex-col items-center justify-center p-2 bg-[#FAFAF9] border border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-emerald-50 rounded-xl text-center text-[10px] font-bold text-[#6B6B5F] hover:text-[#1B3A2D] transition-all cursor-pointer gap-1"
+                    >
+                      <FileUp className="size-4 text-rose-700" />
+                      <span>PDF (.pdf)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Drag zone */}
                 <div
                   onDragOver={handleDragOver}
                   onDragLeave={() => setIsDragging(false)}
@@ -1104,60 +1429,52 @@ export function InventoryPage() {
                       : 'border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-[#FAFAF9]/50 bg-[#FAFAF9]'
                   }`}
                 >
-                  <div className="flex flex-col items-center gap-4 animate-fade-in">
-                    <div className="p-3 bg-white rounded-xl border border-[#E8E6E1] text-[#1B3A2D] shadow-xs">
-                      <FileUp className="size-7" />
-                    </div>
-
+                  <div className="flex flex-col items-center gap-3">
+                    <FileUp className="size-6 text-[#1B3A2D]" />
                     <div className="space-y-1">
-                      <p className="text-xs font-bold text-[#141410]">Arraste a Nota Fiscal ou tabela de compras</p>
-                      <p className="text-[10px] text-[#6B6B5F] leading-normal">Lemos xml, notas brutas, planilhas organizadas ou ordens PDF.</p>
+                      <p className="text-xs font-bold text-[#141410]">Selecione ou solte aqui o arquivo</p>
+                      <p className="text-[10px] text-[#6B6B5F]">Lemos quantidades, custos e nomes</p>
                     </div>
 
                     {uploadedFileName && (
-                      <div className="inline-flex items-center gap-1.5 bg-[#D8EDE3] text-[#1B3A2D] border border-[#2D6A4F]/20 px-3 py-1 rounded-full text-[10px] font-bold">
-                        <Check className="size-3 text-[#2D6A4F]" />
+                      <div className="bg-[#D8EDE3] text-[#1B3A2D] border border-[#2D6A4F]/20 px-3 py-1 rounded-full text-[10px] font-bold max-w-full truncate">
                         {uploadedFileName}
                       </div>
                     )}
 
-                    <div>
-                      <input
-                        id="inventory-file-selector"
-                        type="file"
-                        accept=".xlsx,.xls,.csv,.xml,.pdf"
-                        onChange={handleFileInputChange}
-                        className="sr-only"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-9 font-bold text-[9px] uppercase tracking-wider text-[#1B3A2D] rounded-xl border-[#1B3A2D] hover:bg-[#1B3A2D]/10 shadow-xs cursor-pointer"
-                      >
-                        Localizar Arquivo
-                      </Button>
-                    </div>
+                    <input
+                      id="inventory-file-selector"
+                      type="file"
+                      accept=".xlsx,.xls,.csv,.xml,.pdf"
+                      onChange={handleFileInputChange}
+                      className="sr-only"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 font-black text-[9px] uppercase tracking-wider text-[#1B3A2D] rounded-lg border-[#1B3A2D] hover:bg-[#1B3A2D]/10 cursor-pointer mt-1"
+                    >
+                      Procurar Local
+                    </Button>
                   </div>
                 </div>
 
-                {/* Guided note mapping description */}
-                <div className="p-4 bg-[#FAFAF9] border border-[#E8E6E1] rounded-xl space-y-1.5 text-xs text-[#6B6B5F]">
-                  <span className="font-bold text-[#141410] uppercase block tracking-wider text-[10px]">Mapeamento Inteligente</span>
-                  <p className="leading-relaxed text-[11px]">
-                    Nossa ferramenta realiza o cruzamento sintático do catálogo de produtos comerciais e preenche a quantidade de entrada. Altere o mapeamento das colunas conforme sua conveniência.
+                <div className="p-4 bg-[#FAFAF9] border border-[#E8E6E1] rounded-xl text-[11px] text-[#6B6B5F] space-y-1.5 leading-relaxed">
+                  <span className="font-extrabold text-[#141410] uppercase tracking-wider text-[9px] block">🔍 Regras de Equivalência</span>
+                  <p>
+                    Nomes semelhantes (ex: <i>OPTIGARD WG</i>) são enlaçados à família correspondente, acionando o preenchimento automático de princípios ativos e fornecedores da DDSulf.
                   </p>
                 </div>
               </div>
 
-              {/* Show original file debug snippet dynamically */}
+              {/* Grid Preview Raw Rows */}
               {(sheetPreviewRaw.length > 0 || rawTextPreview) && (
                 <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-4">
                   <div className="flex items-center gap-2">
                     <Eye className="size-4 text-[#6B6B5F]" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Visualização de Registros Originais</span>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-[#6B6B5F]">Dados Brutos do Arquivo</span>
                   </div>
 
-                  {/* Excel rows visual grid preview */}
                   {fileTypeDetected === 'sheet' && sheetPreviewRaw.length > 0 && (
                     <div className="overflow-x-auto max-h-[160px] border border-[#E8E6E1] rounded-xl text-[9px] font-mono divide-y divide-[#E8E6E1] bg-[#FAFAF9]">
                       {sheetPreviewRaw.map((rowArr, rIdx) => (
@@ -1172,9 +1489,8 @@ export function InventoryPage() {
                     </div>
                   )}
 
-                  {/* Text snippets for XML and PDF */}
                   {(fileTypeDetected === 'xml' || fileTypeDetected === 'pdf') && rawTextPreview && (
-                    <pre className="p-3 bg-[#141410] text-[#FAFAF9] text-[9px] font-mono rounded-xl overflow-auto max-h-[160px] whitespace-pre-wrap leading-normal border border-[#E8E6E1]">
+                    <pre className="p-3 bg-[#141410] text-emerald-400 text-[9px] font-mono rounded-xl overflow-auto max-h-[160px] whitespace-pre-wrap leading-normal border border-[#E8E6E1]">
                       {rawTextPreview}
                     </pre>
                   )}
@@ -1182,180 +1498,286 @@ export function InventoryPage() {
               )}
             </div>
 
-            {/* Mapped results table right column */}
-            <div className="lg:col-span-12 xl:col-span-7 space-y-6">
-              <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 space-y-6 flex flex-col min-h-[440px]">
+            {/* Right side confirming list */}
+            <div className="lg:col-span-8 space-y-6">
+              <div className="bg-white border border-[#E8E6E1] p-6 rounded-2xl flex flex-col min-h-[440px]">
                 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8E6E1] pb-4">
-                  <div className="space-y-0.5">
-                    <h3 className="text-base font-semibold text-[#141410] font-display">Confirmar Parâmetros Mapeados</h3>
-                    <p className="text-xs text-[#6B6B5F] font-medium">Configure e confirme os insumos encontrados antes de incorporar ao catálogo.</p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8E6E1] pb-4 mb-4">
+                  <div>
+                    <h3 className="text-base font-extrabold text-[#141410] font-display">Confirmar Alinhamento de Linhas</h3>
+                    <p className="text-xs text-[#6B6B5F] font-medium">Reveja se deseja fundir os produtos similares encontrados para evitar novas duplicidades.</p>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleAddManualRow}
-                    className="h-9 px-3 rounded-lg border-dashed border-[#E8E6E1] text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F] hover:text-[#141410]"
-                  >
-                    + Adicionar Linha Manual
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {uploadParsedItems.length > 0 && (
+                      <Button
+                        type="button"
+                        onClick={refineWithAI}
+                        disabled={isClassifyingWithAI}
+                        className="h-9 px-3 bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-[10px] uppercase tracking-wide rounded-lg flex items-center gap-1 cursor-pointer transition-all disabled:opacity-50"
+                      >
+                        {isClassifyingWithAI ? (
+                          <>
+                            <Loader2 className="size-3 animate-spin" />
+                            <span>Mapeando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="size-3.5 fill-white/25" />
+                            <span>Aperfeiçoar com IA</span>
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAddManualRow}
+                      className="h-9 px-3 rounded-lg border-dashed border-[#E8E6E1] text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F] hover:text-[#141410] cursor-pointer"
+                    >
+                      + Nova Linha Manual
+                    </Button>
+                  </div>
                 </div>
 
-                {/* Import confirm table */}
-                <div className="flex-1 overflow-y-auto max-h-[420px] divide-y divide-[#E8E6E1] pr-1">
+                {/* Confirmable items list */}
+                <div className="flex-1 space-y-4 pr-1 overflow-y-auto max-h-[500px]">
                   {uploadParsedItems.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-24 text-center gap-4">
-                      <FileSpreadsheet className="size-10 text-[#6B6B5F] opacity-50" />
+                      <FileSpreadsheet className="size-10 text-[#6B6B5F] opacity-40" />
                       <div className="space-y-1">
-                        <p className="text-xs font-bold text-[#141410] uppercase tracking-widest">Nenhum Registro Prévio</p>
-                        <p className="text-[10px] text-[#6B6B5F] max-w-xs">Carregue um arquivo à esquerda ou pressione "+ Adicionar Linha Manual" para digitar.</p>
+                        <p className="text-xs font-black text-[#141410] uppercase tracking-wider">Aguardando Importação</p>
+                        <p className="text-xs text-[#6B6B5F] max-w-xs">Carregue um documento para ver e editar os itens mapeados antes de salvá-los.</p>
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-4 pt-1">
-                      {uploadParsedItems.map((item) => (
-                        <div 
-                          key={item.id}
-                          className={`flex flex-col sm:flex-row items-stretch justify-between p-4 rounded-xl border transition-all gap-4 ${
-                            item.confirmed 
-                              ? 'bg-[#FAFAF9] border-[#E8E6E1]' 
-                              : 'bg-white border-dashed border-[#E8E6E1] opacity-40'
-                          }`}
-                        >
-                          {/* Item parameters editable fields */}
-                          <div className="grid gap-3 sm:grid-cols-12 flex-1">
-                            {/* Checkbox selector */}
-                            <div className="sm:col-span-1 flex items-center justify-center">
-                              <input
-                                type="checkbox"
-                                checked={item.confirmed}
-                                onChange={(e) => handleUpdateParsedItem(item.id, { confirmed: e.target.checked })}
-                                className="size-4 rounded-md accent-[#1B3A2D] cursor-pointer"
-                              />
-                            </div>
+                      {uploadParsedItems.map((item) => {
+                        const originalMatched = products.find(p => p.id === item.mergeWithProductId);
 
-                            {/* Name input */}
-                            <div className="sm:col-span-5 space-y-1">
-                              <label className="text-[9px] font-bold uppercase text-[#6B6B5F]">Nome do Insumo</label>
-                              <input
-                                type="text"
-                                value={item.name}
-                                onChange={(e) => handleUpdateParsedItem(item.id, { name: e.target.value })}
-                                className="w-full h-9 border border-[#E8E6E1] rounded-lg px-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white"
-                              />
-                            </div>
-
-                            {/* Qtd & Unit input */}
-                            <div className="sm:col-span-3 grid grid-cols-2 gap-1.5">
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-bold uppercase text-[#6B6B5F]">Qtd</label>
+                        return (
+                          <div 
+                            key={item.id}
+                            className={`p-4 rounded-xl border transition-all space-y-3 ${
+                              item.confirmed 
+                                ? 'bg-[#FAFAF9] border-[#E8E6E1] shadow-xs' 
+                                : 'bg-slate-50 border-dashed border-slate-200 opacity-60'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-2">
                                 <input
-                                  type="number"
-                                  min="0.1"
-                                  step="ANY"
-                                  value={item.quantity}
-                                  onChange={(e) => handleUpdateParsedItem(item.id, { quantity: parseFloat(e.target.value) || 0 })}
-                                  className="w-full h-9 border border-[#E8E6E1] rounded-lg px-1.5 text-center text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white"
+                                  type="checkbox"
+                                  id={`chk-item-${item.id}`}
+                                  checked={item.confirmed}
+                                  onChange={(e) => handleUpdateParsedItem(item.id, { confirmed: e.target.checked })}
+                                  className="size-4.5 rounded-md accent-[#1B3A2D] cursor-pointer"
                                 />
+                                <span className="text-sm font-extrabold text-[#141410]">{item.name}</span>
                               </div>
+
+                              <button
+                                onClick={() => setUploadParsedItems(prev => prev.filter(p => p.id !== item.id))}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
+                                title="Descartar"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            </div>
+
+                            {/* Budget Alignment Banner */}
+                            {importType === 'orcamento' && (
+                              <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+                                {(!item.budgetClass || item.budgetClass === 'found') && (
+                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black bg-[#D8EDE3] text-[#1B3A2D] border border-[#2D6A4F]/20">
+                                    <CheckCircle2 className="size-3 text-[#2D6A4F]" />
+                                    <span>PRODUTO ENCONTRADO</span>
+                                  </div>
+                                )}
+                                {item.budgetClass === 'equivalent' && (
+                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-200">
+                                    <ArrowRightLeft className="size-3 text-amber-600" />
+                                    <span>PRODUTO EQUIVALENTE &rarr; {item.equivalentName}</span>
+                                  </div>
+                                )}
+                                {item.budgetClass === 'unregistered' && (
+                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black bg-slate-100 text-slate-700 border border-slate-300">
+                                    <AlertTriangle className="size-3 text-slate-500" />
+                                    <span>PRODUTO NÃO CADASTRADO</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Similarity alert / Option to merge in order to resolve Rule 3 */}
+                            {item.similarityWarning && originalMatched && (
+                              <div className="bg-amber-50 border border-amber-200/60 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[11px] text-amber-850">
+                                <div className="flex items-center gap-1.5">
+                                  <ShieldAlert className="size-4 text-amber-600 shrink-0" />
+                                  <span>
+                                    Rule 3 Duplicate check: Semelhante a <strong>{originalMatched.name}</strong> (Ativo: <i>{originalMatched.activeIngredient || 'Outros'}</i>).
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <label className="flex items-center gap-1 font-bold text-[10px] uppercase cursor-pointer">
+                                    <input 
+                                      type="checkbox" 
+                                      checked={!!item.mergeWithProductId}
+                                      onChange={(e) => {
+                                        // Toggle fusion or treat as completely separate product
+                                        handleUpdateParsedItem(item.id, {
+                                          mergeWithProductId: e.target.checked ? originalMatched.id : undefined
+                                        });
+                                      }}
+                                      className="size-3.5 accent-amber-650"
+                                    />
+                                    <span>FUNDO / UNIFICAR</span>
+                                  </label>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Automatic match display tag */}
+                            {item.isOfficialMatch && item.officialProductName && (
+                              <div className="bg-[#D8EDE3] text-[#1B3A2D] border border-[#2D6A4F]/20 px-2.5 py-1 rounded-lg text-[10px] font-bold w-fit flex items-center gap-1.5">
+                                <CheckCircle2 className="size-3 text-[#2D6A4F] fill-[#2D6A4F]/10" />
+                                <span>Equivalência DDSulf oficial garantida: <strong>{item.officialProductName}</strong></span>
+                              </div>
+                            )}
+
+                            {/* Editable inputs row */}
+                            <div className="grid gap-4 sm:grid-cols-4">
                               <div className="space-y-1">
-                                <label className="text-[9px] font-bold uppercase text-[#6B6B5F]">Unidade</label>
+                                <label className="text-[9px] font-black uppercase text-[#6B6B5F]">Grupo de Produto</label>
                                 <select
-                                  value={item.unit}
-                                  onChange={(e) => handleUpdateParsedItem(item.id, { unit: e.target.value })}
-                                  className="w-full h-9 border border-[#E8E6E1] rounded-lg px-1 text-[10px] font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white cursor-pointer"
+                                  value={item.productGroup}
+                                  onChange={(e: any) => handleUpdateParsedItem(item.id, { productGroup: e.target.value })}
+                                  className="w-full h-8 border border-[#E8E6E1] rounded-lg px-2 text-[10px] font-semibold bg-white cursor-pointer"
                                 >
-                                  {UNITS_LIST.map(u => (
-                                    <option key={u} value={u}>{u}</option>
+                                  {CATEGORIES_LIST.map(g => (
+                                    <option key={g.label} value={g.label}>{g.label}</option>
                                   ))}
                                 </select>
                               </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black uppercase text-[#6B6B5F]">Princípio Ativo</label>
+                                <input
+                                  type="text"
+                                  value={item.activeIngredient}
+                                  onChange={(e) => handleUpdateParsedItem(item.id, { activeIngredient: e.target.value })}
+                                  className="w-full h-8 border border-[#E8E6E1] rounded-lg px-2 text-[10px] font-semibold bg-white"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black uppercase text-[#6B6B5F]">Grupo Químico</label>
+                                <input
+                                  type="text"
+                                  value={item.chemicalGroup}
+                                  onChange={(e) => handleUpdateParsedItem(item.id, { chemicalGroup: e.target.value })}
+                                  className="w-full h-8 border border-[#E8E6E1] rounded-lg px-2 text-[10px] font-semibold bg-white"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-black uppercase text-[#6B6B5F]">Fabricante</label>
+                                <input
+                                  type="text"
+                                  value={item.supplier}
+                                  onChange={(e) => handleUpdateParsedItem(item.id, { supplier: e.target.value })}
+                                  className="w-full h-8 border border-[#E8E6E1] rounded-lg px-2 text-[10px] font-semibold bg-white"
+                                />
+                              </div>
                             </div>
 
-                            {/* Cost per unit & Category */}
-                            <div className="sm:col-span-3 grid grid-cols-2 gap-1.5">
+                            <div className="grid gap-4 sm:grid-cols-3 pt-1 border-t border-[#E8E6E1]/60">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-black uppercase text-[#6B6B5F]">Qtd</label>
+                                  <input
+                                    type="number"
+                                    value={item.quantity}
+                                    onChange={(e) => handleUpdateParsedItem(item.id, { quantity: parseFloat(e.target.value) || 0 })}
+                                    className="w-full h-8 border border-[#E8E6E1] rounded-lg px-2 text-center text-xs font-bold bg-white"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-black uppercase text-[#6B6B5F]">Unidade</label>
+                                  <select
+                                    value={item.unit}
+                                    onChange={(e) => handleUpdateParsedItem(item.id, { unit: e.target.value })}
+                                    className="w-full h-8 border border-[#E8E6E1] rounded-lg px-1.5 text-[10px] font-semibold bg-white cursor-pointer"
+                                  >
+                                    {UNITS_LIST.map(u => (
+                                      <option key={u} value={u}>{u}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+
                               <div className="space-y-1">
-                                <label className="text-[9px] font-bold uppercase text-[#6B6B5F]">Custo (R$)</label>
+                                <label className="text-[9px] font-black uppercase text-[#6B6B5F]">Custo Unitário (R$)</label>
                                 <input
                                   type="number"
-                                  min="0"
-                                  step="0.0001"
                                   value={item.costPerUnit}
                                   onChange={(e) => handleUpdateParsedItem(item.id, { costPerUnit: parseFloat(e.target.value) || 0 })}
-                                  className="w-full h-9 border border-[#E8E6E1] rounded-lg px-1 text-center text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white"
+                                  className="w-full h-8 border border-[#E8E6E1] rounded-lg px-3 text-xs font-bold bg-white"
                                 />
                               </div>
+
                               <div className="space-y-1">
-                                <label className="text-[9px] font-bold uppercase text-[#6B6B5F]">Categoria</label>
-                                <select
-                                  value={item.category}
-                                  onChange={(e) => handleUpdateParsedItem(item.id, { category: e.target.value })}
-                                  className="w-full h-9 border border-[#E8E6E1] rounded-lg px-1 text-[10px] font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white cursor-pointer"
-                                >
-                                  {CATEGORIES_LIST.map(c => (
-                                    <option key={c.value} value={c.value}>{c.label}</option>
-                                  ))}
-                                </select>
+                                <label className="text-[9px] font-black uppercase text-[#6B6B5F]">Valor Total Estimado</label>
+                                <div className="h-8 flex items-center justify-end px-3 rounded-lg border border-[#E8E6E1] bg-slate-50 text-xs font-black text-[#1B3A2D] font-mono">
+                                  R$ {(item.quantity * item.costPerUnit).toFixed(2)}
+                                </div>
                               </div>
                             </div>
-                          </div>
 
-                          {/* Action Trash row deletion */}
-                          <div className="flex items-center justify-end border-t sm:border-t-0 border-[#E8E6E1] pt-2 sm:pt-0 shrink-0">
-                            <button
-                              onClick={() => setUploadParsedItems(prev => prev.filter(p => p.id !== item.id))}
-                              className="p-2 text-[#6B6B5F] hover:text-[#C1361A] hover:bg-[#FDDDD8] rounded-lg transition-colors inline-block cursor-pointer"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
 
-                {/* Import Confirmation Footer */}
+                {/* Import Footer actions block */}
                 {uploadParsedItems.length > 0 && (
-                  <div className="border-t border-[#E8E6E1] pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="border-t border-[#E8E6E1] pt-4 mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <span className="text-[10px] font-bold text-[#6B6B5F]">
-                      Entrada programada de <span className="text-[#141410] font-black underline">{uploadParsedItems.filter(p => p.confirmed).length} itens</span> selecionados.
+                      Totalizando <span className="text-[#141410] font-black underline">{uploadParsedItems.filter(p => p.confirmed).length} item(ns)</span> prontos para consolidação reguladora.
                     </span>
                     <Button
                       type="button"
-                      id="btn-confirm-mapped-entry"
                       onClick={handleConfirmImport}
-                      className="w-full sm:w-auto h-11 bg-[#1B3A2D] text-white rounded-xl px-6 font-bold text-xs uppercase tracking-wider hover:bg-[#2D6A4F] shadow-sm cursor-pointer"
+                      className="w-full sm:w-auto h-11 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white rounded-xl px-6 font-bold text-xs uppercase tracking-widest cursor-pointer shadow-xs transition-colors"
                     >
-                      Confirmar Entrada de Produtos
+                      Efetivar Entrada no Estoque
                     </Button>
                   </div>
                 )}
+
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* ----------------- ABA 3: MOVIMENTAÇÕES (TIMELINE VERTICAL) ----------------- */}
+        {/* ----------------- TAB 3: LOG DE MOVIMENTAÇÕES ----------------- */}
         {activeTab === 'movements_log' && (
           <motion.div
             key="movements-log-tab"
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.2 }}
             className="space-y-6"
           >
-            {/* Log Filters Bar */}
-            <div className="bg-white border border-[#E8E6E1] rounded-2xl p-5 flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="bg-white border border-[#E8E6E1] p-5 rounded-2xl flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="flex flex-wrap gap-4 w-full">
-                {/* Type filters */}
                 <div className="space-y-1 flex-1 min-w-[140px]">
-                  <label className="text-[9px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Tipo de Movimentação</label>
+                  <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Filtrar por Fluxo</label>
                   <select
                     value={movementTypeFilter}
                     onChange={(e) => setMovementTypeFilter(e.target.value as any)}
-                    className="w-full h-10 border border-[#E8E6E1] rounded-lg px-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
+                    className="w-full h-10 border border-[#E8E6E1] rounded-lg px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] cursor-pointer"
                   >
                     <option value="all">Todas as Altas/Baixas</option>
                     <option value="entrada">Entradas (Incrementos)</option>
@@ -1363,28 +1785,26 @@ export function InventoryPage() {
                   </select>
                 </div>
 
-                {/* Products lookup selection */}
                 <div className="space-y-1 flex-1 min-w-[180px]">
-                  <label className="text-[9px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Filtrar por Produto</label>
+                  <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Filtrar por Produto</label>
                   <select
                     value={movementProductFilter}
                     onChange={(e) => setMovementProductFilter(e.target.value)}
-                    className="w-full h-10 border border-[#E8E6E1] rounded-lg px-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
+                    className="w-full h-10 border border-[#E8E6E1] rounded-lg px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] cursor-pointer"
                   >
-                    <option value="all">Todos os Produtos</option>
+                    <option value="all">Todos os Produtos do Catálogo</option>
                     {products.map(p => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Period selection */}
                 <div className="space-y-1 flex-1 min-w-[130px]">
-                  <label className="text-[9px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Período Histórico</label>
+                  <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Período de Análise</label>
                   <select
                     value={movementPeriodFilter}
                     onChange={(e) => setMovementPeriodFilter(e.target.value as any)}
-                    className="w-full h-10 border border-[#E8E6E1] rounded-lg px-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
+                    className="w-full h-10 border border-[#E8E6E1] rounded-lg px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] cursor-pointer"
                   >
                     <option value="all">Histórico Completo</option>
                     <option value="7d">Últimos 7 dias</option>
@@ -1395,14 +1815,14 @@ export function InventoryPage() {
               </div>
             </div>
 
-            {/* TIMELINE VERTICAL DE MOVIMENTAÇÕES */}
-            <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6 shadow-xs">
+            {/* TIMELINE */}
+            <div className="bg-white border border-[#E8E6E1] rounded-2xl p-6">
               {filteredMovements.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-                  <History className="size-9 text-[#6B6B5F] opacity-50" />
+                <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+                  <History className="size-9 text-[#6B6B5F] opacity-40" />
                   <div className="space-y-1">
-                    <p className="text-sm font-bold text-[#141410] uppercase tracking-widest">Sem Movimentações no Log</p>
-                    <p className="text-xs text-[#6B6B5F] max-w-sm">Nenhuma movimentação corresponde aos critérios de pesquisa selecionados acima.</p>
+                    <p className="text-xs font-black text-[#141410] uppercase tracking-widest">Sem Movimentações Históricas</p>
+                    <p className="text-xs text-[#6B6B5F]">Nenhum registro coincide com os filtros aplicados.</p>
                   </div>
                 </div>
               ) : (
@@ -1411,57 +1831,89 @@ export function InventoryPage() {
                     const isEntrada = m.type === 'entrada';
                     const productName = getProductName(m.productId);
                     const productUnit = getProductUnit(m.productId);
-                    const formattedDate = new Date(m.date).toLocaleString('pt-BR', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    });
+                    const formattedDate = new Date(m.date).toLocaleString('pt-BR');
+
+                    const productObj = products.find(p => p.id === m.productId);
+                    const activeIngredient = productObj?.activeIngredient || 'Não informado';
+                    const categoryLabel = productObj?.category ? (CATEGORY_LABELS[productObj.category] || productObj.category) : 'Não informado';
+                    const manufacturer = productObj?.supplier || 'Não informado';
+                    const costPerUnit = productObj?.costPerUnit || 0;
+                    const lot = m.lot || (productObj as any)?.lot || 'LOTE-PADRAO';
+                    const expiryDate = m.expiryDate || (productObj as any)?.expiryDate || 'Não informado';
 
                     return (
                       <div
                         key={m.id}
-                        className={`relative pl-8 pb-3 last:pb-0 ${
-                          isEntrada 
-                            ? 'border-l-2 border-[#D8EDE3]' 
-                            : 'border-l-2 border-[#FFF3CD]'
+                        className={`relative pl-8 pb-4 last:pb-0 ${
+                          isEntrada ? 'border-l-2 border-emerald-200' : 'border-l-2 border-amber-200'
                         }`}
                         style={{ marginLeft: '-17px' }}
                       >
-                        {/* Circle Bullet inside vertical line */}
                         <div className="absolute left-0 top-0 -translate-x-[50%] flex items-center justify-center size-8 rounded-full bg-white border border-[#E8E6E1] shadow-xs">
                           {isEntrada ? (
-                            <ArrowUpRight className="size-4 text-[#2D6A4F]" />
+                            <ArrowUpRight className="size-4 text-emerald-700" />
                           ) : (
-                            <ArrowDownLeft className="size-4 text-[#D4A017]" />
+                            <ArrowDownLeft className="size-4 text-amber-700" />
                           )}
                         </div>
 
-                        {/* Text fields custom styled */}
                         <div className="space-y-1 pl-2">
                           <div className="flex items-center gap-2">
-                            <span className="kpi-label text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">
+                            <span className="text-[10px] font-bold text-[#6B6B5F] tracking-wide">
                               {formattedDate}
                             </span>
-                            <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${
                               isEntrada 
-                                ? 'bg-[#D8EDE3] text-[#1B3A2D] border-[#2D6A4F]/10' 
-                                : 'bg-[#FFF3CD] text-[#92600A] border-[#D4A017]/10'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-100' 
+                                : 'bg-amber-50 text-amber-800 border-amber-100'
                             }`}>
-                              {isEntrada ? 'Entrada / Incremento' : 'Saída / Consumo'}
+                              {isEntrada ? 'Entrada' : 'Saída'}
                             </span>
                           </div>
 
-                          <div className="font-semibold text-[#141410] flex items-center gap-1.5 flex-wrap">
-                            <span className="text-sm font-semibold">{productName}</span>
-                            <span className="text-xs font-mono text-[#6B6B5F]">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm font-extrabold text-[#141410]">{productName}</span>
+                            <span className="text-xs font-mono font-bold text-[#6B6B5F]">
                               ({isEntrada ? '+' : '-'}{m.quantity.toLocaleString('pt-BR')} {productUnit})
                             </span>
                           </div>
 
-                          <div className="text-sm text-[#6B6B5F] leading-relaxed">
-                            {m.reason}
+                          <div className="text-xs text-[#6B6B5F] leading-relaxed italic">
+                            Motivo: {m.reason}
+                          </div>
+
+                          {/* Painel DDSulf de Rastreabilidade Operacional */}
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mt-3 bg-slate-50 border border-slate-200/80 p-3 rounded-xl text-[10px] leading-tight">
+                            <div>
+                              <span className="block text-[8px] font-black uppercase text-[#6B6B5F] tracking-wider">Princípio Ativo</span>
+                              <span className="font-bold text-[#141410] block mt-0.5">{activeIngredient}</span>
+                            </div>
+                            <div>
+                              <span className="block text-[8px] font-black uppercase text-[#6B6B5F] tracking-wider">Categoria</span>
+                              <span className="font-bold text-[#141410] block mt-0.5 capitalize">{categoryLabel}</span>
+                            </div>
+                            <div>
+                              <span className="block text-[8px] font-black uppercase text-[#6B6B5F] tracking-wider">Fabricante</span>
+                              <span className="font-bold text-[#141410] block mt-0.5">{manufacturer}</span>
+                            </div>
+                            <div>
+                              <span className="block text-[8px] font-black uppercase text-[#6B6B5F] tracking-wider">Custo Unitário</span>
+                              <span className="font-mono font-bold text-[#1B3A2D] block mt-0.5">
+                                R$ {costPerUnit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="block text-[8px] font-black uppercase text-[#6B6B5F] tracking-wider">Lote</span>
+                              <span className="font-mono font-bold text-amber-800 block mt-0.5">{lot}</span>
+                            </div>
+                            <div>
+                              <span className="block text-[8px] font-black uppercase text-[#6B6B5F] tracking-wider">Validade</span>
+                              <span className="font-mono font-bold text-slate-700 block mt-0.5">
+                                {expiryDate && expiryDate !== 'Não informado' 
+                                  ? (expiryDate.includes('-') ? expiryDate.split('-').reverse().join('/') : expiryDate) 
+                                  : '⚠️ NÃO INFORMADO'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1473,6 +1925,19 @@ export function InventoryPage() {
           </motion.div>
         )}
 
+        {/* ----------------- TAB 4: IMPORTAÇÃO DE ORÇAMENTOS DE FORNECEDOR (FLUXO 12) ----------------- */}
+        {activeTab === 'supplier_import' && (
+          <motion.div
+            key="supplier-import-tab"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-6 animate-in fade-in"
+          >
+            <SpreadsheetImportTab />
+          </motion.div>
+        )}
+
       </AnimatePresence>
 
       {/* -------------------------------------------------------------
@@ -1480,20 +1945,19 @@ export function InventoryPage() {
           ------------------------------------------------------------- */}
       <AnimatePresence>
         {isProductModalOpen && (
-          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="fixed inset-0 bg-slate-950/45 backdrop-blur-xs flex items-center justify-center z-50 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white rounded-2xl border border-[#E8E6E1] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
+              className="bg-white rounded-3xl border border-[#E8E6E1] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
             >
-              {/* Modal header - bg-[#1B3A2D] com título em branco */}
               <div className="p-6 bg-[#1B3A2D] flex items-center justify-between text-white">
                 <div>
-                  <h3 className="text-base font-bold font-display text-white">
-                    {modalMode === 'create' ? 'Cadastrar Novo Insumo' : 'Ajustar Parâmetros do Insumo'}
+                  <h3 className="text-base font-black uppercase tracking-tight font-display text-white">
+                    {modalMode === 'create' ? 'Novo Cadastro de Insumo' : 'Ajustar Ficha Cadastral'}
                   </h3>
-                  <p className="text-[11px] text-[#A8CDB8]">Insira as referências técnicas de comercialização na DDSulf.</p>
+                  <p className="text-[11px] text-[#A8CDB8] mt-0.5">Defina todos os indicadores regulamentares exigidos pela Anvisa e DDSulf.</p>
                 </div>
                 <button
                   type="button"
@@ -1504,26 +1968,79 @@ export function InventoryPage() {
                 </button>
               </div>
 
-              {/* Form body */}
-              <form onSubmit={handleSaveProduct} className="p-6 space-y-5">
+              <form onSubmit={handleSaveProduct} className="p-6 space-y-4">
                 
-                {/* Product Name */}
+                {/* Name */}
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Nome Comercial do Produto *</label>
+                  <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Nome Comercial *</label>
                   <input
                     type="text"
                     required
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    placeholder="Ex: Fendona 60 SC (Inseticida)"
+                    placeholder="Ex: OPTIGARD LT WG"
                     className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                   />
                 </div>
 
-                {/* Category and Unit selectors */}
+                {/* DDSulf Smart specifications */}
                 <div className="grid gap-4 grid-cols-2">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Categoria Tecnológica *</label>
+                    <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Grupo de Produto *</label>
+                    <select
+                      value={formProductGroup}
+                      onChange={(e) => setFormProductGroup(e.target.value)}
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] cursor-pointer"
+                    >
+                      {CATEGORIES_LIST.map(g => (
+                        <option key={g.label} value={g.label}>{g.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Princípio Ativo *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formActiveIngredient}
+                      onChange={(e) => setFormActiveIngredient(e.target.value)}
+                      placeholder="Ex: Tiametoxam"
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Grupo Químico *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formChemicalGroup}
+                      onChange={(e) => setFormChemicalGroup(e.target.value)}
+                      placeholder="Ex: Neonicotinóide"
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Fabricante / Fornecedor *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formSupplier}
+                      onChange={(e) => setFormSupplier(e.target.value)}
+                      placeholder="Ex: Syngenta"
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
+                    />
+                  </div>
+                </div>
+
+                {/* Tech categories & unit */}
+                <div className="grid gap-4 grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Categoria Tecnológica *</label>
                     <select
                       value={formCategory}
                       onChange={(e) => setFormCategory(e.target.value)}
@@ -1536,7 +2053,7 @@ export function InventoryPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Unidade de Medida *</label>
+                    <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Unidade de Medida *</label>
                     <select
                       value={formUnit}
                       onChange={(e) => setFormUnit(e.target.value)}
@@ -1549,73 +2066,103 @@ export function InventoryPage() {
                   </div>
                 </div>
 
-                {/* Quantities metrics */}
-                <div className="grid gap-4 grid-cols-2">
+                {/* Quantities & cost */}
+                <div className="grid gap-4 grid-cols-3">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Quantidade Inicial em Loja</label>
+                    <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Qtd em Loja</label>
                     <input
                       type="number"
                       min="0"
                       step="ANY"
                       value={formQty}
                       onChange={(e) => setFormQty(parseFloat(e.target.value) || 0)}
-                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Estoque Mínimo Alerta</label>
+                    <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Estoque Crítico</label>
                     <input
                       type="number"
                       min="0"
                       step="ANY"
                       value={formMinQty}
                       onChange={(e) => setFormMinQty(parseFloat(e.target.value) || 0)}
-                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                     />
                   </div>
-                </div>
 
-                {/* Cost and Supplier details */}
-                <div className="grid gap-4 grid-cols-2">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Custo Unitário Bruto (R$)</label>
+                    <label className="text-[9px] font-black uppercase text-[#6B6B5F] block">Custo (R$)</label>
                     <input
                       type="number"
                       min="0"
                       step="0.0001"
                       value={formCost}
                       onChange={(e) => setFormCost(parseFloat(e.target.value) || 0)}
+                      className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
+                    />
+                  </div>
+                </div>
+
+                {/* DDSulf Lote e Validade */}
+                <div className="grid gap-4 grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-[#6B6B5F] block font-sans">Lote / Partida *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formLot}
+                      onChange={(e) => setFormLot(e.target.value)}
+                      placeholder="Ex: LT-2026-X1"
                       className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase text-[#6B6B5F] block pb-0.5">Fornecedor Autorizado</label>
+                    <label className="text-[9px] font-black uppercase text-[#6B6B5F] block font-sans">Data de Validade *</label>
                     <input
-                      type="text"
-                      value={formSupplier}
-                      onChange={(e) => setFormSupplier(e.target.value)}
-                      placeholder="Ex: Bayer / BASF"
+                      type="date"
+                      required
+                      value={formExpiryDate}
+                      onChange={(e) => setFormExpiryDate(e.target.value)}
                       className="w-full h-10 border border-[#E8E6E1] rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9]"
                     />
                   </div>
                 </div>
 
-                {/* Footer buttons - botão primário bg-[#1B3A2D] + botão cancelar em texto apenas */}
-                <div className="pt-2 flex items-center justify-end gap-5">
+                {showDuplicateWarning && (
+                  <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl flex items-start gap-2 text-xs text-amber-900">
+                    <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1.5 flex-1">
+                      <p className="font-black text-[11px] uppercase tracking-wider text-amber-950">Produto possivelmente já cadastrado.</p>
+                      <p className="text-[10px] leading-relaxed text-amber-800">Já existe um produto em estoque com o mesmo princípio ativo, fabricante e unidade de medida/volume.</p>
+                      <label className="flex items-center gap-2 mt-2 font-black uppercase text-[9px] tracking-widest cursor-pointer text-[#1B3A2D] bg-white border border-[#E8E6E1]/80 px-2 py-1.5 rounded-lg w-fit">
+                        <input 
+                          type="checkbox" 
+                          checked={duplicateConfirmed} 
+                          onChange={(e) => setDuplicateConfirmed(e.target.checked)}
+                          className="rounded border-[#E8E6E1] text-[#1B3A2D] focus:ring-[#1B3A2D] size-3.5"
+                        />
+                        <span>Confirmar criação mesmo assim</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-4 flex items-center justify-end gap-4 border-t border-[#E8E6E1]">
                   <button
                     type="button"
                     onClick={() => setIsProductModalOpen(false)}
-                    className="text-xs font-bold uppercase tracking-wider text-[#6B6B5F] hover:text-[#141410] transition-colors cursor-pointer"
+                    className="text-xs font-bold uppercase tracking-wider text-[#6B6B5F] hover:text-[#141410] cursor-pointer"
                   >
                     Retroceder / Cancelar
                   </button>
                   <Button
                     type="submit"
-                    className="h-10 px-5 text-xs font-bold rounded-lg uppercase tracking-wider bg-[#1B3A2D] text-white hover:bg-[#2D6A4F] cursor-pointer"
+                    className="h-10 px-5 text-xs font-black uppercase tracking-wider bg-[#1B3A2D] text-white hover:bg-[#2D6A4F] cursor-pointer rounded-xl shadow-xs"
                   >
-                    Confirmar e Salvar
+                    Confirmar e Registrar
                   </Button>
                 </div>
 
