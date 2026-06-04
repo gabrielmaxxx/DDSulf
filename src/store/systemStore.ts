@@ -739,23 +739,25 @@ export const useSystemStore = create<SystemState & SystemActions>()(
         }
 
         // Generate projected revenue in financial movements (FLUXO 1)
-        const dateStr = finalQuote.createdAt.includes('T') ? finalQuote.createdAt.split('T')[0] : finalQuote.createdAt;
-        const dueDateStr = new Date();
-        dueDateStr.setDate(dueDateStr.getDate() + 15);
-        const formattedDueDate = dueDateStr.toISOString().split('T')[0];
+        if (finalQuote.status !== 'rascunho') {
+          const dateStr = finalQuote.createdAt.includes('T') ? finalQuote.createdAt.split('T')[0] : finalQuote.createdAt;
+          const dueDateStr = new Date();
+          dueDateStr.setDate(dueDateStr.getDate() + 15);
+          const formattedDueDate = dueDateStr.toISOString().split('T')[0];
 
-        updatedFinancialMovements.push({
-          id: `proj-${finalQuote.id}`,
-          date: dateStr,
-          dueDate: formattedDueDate,
-          description: `Previsão de Receita (Orçado) - Orçamento #${finalQuote.id}`,
-          category: 'RECEITAS',
-          subcategory: 'Orçamentos',
-          value: finalQuote.pricing.finalPrice,
-          paymentMethod: 'Boleto',
-          costCenter: 'Geral',
-          isPaid: finalQuote.status === 'executado',
-        });
+          updatedFinancialMovements.push({
+            id: `proj-${finalQuote.id}`,
+            date: dateStr,
+            dueDate: formattedDueDate,
+            description: `Previsão de Receita (Orçado) - Orçamento #${finalQuote.id}`,
+            category: 'RECEITAS',
+            subcategory: 'Orçamentos',
+            value: finalQuote.pricing.finalPrice,
+            paymentMethod: 'Boleto',
+            costCenter: 'Geral',
+            isPaid: finalQuote.status === 'executado',
+          });
+        }
 
         return updateCompanyData(state, {
           quotes: {
@@ -787,6 +789,35 @@ export const useSystemStore = create<SystemState & SystemActions>()(
         const nextQuotes = state.quotes.list.map((q) => {
           if (q.id === id) {
             let updatedQuote = { ...q, status };
+            
+            // Rollback ao recusar orçamento que já teve estoque deduzido
+            if (status === 'recusado' && q.inventoryDeducted) {
+              q.productsUsed.forEach(used => {
+                const prodIdx = updatedProducts.findIndex(p => p.id === used.productId);
+                if (prodIdx > -1) {
+                  updatedProducts[prodIdx] = {
+                    ...updatedProducts[prodIdx],
+                    quantity: updatedProducts[prodIdx].quantity + used.quantity,
+                    lastUpdated: new Date().toISOString()
+                  };
+                  updatedMovements.push({
+                    id: `mov-${Math.random().toString(36).substring(2, 11)}`,
+                    date: new Date().toISOString().split('T')[0],
+                    productId: used.productId,
+                    type: 'entrada',
+                    quantity: used.quantity,
+                    reason: `Estorno - Orçamento #${q.id} recusado`,
+                    quoteId: q.id
+                  });
+                }
+              });
+              updatedQuote = { ...updatedQuote, inventoryDeducted: false };
+              // Remove projeção financeira
+              const projIdx = updatedFinancialMovements.findIndex(m => m.id === `proj-${q.id}`);
+              if (projIdx > -1) updatedFinancialMovements.splice(projIdx, 1);
+              // Remove do histórico de receita
+              updatedRevenueHistory = updatedRevenueHistory.filter(r => r.id !== q.id);
+            }
             
             // Deduct inventory if transitioning to approved or executed and has not been deducted yet
             const isTargetStatus = status === 'aprovado' || status === 'executado';
@@ -919,17 +950,23 @@ export const useSystemStore = create<SystemState & SystemActions>()(
               // Check and auto-create contract if recurrent (Fluxo 8 & 9)
               const contractExists = updatedContracts.some(c => c.clientId === clientId);
               if (!contractExists) {
+                const pTypeContract = updatedQuote.service.pestType.toLowerCase();
+                let contractRecurrencyMonths = 6;
+                if (pTypeContract.includes('rato') || pTypeContract.includes('roedor')) contractRecurrencyMonths = 3;
+                else if (pTypeContract.includes('cupim') || pTypeContract.includes('madeira')) contractRecurrencyMonths = 12;
+                else if (pTypeContract.includes('barata')) contractRecurrencyMonths = 6;
+
                 updatedContracts.unshift({
                   id: `contr-${Math.random().toString(36).substring(2, 11)}`,
                   clientId,
                   clientName: updatedQuote.client.name,
                   title: `Contrato Controle de Pragas - ${updatedQuote.service.pestType.toUpperCase()}`,
-                  value: updatedQuote.pricing.finalPrice * 12,
+                  value: updatedQuote.pricing.finalPrice * (12 / contractRecurrencyMonths),
                   recurrentValue: updatedQuote.pricing.finalPrice,
                   status: 'ativo',
                   startDate: new Date().toISOString().split('T')[0],
                   endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
-                  recurrencyMonths: 1,
+                  recurrencyMonths: contractRecurrencyMonths,
                   createdAt: new Date().toISOString().split('T')[0]
                 });
               }
@@ -969,6 +1006,7 @@ export const useSystemStore = create<SystemState & SystemActions>()(
         let updatedPurchases = [...(state.purchases || [])];
         let updatedClients = [...(state.clients || [])];
         let updatedAgenda = [...(state.agenda || [])];
+        let updatedContracts = [...(state.contracts || [])];
         
         let found = false;
         let matchedQuote: Quote | null = null;
@@ -981,7 +1019,7 @@ export const useSystemStore = create<SystemState & SystemActions>()(
                 ...q, 
                 status: 'executado' as const,
                 confirmedAt: new Date().toISOString(),
-                inventoryDeducted: false,
+                inventoryDeducted: q.inventoryDeducted,
                 confirmedBy: confirmedBy || q.confirmedBy,
                 serviceNotes: serviceNotes || q.serviceNotes
               };
@@ -1105,6 +1143,30 @@ export const useSystemStore = create<SystemState & SystemActions>()(
           currentClientId = updatedClients.find(c => c.name.toLowerCase() === (matchedQuote as Quote).client.name.toLowerCase())?.id || currentClientId;
         }
 
+        const contractExists = updatedContracts.some(c => c.clientId === currentClientId);
+        if (!contractExists) {
+          const mq = matchedQuote as Quote;
+          const pType = mq.service.pestType.toLowerCase();
+          let recurrencyMonths = 6;
+          if (pType.includes('rato') || pType.includes('roedor')) recurrencyMonths = 3;
+          else if (pType.includes('cupim') || pType.includes('madeira')) recurrencyMonths = 12;
+          else if (pType.includes('barata')) recurrencyMonths = 6;
+
+          updatedContracts.unshift({
+            id: `contr-${Math.random().toString(36).substring(2, 11)}`,
+            clientId: currentClientId,
+            clientName: mq.client.name,
+            title: `Contrato Controle de Pragas - ${mq.service.pestType.toUpperCase()}`,
+            value: mq.pricing.finalPrice * (12 / recurrencyMonths),
+            recurrentValue: mq.pricing.finalPrice,
+            status: 'ativo',
+            startDate: dateStr,
+            endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+            recurrencyMonths,
+            createdAt: dateStr
+          });
+        }
+
         // 3. Update the execution status in AgendaEvent
         updatedAgenda = updatedAgenda.map(item => 
           item.quoteId === id ? { ...item, status: 'realizado' } : item
@@ -1160,7 +1222,7 @@ export const useSystemStore = create<SystemState & SystemActions>()(
           clientId: currentClientId,
           clientName: (matchedQuote as Quote).client.name,
           type: 'recorrencia',
-          notes: `Renovação de serviço agendada devido a limite de recorrência de de ${recurrenceDays} dias para ${(matchedQuote as Quote).service.pestType}.`,
+          notes: `Renovação de serviço agendada devido a limite de recorrência de ${recurrenceDays} dias para ${(matchedQuote as Quote).service.pestType}.`,
           status: 'pendente'
         });
 
@@ -1186,7 +1248,8 @@ export const useSystemStore = create<SystemState & SystemActions>()(
           },
           purchases: updatedPurchases,
           clients: updatedClients,
-          agenda: updatedAgenda
+          agenda: updatedAgenda,
+          contracts: updatedContracts
         });
       }),
 
@@ -1237,6 +1300,20 @@ export const useSystemStore = create<SystemState & SystemActions>()(
           quoteRef: originalQuoteId
         });
 
+        const updatedFinancialMovements = [...(state.financial.movements || [])];
+        updatedFinancialMovements.push({
+          id: `retorno-custo-${retId}`,
+          date: new Date().toISOString().split('T')[0],
+          dueDate: new Date().toISOString().split('T')[0],
+          description: `Custo Retorno em Garantia - OS #${originalQuoteId} (${originalQuote.client.name})`,
+          category: 'CUSTOS DIRETOS',
+          subcategory: 'Retornos em Garantia',
+          value: returnCostEstimate,
+          paymentMethod: 'Interno',
+          costCenter: 'Operacional',
+          isPaid: true,
+        });
+
         try {
           toast.success(`Retorno gratuito #${retId} registrado com sucesso!`);
         } catch (e) {
@@ -1249,7 +1326,8 @@ export const useSystemStore = create<SystemState & SystemActions>()(
           },
           financial: {
             ...state.financial,
-            costHistory: updatedCostHistory
+            costHistory: updatedCostHistory,
+            movements: updatedFinancialMovements
           }
         });
       }),

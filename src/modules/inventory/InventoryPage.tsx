@@ -107,18 +107,21 @@ export function InventoryPage() {
     addInventoryProduct, 
     updateInventoryProduct, 
     removeInventoryProduct, 
-    addInventoryMovement 
+    addInventoryMovement,
+    purchases,
+    updatePurchaseStatus
   } = useSystemStore();
 
   const products = inventory?.products || [];
   const movements = inventory?.movements || [];
 
-  const [activeTab, setActiveTab] = useState<'current_stock' | 'upload_entry' | 'movements_log' | 'supplier_import'>('current_stock');
+  const [activeTab, setActiveTab] = useState<'current_stock' | 'upload_entry' | 'movements_log' | 'supplier_import' | 'purchase_requisitions'>('current_stock');
   const tabs = [
     { id: 'current_stock', label: 'Estoque Atual' },
     { id: 'upload_entry', label: 'Entrada por Upload' },
     { id: 'movements_log', label: 'Movimentações' },
-    { id: 'supplier_import', label: 'Importação de Orçamentos' }
+    { id: 'supplier_import', label: 'Importação de Orçamentos' },
+    { id: 'purchase_requisitions', label: 'Requisições de Compra' }
   ] as const;
 
   // Search & Filters for Stock Table (Tab 1)
@@ -1935,6 +1938,198 @@ export function InventoryPage() {
             className="space-y-6 animate-in fade-in"
           >
             <SpreadsheetImportTab />
+          </motion.div>
+        )}
+
+        {/* ----------------- TAB 5: REQUISIÇÕES DE COMPRA ----------------- */}
+        {activeTab === 'purchase_requisitions' && (
+          <motion.div
+            key="purchase-requisitions-tab"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="space-y-6"
+          >
+            {/* Header / Intro Card */}
+            <div className="bg-white border border-[#E8E6E1] p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 text-left">
+              <div>
+                <h2 className="font-display font-black text-[#141410] text-sm uppercase">Painel de Reposição Planejada</h2>
+                <p className="text-[11px] text-[#6B6B5F] mt-0.5">Gerenciamento dinâmico de compras de insumos para suprir o limite de estoque crítico e ideal.</p>
+              </div>
+              <div className="text-[10px] bg-[#E8F5E9] text-[#2D6A4F] px-3 py-1.5 rounded-lg font-bold uppercase tracking-wider self-start md:self-auto">
+                Fluxo de Suprimentos DDSulf
+              </div>
+            </div>
+
+            {/* List or Empty State */}
+            {(purchases || []).length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center gap-4 bg-white border border-[#E8E6E1] rounded-2xl">
+                <SearchX className="size-9 text-[#6B6B5F] opacity-50" />
+                <div className="space-y-1">
+                  <p className="text-xs font-black text-[#141410] uppercase tracking-widest">Nenhuma requisição de compra pendente</p>
+                  <p className="text-xs text-[#6B6B5F] max-w-sm">O sistema cria requisições automaticamente de acordo com as necessidades de estoque mínimo dos insumos.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+                {/* Column Pendente */}
+                <div className="space-y-4">
+                  <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-rose-800">1. Pendentes</span>
+                    <span className="text-[10px] font-black bg-rose-200 text-rose-800 px-2 py-0.5 rounded-full">
+                      {(purchases || []).filter(p => p.status === 'Pendente').length}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {(purchases || []).filter(p => p.status === 'Pendente').length === 0 ? (
+                      <div className="text-center py-8 text-[11px] text-[#6B6B5F] bg-[#FAFAF9] rounded-xl border border-dashed border-[#E8E6E1]">Nenhuma nesta etapa</div>
+                    ) : (
+                      (purchases || []).filter(p => p.status === 'Pendente').map(req => (
+                        <div key={req.id} className="bg-white border border-[#E8E6E1] p-4 rounded-xl shadow-xs space-y-3 hover:border-rose-400 transition-all text-left">
+                          <h4 className="font-display font-black text-[#141410] text-[11px] uppercase leading-tight">{req.productName}</h4>
+                          <div className="space-y-1 text-[10px] text-[#6B6B5F] font-semibold font-mono">
+                            <p>Atual: <span className="text-rose-700">{req.currentStock} {getProductUnit(req.productId)}</span></p>
+                            <p>Mínimo: {req.minStock} {getProductUnit(req.productId)}</p>
+                            <p>Ideal: {req.idealStock} {getProductUnit(req.productId)}</p>
+                            <p className="text-[#141410] font-black">A comprar: {req.quantityToBuy} {getProductUnit(req.productId)}</p>
+                            <p className="text-[9px] text-[#9E9E90] pt-1 font-sans">Criado em: {new Date(req.createdAt).toLocaleDateString('pt-BR')}</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              updatePurchaseStatus(req.id, 'Solicitado');
+                              toast.success('Compra Solicitada!', {
+                                description: `O insumo "${req.productName}" foi de Pendente para Solicitado.`
+                              });
+                            }}
+                            className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 px-3 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-[9px] font-extrabold uppercase tracking-wider rounded-lg transition-all cursor-pointer"
+                          >
+                            <span>Solicitar Compra</span>
+                            <ChevronRight className="size-3" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Column Solicitado */}
+                <div className="space-y-4">
+                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">2. Solicitados</span>
+                    <span className="text-[10px] font-black bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">
+                      {(purchases || []).filter(p => p.status === 'Solicitado').length}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {(purchases || []).filter(p => p.status === 'Solicitado').length === 0 ? (
+                      <div className="text-center py-8 text-[11px] text-[#6B6B5F] bg-[#FAFAF9] rounded-xl border border-dashed border-[#E8E6E1]">Nenhuma nesta etapa</div>
+                    ) : (
+                      (purchases || []).filter(p => p.status === 'Solicitado').map(req => (
+                        <div key={req.id} className="bg-white border border-[#E8E6E1] p-4 rounded-xl shadow-xs space-y-3 hover:border-amber-400 transition-all text-left">
+                          <h4 className="font-display font-black text-[#141410] text-[11px] uppercase leading-tight">{req.productName}</h4>
+                          <div className="space-y-1 text-[10px] text-[#6B6B5F] font-semibold font-mono">
+                            <p>Atual: {req.currentStock} {getProductUnit(req.productId)}</p>
+                            <p>Mínimo: {req.minStock} {getProductUnit(req.productId)}</p>
+                            <p>Ideal: {req.idealStock} {getProductUnit(req.productId)}</p>
+                            <p className="text-[#141410] font-black">A comprar: {req.quantityToBuy} {getProductUnit(req.productId)}</p>
+                            <p className="text-[9px] text-[#9E9E90] pt-1 font-sans">Solicitado em: {new Date(req.updatedAt || req.createdAt).toLocaleDateString('pt-BR')}</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              updatePurchaseStatus(req.id, 'Comprado');
+                              toast.success('Insumo Comprado!', {
+                                description: `O insumo "${req.productName}" foi de Solicitado para Comprado.`
+                              });
+                            }}
+                            className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 px-3 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-[9px] font-extrabold uppercase tracking-wider rounded-lg transition-all cursor-pointer"
+                          >
+                            <span>Marcar Comprado</span>
+                            <ChevronRight className="size-3" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Column Comprado */}
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 p-3 rounded-xl flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-800">3. Comprados</span>
+                    <span className="text-[10px] font-black bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">
+                      {(purchases || []).filter(p => p.status === 'Comprado').length}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {(purchases || []).filter(p => p.status === 'Comprado').length === 0 ? (
+                      <div className="text-center py-8 text-[11px] text-[#6B6B5F] bg-[#FAFAF9] rounded-xl border border-dashed border-[#E8E6E1]">Nenhuma nesta etapa</div>
+                    ) : (
+                      (purchases || []).filter(p => p.status === 'Comprado').map(req => (
+                        <div key={req.id} className="bg-white border border-[#E8E6E1] p-4 rounded-xl shadow-xs space-y-3 hover:border-blue-400 transition-all text-left">
+                          <h4 className="font-display font-black text-[#141410] text-[11px] uppercase leading-tight">{req.productName}</h4>
+                          <div className="space-y-1 text-[10px] text-[#6B6B5F] font-semibold font-mono">
+                            <p>Atual: {req.currentStock} {getProductUnit(req.productId)}</p>
+                            <p>Mínimo: {req.minStock} {getProductUnit(req.productId)}</p>
+                            <p>Ideal: {req.idealStock} {getProductUnit(req.productId)}</p>
+                            <p className="text-[#141410] font-black">A comprar: {req.quantityToBuy} {getProductUnit(req.productId)}</p>
+                            <p className="text-[9px] text-[#9E9E90] pt-1 font-sans">Comprado em: {new Date(req.updatedAt || req.createdAt).toLocaleDateString('pt-BR')}</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              updatePurchaseStatus(req.id, 'Recebido');
+                              addInventoryMovement({
+                                id: `mov-${Math.random().toString(36).substring(2, 11)}`,
+                                date: new Date().toISOString().split('T')[0],
+                                productId: req.productId,
+                                type: 'entrada',
+                                quantity: req.quantityToBuy,
+                                reason: `Recebimento de compra - Requisição #${req.id}`
+                              });
+                              toast.success('Insumo recebido e estocado!', {
+                                description: `Quantidade de "${req.productName}" incrementada.`
+                              });
+                            }}
+                            className="mt-3 w-full flex items-center justify-center gap-1 py-1.5 px-3 bg-emerald-700 hover:bg-emerald-800 text-white text-[9px] font-extrabold uppercase tracking-wider rounded-lg transition-all cursor-pointer"
+                          >
+                            <span>Marcar Recebido</span>
+                            <ChevronRight className="size-3" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Column Recebido */}
+                <div className="space-y-4">
+                  <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-[#1B3A2D]">4. Recebidos</span>
+                    <span className="text-[10px] font-black bg-emerald-200 text-[#1B3A2D] px-2 py-0.5 rounded-full">
+                      {(purchases || []).filter(p => p.status === 'Recebido').length}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {(purchases || []).filter(p => p.status === 'Recebido').length === 0 ? (
+                      <div className="text-center py-8 text-[11px] text-[#6B6B5F] bg-[#FAFAF9] rounded-xl border border-dashed border-[#E8E6E1]">Nenhuma nesta etapa</div>
+                    ) : (
+                      (purchases || []).filter(p => p.status === 'Recebido').map(req => (
+                        <div key={req.id} className="bg-[#FAF9F6] border border-[#E8E6E1] p-4 rounded-xl shadow-xs space-y-3 text-left opacity-80">
+                          <h4 className="font-display font-black text-[#5C5C50] text-[11px] uppercase leading-tight line-through">{req.productName}</h4>
+                          <div className="space-y-1 text-[10px] text-[#6B6B5F] font-semibold font-mono">
+                            <p>Comprado e Recebido: {req.quantityToBuy} {getProductUnit(req.productId)}</p>
+                            <p className="text-[9px] text-[#9E9E90] pt-1 font-sans">Recebido em: {new Date(req.updatedAt || req.createdAt).toLocaleDateString('pt-BR')}</p>
+                          </div>
+                          <div className="mt-3 flex items-center justify-center gap-1 py-1 px-3 bg-emerald-100 text-emerald-800 text-[9px] font-extrabold uppercase tracking-widest rounded-lg border border-emerald-200">
+                            <Check className="size-3" />
+                            <span>Entregue e Conciliado</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 

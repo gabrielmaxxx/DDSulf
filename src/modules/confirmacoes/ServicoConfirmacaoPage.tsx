@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useSystemStore, Quote } from '@/store/systemStore';
+import { eventBusService } from '@/integration/services/eventBusService';
+import { OperationalEventType, SystemModuleName } from '@/integration/types';
 import { 
   CheckCircle2, 
   RotateCcw, 
@@ -121,16 +123,39 @@ export function ServicoConfirmacaoPage() {
     setIsReturnModalOpen(true);
   };
 
-  const handleConfirmSubmit = (techName: string, notes: string) => {
-    if (!selectedQuoteForConfirm) return;
-    confirmServiceExecuted(
-      selectedQuoteForConfirm.id,
-      techName || undefined,
-      notes || undefined
+  const handleApproveQuote = async (quote: Quote) => {
+    toast.info("Processando aprovação...", { description: "Publicando evento de integração [ORCAMENTO_APROVADO]..." });
+    await eventBusService.publish(
+      OperationalEventType.ORCAMENTO_APROVADO,
+      {
+        quoteId: quote.id,
+        value: quote.pricing?.finalPrice || 0,
+        clientName: quote.client?.name || 'Cliente',
+        pestType: quote.service?.pestType || 'Serviço operacional',
+        date: new Date().toISOString().split('T')[0]
+      },
+      SystemModuleName.SALES
     );
+  };
+
+  const handleConfirmSubmit = async (techName: string, notes: string) => {
+    if (!selectedQuoteForConfirm) return;
+    
+    const quoteId = selectedQuoteForConfirm.id;
     setIsConfirmModalOpen(false);
     setSelectedQuoteForConfirm(null);
-    toast.success("Serviço confirmado! Estoque atualizado e receita registrada.");
+    toast.info("Processando conclusão...", { description: "Publicando evento de integração [OS_CONCLUIDA]..." });
+
+    await eventBusService.publish(
+      OperationalEventType.OS_CONCLUIDA,
+      {
+        quoteId: quoteId,
+        confirmedBy: techName || 'Técnico DDSulf',
+        serviceNotes: notes || 'Concluído via evento',
+        timestamp: Date.now()
+      },
+      SystemModuleName.SERVICE
+    );
   };
 
   const handleReturnSubmit = (cost: number, notes: string) => {
@@ -408,14 +433,37 @@ export function ServicoConfirmacaoPage() {
 
                         {/* Action Buttons */}
                         <div className="flex gap-2.5 mt-auto pt-2">
-                          <button
-                            type="button"
-                            onClick={() => triggerConfirmModal(q)}
-                            className="flex-1 h-11 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1"
-                            id={`btn-confirm-${q.id}`}
-                          >
-                            <CheckCircle2 className="size-3.5" /> Confirmar Execução
-                          </button>
+                          {q.status === 'enviado' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleApproveQuote(q)}
+                              className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1"
+                              id={`btn-approve-${q.id}`}
+                            >
+                              <Check className="size-3.5" /> Aprovar Orçamento
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => triggerConfirmModal(q)}
+                              className="flex-1 h-11 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1"
+                              id={`btn-confirm-${q.id}`}
+                            >
+                              <CheckCircle2 className="size-3.5" /> Confirmar Exercício
+                            </button>
+                          )}
+
+                          {!q.hasReturn && (
+                            <button
+                              type="button"
+                              onClick={() => triggerReturnModal(q)}
+                              className="px-3 h-11 border border-amber-300 bg-amber-50/50 hover:bg-amber-100/70 text-amber-800 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center"
+                              id={`btn-return-${q.id}`}
+                              title="Gerar atendimento de retorno"
+                            >
+                              <RotateCcw className="size-4" />
+                            </button>
+                          )}
                         </div>
 
                       </div>
@@ -496,23 +544,11 @@ export function ServicoConfirmacaoPage() {
                           </div>
                         </div>
 
-                                        {/* Retorno button for confirmed services */}
-                        <div className="mt-4 flex gap-2">
-                          {!q.hasReturn ? (
-                            <button
-                              type="button"
-                              onClick={() => triggerReturnModal(q)}
-                              className="flex-1 h-10 border border-amber-300 bg-amber-50/50 hover:bg-amber-100/70 text-amber-800 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                              id={`btn-return-confirmed-${q.id}`}
-                            >
-                              <RotateCcw className="size-3.5" /> Registrar Retorno em Garantia
-                            </button>
-                          ) : (
-                            <div className="flex-1 p-2 bg-rose-50 rounded-xl text-[10px] text-rose-700 font-bold text-center border border-rose-100">
-                              ⚠️ Este serviço possui um retorno em garantia ativo
-                            </div>
-                          )}
-                        </div>
+                        {q.hasReturn && (
+                          <div className="mt-4 p-2 bg-rose-50 rounded-xl text-[10px] text-rose-700 font-bold text-center border border-rose-100">
+                            ⚠️ Este serviço possui um retorno em garantia ativo
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>

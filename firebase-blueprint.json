@@ -184,12 +184,31 @@
         "confidence": { "type": "number" },
         "dataPoints": { "type": "number" }
       }
+    },
+    "Event": {
+      "title": "Event",
+      "description": "System event audit trail for event-driven integration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "eventName": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "user": { "type": "string" },
+        "payload": { "type": "object" }
+      },
+      "required": ["id", "eventName", "timestamp", "date", "time", "user"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
       "description": "User profiles and roles"
+    },
+    "/events/{eventId}": {
+      "schema": "Event",
+      "description": "Central Event Bus and Audit Log"
     },
     "/clients/{clientId}": {
       "schema": "Client",
