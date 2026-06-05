@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSystemStore } from '@/store';
-import { Button } from '@/components/ui/button';
 import { 
   FileText, 
   Trash2, 
@@ -13,861 +12,1537 @@ import {
   Beaker, 
   AlertTriangle, 
   ExternalLink,
-  SearchX,
+  Check,
+  ChevronRight,
+  ChevronDown,
+  Sparkles,
+  Award,
+  BookOpen,
+  ArrowRight,
+  History,
+  Info,
+  Calendar,
+  ThumbsUp,
+  MessageSquare,
   FileSpreadsheet,
-  FileUp,
-  Check
+  Download,
+  AlertCircle,
+  HelpCircle,
+  BookOpenCheck,
+  Zap,
+  RefreshCw,
+  PlusCircle,
+  UserCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 
-// Normalization Helpers for Pests and Services
-function getPestLabel(val: string): string {
-  if (!val) return 'Outros';
-  const v = val.toLowerCase().trim();
-  if (v === 'baratas') return 'Baratas';
-  if (v === 'ratos') return 'Ratos';
-  if (v === 'cupins') return 'Cupins';
-  if (v === 'mosquitos/dengue' || v === 'mosquitos' || v === 'mosquitos-dengue' || v === 'mosquito') return 'Mosquitos/Dengue';
-  if (v === 'formigas') return 'Formigas';
-  if (v === 'escorpioes' || v === 'escorpiões') return 'Escorpiões';
-  if (v === 'aranhas') return 'Aranhas';
-  return val.charAt(0).toUpperCase() + val.slice(1);
-}
-
-function getPestBadgeStyle(val: string): string {
-  if (!val) return 'bg-[#FAFAF9] text-[#6B6B5F] border-[#E8E6E1]';
-  const v = val.toLowerCase().trim();
-  if (v === 'baratas') return 'bg-amber-50 text-amber-850 border-amber-200';
-  if (v === 'ratos') return 'bg-slate-50 text-slate-850 border-slate-200';
-  if (v === 'cupins') return 'bg-orange-50 text-orange-850 border-orange-200';
-  if (v === 'mosquitos/dengue' || v === 'mosquitos' || v === 'mosquitos-dengue' || v === 'mosquito') return 'bg-blue-50 text-blue-850 border-blue-200';
-  if (v === 'formigas') return 'bg-rose-50 text-rose-850 border-rose-200';
-  if (v === 'escorpioes' || v === 'escorpiões') return 'bg-purple-50 text-purple-855 border-purple-200';
-  if (v === 'aranhas') return 'bg-emerald-50 text-emerald-855 border-emerald-200';
-  return 'bg-[#FAFAF9] text-[#6B6B5F] border-[#E8E6E1]';
-}
-
-function getPestColor(val: string): string {
-  if (!val) return 'bg-gray-300';
-  const v = val.toLowerCase().trim();
-  if (v.includes('barata')) return 'bg-amber-400';
-  if (v.includes('rato')) return 'bg-slate-500';
-  if (v.includes('cupim')) return 'bg-orange-400';
-  if (v.includes('mosquito')) return 'bg-blue-400';
-  if (v.includes('formiga')) return 'bg-red-400';
-  return 'bg-gray-300';
-}
-
-function getServiceLabel(val: string): string {
-  if (!val) return 'Dedetização';
-  const v = val.toLowerCase().trim();
-  if (v === 'dedetizacao' || v === 'dedetização') return 'Dedetização';
-  if (v === 'desratizacao' || v === 'desratização') return 'Desratização';
-  if (v === 'descupinizacao' || v === 'descupinização') return 'Descupinização';
-  if (v === 'sanitizacao' || v === 'sanitização') return 'Sanitização';
-  if (v === 'controle integrado' || v === 'controle_integrado' || v === 'controle-integrado') return 'Controle Integrado';
-  return val.charAt(0).toUpperCase() + val.slice(1);
-}
-
-const PESTS_LIST = [
-  'Baratas',
-  'Ratos',
-  'Cupins',
-  'Mosquitos/Dengue',
-  'Formigas',
-  'Escorpiões',
-  'Aranhas',
-  'Outros'
+// Static Categories and Subcategories Mapping
+const CATEGORIES_TREE = [
+  {
+    name: 'Operacional',
+    icon: 'wrench',
+    subs: ['Controle de Baratas', 'Controle de Formigas', 'Controle de Cupins', 'Controle de Roedores', 'Controle de Escorpiões']
+  },
+  { name: 'Administrativo', icon: 'folder', subs: [] },
+  { name: 'Financeiro', icon: 'dollar-sign', subs: [] },
+  { name: 'Comercial', icon: 'trending-up', subs: [] },
+  { name: 'Sistemas', icon: 'cpu', subs: [] },
+  { name: 'Treinamentos', icon: 'graduation-cap', subs: [] }
 ];
 
-const SERVICES_LIST = [
-  { value: 'dedetizacao', label: 'Dedetização' },
-  { value: 'desratizacao', label: 'Desratização' },
-  { value: 'descupinizacao', label: 'Descupinização' },
-  { value: 'sanitizacao', label: 'Sanitização' },
-  { value: 'controle_integrado', label: 'Controle Integrado' }
+// Seeded local procedures for rich default information
+interface ExtendedPOP {
+  id: string;
+  name: string;
+  pestType: string;
+  serviceType: string;
+  requiredProducts: any[];
+  estimatedTimeHoursPer100m2: number;
+  fileUrl?: string;
+  fileName?: string;
+  instructions: string;
+  createdAt: string;
+  // Extended fields
+  category: string;
+  subcategory?: string;
+  author: string;
+  version: string;
+  status: 'Ativo' | 'Em revisão' | 'Obsoleto';
+  lastRevision: string;
+  versions?: { version: string; date: string; change: string; textUrl?: string }[];
+}
+
+const DEFAULT_SEEDED_POPS: ExtendedPOP[] = [
+  {
+    id: 'pop-baratas-res',
+    name: 'POP Controle de Baratas Residencial',
+    pestType: 'baratas',
+    serviceType: 'dedetizacao',
+    category: 'Operacional',
+    subcategory: 'Controle de Baratas',
+    estimatedTimeHoursPer100m2: 1.5,
+    author: 'Gestor DDSulf',
+    version: '2.0',
+    status: 'Ativo',
+    lastRevision: '15/03/2026',
+    createdAt: '2025-01-01',
+    requiredProducts: [
+      { productId: 'prod-03', productName: 'Gel Optigard LT WG', quantityPer100m2: 2, unit: 'unidade' },
+      { productId: 'prod-01', productName: 'BIFENTOL 200SC', quantityPer100m2: 50, unit: 'ml' }
+    ],
+    instructions: `# POP REGULADO - CONTROLE DE BARATAS EM ÁRES RESIDENCIAIS\n\nEste procedimento padroniza as ações de inspeção e aniquilação de Blattella germanica e Periplaneta americana.\n\n## 1. EQUIPAMENTOS DE SEGURANÇA (EPIs)\n* Luvas químicas de nitrila de cano longo.\n* Máscara semifacial com cartucho para vapores orgânicos/névoas.\n* Óculos panorâmicos de proteção.\n\n## 2. PROCEDIMENTO OPERACIONAL PASSO A PASSO\n1. **Inspeção de Foco**: Iniciar vistoria com lanterna em motores de geladeira, frestas de balcão e caixas de gordura.\n2. **Aspiração Mecânica**: Opcional, para remoção inicial de massas críticas.\n3. **Isquicidade Perimetral**: Aplicar pequenas gotas de Gel Optigard LT WG nos gonzos de armários e gaveteiros operacionais.\n4. **Pulverização com Bifentol**: Tratar rodapés, ralos abertos e tubulações periféricas no perímetro úmido externo para formação de barreira residual durável. Evitar contato com alimentos ou louças domésticas.`,
+    versions: [
+      { version: '1.0', date: '01/01/2025', change: 'Primeira versão de controle básico aprovada.' },
+      { version: '1.1', date: '15/06/2025', change: 'Inclusão de indicação de dosagem por m² de gel.' },
+      { version: '2.0', date: '01/01/2026', change: 'Atualização geral de ingredientes e substituição de piretróides por Bifentol 200SC.' }
+    ]
+  },
+  {
+    id: 'pop-formigas',
+    name: 'POP Controle Avançado de Formigas Doceiras',
+    pestType: 'formigas',
+    serviceType: 'dedetizacao',
+    category: 'Operacional',
+    subcategory: 'Controle de Formigas',
+    estimatedTimeHoursPer100m2: 1.2,
+    author: 'Guilherme Silva (Tech Lead)',
+    version: '1.2',
+    status: 'Ativo',
+    lastRevision: '10/01/2026',
+    createdAt: '2025-03-10',
+    requiredProducts: [
+      { productId: 'prod-03', productName: 'Gel Optigard LT WG', quantityPer100m2: 1, unit: 'unidade' }
+    ],
+    instructions: `# CONTROLE INTEGRADO DE FORMIGAS URBANAS (Monomorium pharaonis)\n\n## 1. PREMISSAS IMPORTANTES\nFormigas doceiras são desalojadas e dispersadas agressivamente caso pulverizações químicas irritantes sejam executas nas proximidades das colônias.\n\n## 2. PROCEDIMENTO EXCLUSIVO DE ISCAGEM\n1. Mapear as trilhas ativas sem espantar as colônias.\n2. Injetar filetes finos de gel à base de fipronil paralelo às rotas de passagem secundárias.\n3. Bloquear o acesso de umidade na área imediata para potencializar a atração do mel isquicida.`,
+    versions: [
+      { version: '1.0', date: '10/03/2025', change: 'Esboço primordial do POP.' },
+      { version: '1.2', date: '10/01/2026', change: 'Remoção de indicação de calda líquida nas pias de banheiro corporativos.' }
+    ]
+  },
+  {
+    id: 'pop-admin-onboarding',
+    name: 'POP Integração de Novos Colaboradores Administrativos',
+    pestType: 'outro',
+    serviceType: 'administrativo',
+    category: 'Administrativo',
+    estimatedTimeHoursPer100m2: 4,
+    author: 'Recursos Humanos DDSulf',
+    version: '1.0',
+    status: 'Ativo',
+    lastRevision: '12/02/2026',
+    createdAt: '2026-02-12',
+    requiredProducts: [],
+    instructions: `# PROCESSO ADMINISTRATIVO: ONBOARDING INTEGRAL\n\nEste manual guia o fluxo de recepção de recepcionistas e auxiliares de escritório.\n\n## Diretrizes de Entrada:\n1. Coleta de documentação pessoal, carteira técnica (MTE/ANVISA se cabível) e assinatura de contratos.\n2. Concessão de credenciais internas no ERP e Google Workspace.\n3. Fornecimento das apostilas operacionais de controle integrados.\n4. Agendamento do Treinamento Inicial Técnico Básico.`,
+    versions: [{ version: '1.0', date: '12/02/2026', change: 'Primeiro lançamento oficial após revisão de conformidade jurídica.' }]
+  },
+  {
+    id: 'pop-fin-fechamento',
+    name: 'POP Processamento de Conciliação e Fechamento Diário de Caixa',
+    pestType: 'outro',
+    serviceType: 'financeiro',
+    category: 'Financeiro',
+    estimatedTimeHoursPer100m2: 1,
+    author: 'Departamento Financeiro DDSulf',
+    version: '1.1',
+    status: 'Ativo',
+    lastRevision: '05/04/2026',
+    createdAt: '2025-10-15',
+    requiredProducts: [],
+    instructions: `# ENGENHARIA FINANCEIRA: FECHAMENTO DE CAIXA\n\nPadronização da conferência orçamentária de serviços finalizados DDSulf.\n\n## Passos Mandatórios:\n1. No painel operacional, filtrar Ordens de Serviço dadas como 'Executadas' ou 'Concluídas'.\n2. Cruzar com comprovantes de PIX, boletos de depósitos compensados e liquidações de cartões de débito/crédito.\n3. Sinalizar divergências de centavos e lançar taxas corporativas na aba correspondente.\n4. Fechar sumário diário e emitir relatório de fechamento para o diretor.`,
+    versions: [
+      { version: '1.0', date: '15/10/2025', change: 'Procedimento primitivo manual.' },
+      { version: '1.1', date: '05/04/2026', change: 'Conversão para conciliação bancária semi-automatizada pelo painel ERP.' }
+    ]
+  },
+  {
+    id: 'pop-com-pipeline',
+    name: 'POP Qualificação de Leads B2B e Cadastro Comercial',
+    pestType: 'outro',
+    serviceType: 'comercial',
+    category: 'Comercial',
+    estimatedTimeHoursPer100m2: 2,
+    author: 'Equipe de Vendas DDSulf',
+    version: '1.0',
+    status: 'Ativo',
+    lastRevision: '20/05/2026',
+    createdAt: '2026-05-20',
+    requiredProducts: [],
+    instructions: `# FUNIL COMERCIAL: DIRETRIZ DE ENTRADA\n\nEste procedimento define como converter contatos receptivos em potenciais orçamentos estruturados no CRM.\n\n## Regras Claves:\n1. Investigar m² total reclamado pelo cliente corporativo.\n2. Perguntar praga predominante e se já houveram tratamentos pretéritos frustrados.\n3. Alimentar a Calculadora Operacional Inteligente para obter limites de preço mínimo.\n4. Enviar proposta personalizada em menos de 10 minutos comerciais.`,
+    versions: [{ version: '1.0', date: '20/05/2026', change: 'Lançamento inicial.' }]
+  },
+  {
+    id: 'pop-sys-erp',
+    name: 'POP Práticas de Segurança e Acessos ERP DDSulf',
+    pestType: 'outro',
+    serviceType: 'sistemas',
+    category: 'Sistemas',
+    estimatedTimeHoursPer100m2: 0.5,
+    author: 'Segurança de TI DDSulf',
+    version: '1.3',
+    status: 'Ativo',
+    lastRevision: '22/04/2026',
+    createdAt: '2025-05-01',
+    requiredProducts: [],
+    instructions: `# SEGURANÇA DIGITAL DDSULF SISTEMAS\n\nRegras de acesso e manutenção de dados sensíveis de carteira de clientes.\n\n## Diretrizes Fundamentais:\n1. Proibido compartilhar credenciais do painel corporativo do operador com terceiros.\n2. Autenticação multifator (MFA) obrigatória para logins em novas redes externas.\n3. Bloqueio automático do console corporal após 5 minutos de ociosidade do usuário.\n4. Registro logs de atividades e modificações de orçamentos auditáveis de ponta a ponta.`,
+    versions: [
+      { version: '1.0', date: '01/05/2025', change: 'Abertura padrão.' },
+      { version: '1.3', date: '22/04/2026', change: 'Injeção da obrigatoriedade do MFA para colaboradores externos.' }
+    ]
+  }
+];
+
+// Interactive Training Seeded Data
+interface TrainingCourse {
+  id: string;
+  title: string;
+  description: string;
+  duration: string;
+  slides: string[];
+  quiz: {
+    question: string;
+    options: string[];
+    correctIndex: number;
+    explanation: string;
+  }[];
+}
+
+const SEEDED_TRAININGS: TrainingCourse[] = [
+  {
+    id: 'train-01',
+    title: 'Integração e Código Técnico de Vetores e Pragas DDSulf',
+    description: 'Capacitação inicial para técnicos aplicadores de campo. Conceitos de biossegurança de campo, diluição de caldas químicas e manuseio seguro de defensivos sob regulamento fiscal.',
+    duration: '8 horas',
+    slides: [
+      'Bem-vindo à Academia de Excelência DDSulf! Como técnico corporativo, sua missão é entregar resultados de assepsia sanitária preservando de modo rigoroso a saúde e segurança do cliente e colaboradores.',
+      'Aula 1: Biologia de Pragas Urbanas. Entender os hábitos e comportamentos das Baratas (Periplaneta americana), Ratos e Cupins é fundamental para aplicar a dosagem certa no caminho de volta da nidação.',
+      'Aula 2: Preparo Químico. Sempre vista os EPIs de nitrila e óculos antes de romper lacres de concentrados. Realize tríplice de lavagem e meça as frações indicadas com provetas milimétricas precisas.',
+      'Aula 3: Descarte Ecológico. Embalagens vazias devem ser furadas para inutilização, armazenadas em containers selados e retornadas à base técnica de transbordo regulamentada localmente.'
+    ],
+    quiz: [
+      {
+        question: 'Qual o principal EPI indicado para o manuseio direto de diluição de inseticidas pesados?',
+        options: ['Luvas curtas de algodão', 'Luvas de nitrila de cano longo e respirador químico', 'Apenas óculos comuns', 'Capacete e botas simples para perna'],
+        correctIndex: 1,
+        explanation: 'Luvas de nitrila grossas e respirador com filtro de carvão protegem o sistema pulmonar e absorção cutânea dos agentes ativos evaporados.'
+      },
+      {
+        question: 'O que deve ser realizado imediatamente após esvaziar totalmente a embalagem de um defensivo líquido concentrado?',
+        options: ['Reutilizar a embalagem para carregar água no veículo', 'Tríplice lavagem e inutilização física (furação) do vasilhame', 'Descarte no lixo comum doméstico no cliente', 'Queimar a embalagem na área externa externa'],
+        correctIndex: 1,
+        explanation: 'A tríplice lavagem limpa resíduos químicos críticos antes de destinar a embalagem para logística reversa obrigatória governamental.'
+      },
+      {
+        question: 'Por que o uso de piretróides desalojantes em ninhos diretos de formigas domésticas doceiras costuma falhar?',
+        options: ['Formigas não reagem a defensivos', 'As formigas morrem instantaneamente sem relatar nada', 'Eles assustam o formigueiro, provocando fragmentação e abertura de novos satélites de rainha', 'Aumentam o açúcar disponível da cozinha'],
+        correctIndex: 2,
+        explanation: 'Inseticidas hiper-irritantes de contato assustam as operárias secundárias, acionando sinais de perigo que induzem a rainha a descentralizar a colônia e colonizar o imóvel.'
+      }
+    ]
+  },
+  {
+    id: 'train-02',
+    title: 'Procedimentos de Diluição Química Segura e Dosagem Prática',
+    description: 'Curso avançado focando em cálculos químicos, dosagens por m² e regulagem dos bicos de pulverizadores costais de pressão.',
+    duration: '4 horas',
+    slides: [
+      'Compreensão do fator de calda ativa: uma aplicação correta reduz devoluções de garantia a zero e reduz desperdício de insumos no estoque corporativo DDSulf.',
+      'Cálculo Prático: Se o POP estipula 50ml de calda de controle por m² e o imóvel possui 200m² de rodapés, o operador aplicará no total 10 litros de produto acabado diluído.',
+      'Regulagem do Equipamento: Mantenha a pressão constante nos pulverizadores manuais para evitar gotas excessivamente grandes ou formação de névoas super-finas suscetíveis a derivas pelo vento.'
+    ],
+    quiz: [
+      {
+        question: 'Se um POP pede 50ml de Bifentol diluído para cada 100m², quantos ml usaremos para um galpão de 400m²?',
+        options: ['100ml', '200ml', '150ml', '50ml'],
+        correctIndex: 1,
+        explanation: 'Multiplicamos a dose unitária pela escala de área: 50ml x 4 = 200ml do produto.'
+      },
+      {
+        question: 'Em que tipo de bico de pulverização conseguimos um melhor espalhamento residual homogêneo sobre pisos frios e rodapés?',
+        options: ['Bico tipo Leque plano regulado', 'Bico tipo Cone cheio dispersor', 'Bico de fluxo livre', 'Uso de mangueiras diretas'],
+        correctIndex: 0,
+        explanation: 'Os bicos tipo Leque plano distribuem uma cortina uniforme de gotas médias perfeito para barreiras residuais.'
+      }
+    ]
+  }
 ];
 
 export function POPsPage() {
   const { pops, inventory, addPOP, updatePOP, removePOP } = useSystemStore();
-  const procedures = pops?.procedures || [];
+  const dbProcedures = pops?.procedures || [];
   const inventoryProducts = inventory?.products || [];
 
-  // Search filter
-  const [search, setSearch] = useState('');
+  // Combine database procedures and static pre-seeded ones
+  const [procedures, setProcedures] = useState<ExtendedPOP[]>([]);
 
-  // Modals state
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-  const [editingPopId, setEditingPopId] = useState<string | null>(null);
+  // Local storage lists for suggested alterations (Model B simulation)
+  const [suggestedEdits, setSuggestedEdits] = useState<any[]>([]);
 
-  // Form states
+  // Navigation states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState('Todos'); // Horizontal Filters
+  const [activeCategory, setActiveCategory] = useState<string | null>(null); // Left Menu Category Folder
+  const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null); // Left Menu child nodes
+
+  // Detailed Modal Viewing states
+  const [readingPop, setReadingPop] = useState<ExtendedPOP | null>(null);
+  const [isCompareMode, setIsCompareMode] = useState(false);
+  const [selectedDiffVersion, setSelectedDiffVersion] = useState<string>('1.0');
+
+  // Modals for CRUD operations
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [editingPop, setEditingPop] = useState<ExtendedPOP | null>(null);
+
+  // Suggested Edit Modal (Collaborator Proposal)
+  const [isSuggestOpen, setIsSuggestOpen] = useState(false);
+  const [suggestionProposal, setSuggestionProposal] = useState('');
+
+  // Course Player states
+  const [activeTraining, setActiveTraining] = useState<TrainingCourse | null>(null);
+  const [courseSlideIdx, setCourseSlideIdx] = useState(0);
+  const [isQuizMode, setIsQuizMode] = useState(false);
+  const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
+  const [showQuizResult, setShowQuizResult] = useState(false);
+  const [certifiedName, setCertifiedName] = useState('');
+
+  // AI Chat states (Local smart semantic query helper)
+  const [aiChatQuery, setAiChatQuery] = useState('');
+  const [aiChatLog, setAiChatLog] = useState<Array<{ sender: 'user' | 'ia'; text: string }>>([
+    { sender: 'ia', text: 'Olá! Sou o Assistente de Inteligência Conhecimento DDSulf. Digite uma praga ou serviço técnico e eu extrairei o guia prático, EPIs exigidos e os insumos do armazém agora mesmo!' }
+  ]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // Form Field states for CRUD
   const [formName, setFormName] = useState('');
-  const [formPestType, setFormPestType] = useState('Baratas');
+  const [formPest, setFormPest] = useState('baratas');
   const [formServiceType, setFormServiceType] = useState('dedetizacao');
+  const [formCategory, setFormCategory] = useState('Operacional');
+  const [formSubcategory, setFormSubcategory] = useState('');
   const [formTime, setFormTime] = useState(1);
   const [formInstructions, setFormInstructions] = useState('');
-  
-  // Dynamic chemical list
-  const [formRequiredProducts, setFormRequiredProducts] = useState<Array<{
-    productId: string;
-    productName: string;
-    quantityPer100m2: number;
-    unit: string;
-  }>>([]);
+  const [formRequiredProducts, setFormRequiredProducts] = useState<any[]>([]);
 
-  // File Upload states
-  const [formFileBase64, setFormFileBase64] = useState<string | undefined>(undefined);
-  const [formFileName, setFormFileName] = useState<string | undefined>(undefined);
-
-  // Drag and Drop State
+  // Drag and Drop Attachment files
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | undefined>(undefined);
+  const [uploadedBase64, setUploadedBase64] = useState<string | undefined>(undefined);
 
-  // File Viewer states
-  const [viewingPopId, setViewingPopId] = useState<string | null>(null);
-  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  // Initial Sync from useSystemStore database
+  useEffect(() => {
+    // Merge DB changes to our state and synchronize
+    const formattedDb = dbProcedures.map((item: any) => {
+      // Determine virtual categories based on its type
+      let cat = 'Operacional';
+      let subcat: string | undefined = undefined;
 
-  // -------------------------------------------------------------
-  // DYNAMIC COMPONENT LINES
-  // -------------------------------------------------------------
-  const handleAddChemicalLine = () => {
-    if (inventoryProducts.length === 0) {
-      toast.error('Nenhum insumo químico no estoque!', {
-        description: 'Cadastre insumos na aba de Estoque antes de vinculá-los aos POPs.'
-      });
+      const pType = (item.pestType || '').toLowerCase().trim();
+      const nameLower = item.name.toLowerCase();
+
+      if (pType === 'baratas' || nameLower.includes('barata')) {
+        subcat = 'Controle de Baratas';
+      } else if (pType === 'formigas' || nameLower.includes('formiga')) {
+        subcat = 'Controle de Formigas';
+      } else if (pType === 'cupins' || nameLower.includes('cupim')) {
+        subcat = 'Controle de Cupins';
+      } else if (pType === 'ratos' || nameLower.includes('rato') || nameLower.includes('roedor')) {
+        subcat = 'Controle de Roedores';
+      } else if (pType === 'escorpioes' || pType === 'escorpiões' || nameLower.includes('escorpião')) {
+        subcat = 'Controle de Escorpiões';
+      }
+
+      if (nameLower.includes('admin') || item.serviceType === 'administrativo') {
+        cat = 'Administrativo';
+        subcat = undefined;
+      } else if (nameLower.includes('financeiro') || item.serviceType === 'financeiro') {
+        cat = 'Financeiro';
+        subcat = undefined;
+      } else if (nameLower.includes('venda') || nameLower.includes('comercial') || item.serviceType === 'comercial') {
+        cat = 'Comercial';
+        subcat = undefined;
+      } else if (nameLower.includes('sistema') || item.serviceType === 'sistemas') {
+        cat = 'Sistemas';
+        subcat = undefined;
+      }
+
+      return {
+        id: item.id,
+        name: item.name,
+        pestType: item.pestType,
+        serviceType: item.serviceType,
+        requiredProducts: item.requiredProducts || [],
+        estimatedTimeHoursPer100m2: item.estimatedTimeHoursPer100m2 || 1.0,
+        fileUrl: item.fileUrl,
+        fileName: item.fileName,
+        instructions: item.instructions || '',
+        createdAt: item.createdAt || new Date().toISOString().split('T')[0],
+        category: cat,
+        subcategory: subcat,
+        author: 'Gestor DDSulf',
+        version: '1.0',
+        status: 'Ativo' as const,
+        lastRevision: item.createdAt || '01/06/2026',
+        versions: [{ version: '1.0', date: item.createdAt || '01/06/2026', change: 'Primeiro upload da diretriz operacional.' }]
+      };
+    });
+
+    // Remove duplicates based on ID (favor db over seeds)
+    const dbIds = new Set(formattedDb.map(x => x.id));
+    const cleanSeeds = DEFAULT_SEEDED_POPS.filter(x => !dbIds.has(x.id));
+
+    setProcedures([...formattedDb, ...cleanSeeds]);
+  }, [dbProcedures]);
+
+  // Load collaborator suggestions simulation local list
+  useEffect(() => {
+    const cached = localStorage.getItem('ddsulf_pop_suggestions');
+    if (cached) {
+      setSuggestedEdits(JSON.parse(cached));
+    } else {
+      // Seed a default pending suggestion to showcase Model B flow beautifully
+      const seed: any[] = [
+        {
+          id: 'sug-example-01',
+          popId: 'pop-baratas-res',
+          popName: 'POP Controle de Baratas Residencial',
+          proposer: 'Técnico Bruno Costa',
+          content: 'Aumentar a dosagem recomendada de BIFENTOL 200SC para 60ml para cozinhas comerciais críticas e adicionar luva antiderrapante no item EPI de campo.',
+          date: '04/06/2026',
+          status: 'pendente'
+        }
+      ];
+      setSuggestedEdits(seed);
+      localStorage.setItem('ddsulf_pop_suggestions', JSON.stringify(seed));
+    }
+  }, []);
+
+  const handleCreatePOP = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formName) {
+      toast.error('Preencha o título do procedimento.');
       return;
     }
 
-    const defaultProduct = inventoryProducts[0];
-    setFormRequiredProducts(prev => [
-      ...prev,
-      {
-        productId: defaultProduct.id,
-        productName: defaultProduct.name,
-        quantityPer100m2: 10,
-        unit: defaultProduct.unit
-      }
-    ]);
+    const nextId = `pop-custom-${Math.random().toString(36).substring(2, 9)}`;
+    const newRecord = {
+      id: nextId,
+      name: formName,
+      pestType: formPest,
+      serviceType: formServiceType,
+      requiredProducts: formRequiredProducts,
+      estimatedTimeHoursPer100m2: formTime,
+      instructions: formInstructions,
+      fileUrl: uploadedBase64,
+      fileName: uploadedFileName,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    // Save in master store
+    addPOP(newRecord);
+
+    toast.success('Novo POP criado na biblioteca!', {
+      description: 'Diretriz operacional cadastrada com sucesso e vinculada ao sistema geral.'
+    });
+
+    setIsCreateOpen(false);
+    resetForm();
   };
 
-  const handleUpdateChemicalLine = (index: number, productId: string) => {
-    const targetProduct = inventoryProducts.find(p => p.id === productId);
-    if (!targetProduct) return;
+  const handleEditPOP = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPop) return;
 
-    setFormRequiredProducts(prev => prev.map((item, idx) => {
-      if (idx === index) {
-        return {
-          ...item,
-          productId: targetProduct.id,
-          productName: targetProduct.name,
-          unit: targetProduct.unit
-        };
-      }
-      return item;
-    }));
+    const updatedData = {
+      name: formName,
+      pestType: formPest,
+      serviceType: formServiceType,
+      requiredProducts: formRequiredProducts,
+      estimatedTimeHoursPer100m2: formTime,
+      instructions: formInstructions,
+      fileUrl: uploadedBase64 || editingPop.fileUrl,
+      fileName: uploadedFileName || editingPop.fileName
+    };
+
+    updatePOP(editingPop.id, updatedData);
+
+    toast.success('POP operacional atualizado!', {
+      description: 'As alterações foram sincronizadas e registradas na biblioteca corporativa.'
+    });
+
+    setIsEditOpen(false);
+    setEditingPop(null);
+    resetForm();
   };
 
-  const handleUpdateQuantityLine = (index: number, qty: number) => {
-    setFormRequiredProducts(prev => prev.map((item, idx) => {
-      if (idx === index) {
-        return {
-          ...item,
-          quantityPer100m2: qty
-        };
-      }
-      return item;
-    }));
+  const handleDeletePOP = (id: string, name: string) => {
+    if (confirm(`Remover permanentemente o procedimento "${name}" do acervo da empresa?`)) {
+      removePOP(id);
+      toast.success('Procedimento excluído do sistema.');
+    }
   };
 
-  const handleRemoveChemicalLine = (index: number) => {
-    setFormRequiredProducts(prev => prev.filter((_, idx) => idx !== index));
-  };
-
-  // -------------------------------------------------------------
-  // ATTACHMENT PROCESSOR & DECODER
-  // -------------------------------------------------------------
-  const processUploadedFile = (file: File) => {
-    const sizeInMB = file.size / (1024 * 1024);
-    
-    // Check if limit of 2MB is passed
-    if (sizeInMB > 2) {
-      toast.warning('Arquivo superior a 2MB', {
-        description: 'Guardamos apenas a referência do nome para salvar espaço no navegador.'
-      });
-      setFormFileName(file.name);
-      setFormFileBase64(undefined);
+  // Upload file parser (Base64)
+  const handleUploadedFiles = (file: File) => {
+    const sizeMB = file.size / (1024 * 1024);
+    if (sizeMB > 3) {
+      toast.error('O arquivo excede o limite máximo permitido de 3MB.');
       return;
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setFormFileBase64(event.target?.result as string);
-      setFormFileName(file.name);
-      toast.success('Arquivo acoplado!', {
-        description: `Procedimento operacional de "${file.name}" pronto.`
+    reader.onload = (e) => {
+      setUploadedBase64(e.target?.result as string);
+      setUploadedFileName(file.name);
+      toast.success(`Arquivo carregado: ${file.name}`, {
+        description: 'Documento acoplado e pronto para vinculação operacional.'
       });
     };
-    reader.onerror = () => {
-      toast.error('Erro ao ler bytes do arquivo de procedimento.');
-    };
-
     reader.readAsDataURL(file);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    processUploadedFile(file);
-  };
-
-  // Drag & drop handlers
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
-    processUploadedFile(file);
+    if (e.dataTransfer.files?.[0]) {
+      handleUploadedFiles(e.dataTransfer.files[0]);
+    }
   };
 
-  // -------------------------------------------------------------
-  // OPEN MODALS FOR WORKSHOP (ADD / EDIT)
-  // -------------------------------------------------------------
   const triggerCreateModal = () => {
-    setModalMode('create');
-    setEditingPopId(null);
+    resetForm();
+    setIsCreateOpen(true);
+  };
+
+  const triggerUploadModal = () => {
+    resetForm();
+    setIsUploadOpen(true);
+  };
+
+  const triggerEditModal = (pop: ExtendedPOP) => {
+    setEditingPop(pop);
+    setFormName(pop.name);
+    setFormPest(pop.pestType);
+    setFormServiceType(pop.serviceType);
+    setFormCategory(pop.category);
+    setFormSubcategory(pop.subcategory || '');
+    setFormTime(pop.estimatedTimeHoursPer100m2);
+    setFormInstructions(pop.instructions);
+    setFormRequiredProducts(pop.requiredProducts);
+    setUploadedFileName(pop.fileName);
+    setUploadedBase64(pop.fileUrl);
+    setIsEditOpen(true);
+  };
+
+  const resetForm = () => {
     setFormName('');
-    setFormPestType('Baratas');
+    setFormPest('baratas');
     setFormServiceType('dedetizacao');
-    setFormTime(1);
+    setFormCategory('Operacional');
+    setFormSubcategory('');
+    setFormTime(1.5);
     setFormInstructions('');
     setFormRequiredProducts([]);
-    setFormFileBase64(undefined);
-    setFormFileName(undefined);
-    setIsFormModalOpen(true);
+    setUploadedFileName(undefined);
+    setUploadedBase64(undefined);
   };
 
-  const triggerEditModal = (p: any) => {
-    setModalMode('edit');
-    setEditingPopId(p.id);
-    setFormName(p.name);
-    setFormPestType(getPestLabel(p.pestType));
-    setFormServiceType(p.serviceType);
-    setFormTime(p.estimatedTimeHoursPer100m2);
-    setFormInstructions(p.instructions || '');
-    setFormRequiredProducts(p.requiredProducts || []);
-    setFormFileBase64(p.fileUrl);
-    setFormFileName(p.fileName);
-    setIsFormModalOpen(true);
-  };
-
-  const deleteProcedure = (id: string, name: string) => {
-    if (confirm(`Remover definitivamente o POP "${name}"? Calculadoras vinculadas perderão essa matriz.`)) {
-      removePOP(id);
-      toast.success('Procedimento removido.', {
-        description: `O POP "${name}" foi apagado da central de operações.`
+  const addChemicalLine = () => {
+    if (inventoryProducts.length === 0) {
+      toast.warning('Nenhum insumo cadastrado no estoque.', {
+        description: 'Vá até o painel de Estoque para alimentar os insumos ativos.'
       });
+      return;
     }
+    const standard = inventoryProducts[0];
+    setFormRequiredProducts(prev => [
+      ...prev,
+      { productId: standard.id, productName: standard.name, quantityPer100m2: 10, unit: standard.unit }
+    ]);
   };
 
-  const handleSaveForm = (e: React.FormEvent) => {
+  const updateChemicalField = (idx: number, field: string, val: any) => {
+    setFormRequiredProducts(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      if (field === 'productId') {
+        const found = inventoryProducts.find(p => p.id === val);
+        return { ...item, productId: val, productName: found ? found.name : item.productName, unit: found ? found.unit : item.unit };
+      }
+      return { ...item, [field]: val };
+    }));
+  };
+
+  const removeChemicalLine = (idx: number) => {
+    setFormRequiredProducts(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // Model B - Collaborator suggestions simulation
+  const suggestAlteration = () => {
+    if (!suggestionProposal.trim() || !readingPop) return;
+
+    const newSuggestion = {
+      id: `sug-${Math.random().toString(36).substring(2, 9)}`,
+      popId: readingPop.id,
+      popName: readingPop.name,
+      proposer: 'Técnico Especialista',
+      content: suggestionProposal.trim(),
+      date: new Date().toLocaleDateString('pt-BR'),
+      status: 'pendente'
+    };
+
+    const updated = [newSuggestion, ...suggestedEdits];
+    setSuggestedEdits(updated);
+    localStorage.setItem('ddsulf_pop_suggestions', JSON.stringify(updated));
+
+    toast.success('Sugestão enviada com sucesso!', {
+      description: 'O gestor avaliador revisará sua solicitação para eventual publicação na nova versão.'
+    });
+
+    setSuggestionProposal('');
+    setIsSuggestOpen(false);
+  };
+
+  const approveSuggestion = (sug: any) => {
+    // Locate target pop
+    const target = procedures.find(p => p.id === sug.popId);
+    if (!target) return;
+
+    // Simulate approval: Create new version
+    const currentVer = parseFloat(target.version || '1.0');
+    const nextVer = (currentVer + 0.1).toFixed(1);
+
+    // Dynamic replacement in text instructions
+    const appendText = `\n\n* [Ajuste Versão ${nextVer} - Sugestão Aprovada]: ${sug.content}`;
+    const newInstructions = target.instructions + appendText;
+
+    const updatedHistory = [
+      { version: nextVer, date: new Date().toLocaleDateString('pt-BR'), change: sug.content },
+      ...(target.versions || [])
+    ];
+
+    // Persist alteration
+    updatePOP(target.id, {
+      instructions: newInstructions,
+      version: nextVer,
+      // Pass other fields to preserve
+      name: target.name,
+      pestType: target.pestType,
+      serviceType: target.serviceType,
+      requiredProducts: target.requiredProducts,
+      estimatedTimeHoursPer100m2: target.estimatedTimeHoursPer100m2,
+      fileUrl: target.fileUrl,
+      fileName: target.fileName
+    } as any);
+
+    // Update suggestions status
+    const updatedLocally = suggestedEdits.map(s => {
+      if (s.id === sug.id) return { ...s, status: 'aprovado' };
+      return s;
+    });
+    setSuggestedEdits(updatedLocally);
+    localStorage.setItem('ddsulf_pop_suggestions', JSON.stringify(updatedLocally));
+
+    toast.success(`Sugestão técnica de ${sug.proposer} aprovada!`, {
+      description: `Procedimento "${target.name}" atualizado de v${target.version} para v${nextVer}.`
+    });
+
+    // Close reader if opened to prevent stale views
+    setReadingPop(null);
+  };
+
+  const rejectSuggestion = (sugId: string) => {
+    const updatedLocally = suggestedEdits.map(s => {
+      if (s.id === sugId) return { ...s, status: 'recusado' };
+      return s;
+    });
+    setSuggestedEdits(updatedLocally);
+    localStorage.setItem('ddsulf_pop_suggestions', JSON.stringify(updatedLocally));
+    toast.info('Sugestão de alteração recusada pelo Administrador.');
+  };
+
+  // AI Knowledge Search (Local Chat Intelligence)
+  const submitAiQuestion = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim()) {
-      toast.error('Nome do procedimento é obrigatório.');
-      return;
+    if (!aiChatQuery.trim()) return;
+
+    const userText = aiChatQuery;
+    setAiChatLog(prev => [...prev, { sender: 'user', text: userText }]);
+    setAiChatQuery('');
+    setIsAiLoading(true);
+
+    setTimeout(() => {
+      // Simple Keyword search through knowledge pieces
+      const queryLower = userText.toLowerCase();
+      let match = procedures.find(p => 
+        p.name.toLowerCase().includes(queryLower) || 
+        p.pestType.toLowerCase().includes(queryLower) ||
+        p.instructions.toLowerCase().includes(queryLower)
+      );
+
+      let answer = '';
+      if (match) {
+        // Strip markdown syntax for natural reading
+        const cleanedText = match.instructions
+          .replace(/[#*`_]/g, '')
+          .substring(0, 450) + '...';
+
+        const productsText = match.requiredProducts.length > 0 
+          ? match.requiredProducts.map(p => `• ${p.productName} (${p.quantityPer100m2}${p.unit}/100m²)`).join('\n')
+          : 'Não há insumos químicos vinculados.';
+
+        answer = `Com base na biblioteca oficial, localizei o **${match.name} (v${match.version})**. 
+        
+**Resumo Procedimental:**
+${cleanedText}
+
+**Materiais indicados por m²:**
+${productsText}
+
+*Aprovado em ${match.lastRevision} sob tutela de ${match.author}.*`;
+      } else {
+        answer = `Infelizmente não localizei um POP ou Diretriz específica sobre "Sua Busca" em nossa base de controle ativo. No entanto, recomendo o uso das técnicas padrão de barreiras líquidas piretróides simuladas ou inspecione a aba **Operacional** para validar os procedimentos contra baratas, formigas ou cupins já ratificados pela ANVISA.`;
+      }
+
+      setAiChatLog(prev => [...prev, { sender: 'ia', text: answer }]);
+      setIsAiLoading(false);
+    }, 1100);
+  };
+
+  // Filter and display calculations
+  const totalCount = procedures.length + SEEDED_TRAININGS.length;
+  const operationalCount = procedures.filter(p => p.category === 'Operacional').length;
+  const adminCount = procedures.filter(p => p.category === 'Administrativo').length;
+  const trainingsCount = SEEDED_TRAININGS.length;
+  const pendingReviewCount = suggestedEdits.filter(s => s.status === 'pendente').length;
+
+  const filteredProcedures = procedures.filter(p => {
+    // 1. Full text search
+    const q = searchTerm.toLowerCase();
+    const matchSearch = p.name.toLowerCase().includes(q) || 
+                        p.pestType.toLowerCase().includes(q) || 
+                        p.instructions.toLowerCase().includes(q) ||
+                        p.author.toLowerCase().includes(q);
+
+    if (!matchSearch) return false;
+
+    // 2. Left Menu Folders
+    if (activeCategory) {
+      if (p.category !== activeCategory) return false;
+      if (activeSubcategory && p.subcategory !== activeSubcategory) return false;
     }
 
-    if (modalMode === 'create') {
-      const newId = `pop-${Math.random().toString(36).substring(2, 11)}`;
-      addPOP({
-        id: newId,
-        name: formName.trim(),
-        pestType: formPestType.toLowerCase(),
-        serviceType: formServiceType,
-        requiredProducts: formRequiredProducts,
-        estimatedTimeHoursPer100m2: formTime,
-        fileUrl: formFileBase64,
-        fileName: formFileName,
-        instructions: formInstructions.trim() || 'Sem detalhes instrucionais adicionais.',
-        createdAt: new Date().toISOString()
-      });
-
-      toast.success('POP Cadastrado com Sucesso!', {
-        description: `Procedimento "${formName}" adicionado ao catálogo operacional.`
-      });
-    } else {
-      if (editingPopId) {
-        updatePOP(editingPopId, {
-          name: formName.trim(),
-          pestType: formPestType.toLowerCase(),
-          serviceType: formServiceType,
-          requiredProducts: formRequiredProducts,
-          estimatedTimeHoursPer100m2: formTime,
-          fileUrl: formFileBase64,
-          fileName: formFileName,
-          instructions: formInstructions.trim()
-        });
-
-        toast.success('Parâmetros do POP atualizados!', {
-          description: `Alterações consolidadas para "${formName}".`
-        });
+    // 3. Horizontal Filters
+    if (selectedFilter !== 'Todos') {
+      if (selectedFilter === 'Pendentes Revisão') {
+        const hasSuggestion = suggestedEdits.some(s => s.popId === p.id && s.status === 'pendente');
+        if (!hasSuggestion) return false;
+      } else if (selectedFilter === 'Treinamentos') {
+        return false; // Handled separately
+      } else {
+        if (p.category !== selectedFilter) return false;
       }
     }
 
-    setIsFormModalOpen(false);
-  };
-
-  // -------------------------------------------------------------
-  // POP FILE VIEWER LOGIC (Section 3)
-  // -------------------------------------------------------------
-  const handleViewFile = (pop: any) => {
-    if (!pop.fileUrl) {
-      // Fallback: show the text formatted instructions inside modal drawer
-      setViewingPopId(pop.id);
-      return;
-    }
-
-    const type = pop.fileUrl;
-    if (type.startsWith('data:application/pdf') || pop.fileName?.endsWith('.pdf')) {
-      try {
-        const newTab = window.open();
-        if (newTab) {
-          newTab.document.write(
-            `<html><head><title>${pop.name}</title></head>` +
-            `<body style="margin:0; background:#333; display:grid; place-items:center;">` +
-            `<embed width="100%" height="100%" src="${pop.fileUrl}" type="application/pdf" />` +
-            `</body></html>`
-          );
-        } else {
-          toast.error('O navegador bloqueou a abertura de novas abas (Popup Blocker).');
-        }
-      } catch (err) {
-        console.error(err);
-        toast.error('Não foi possível carregar o arquivo PDF.');
-      }
-    } else if (type.startsWith('data:image/') || pop.fileName?.match(/\.(jpeg|jpg|png|gif|webp)$/i)) {
-      // Fullscreen view
-      setFullscreenImage(pop.fileUrl);
-    } else {
-      // Fallback instructions viewer
-      setViewingPopId(pop.id);
-    }
-  };
-
-  // Apply quick search
-  const displayedProcedures = procedures.filter(p => {
-    const q = search.toLowerCase();
-    const matchName = p.name.toLowerCase().includes(q);
-    const matchPest = p.pestType.toLowerCase().includes(q) || getPestLabel(p.pestType).toLowerCase().includes(q);
-    const matchService = getServiceLabel(p.serviceType).toLowerCase().includes(q);
-    return matchName || matchPest || matchService;
+    return true;
   });
 
+  const getPestColor = (pest?: string) => {
+    if (!pest) return 'bg-gray-400';
+    const v = pest.toLowerCase();
+    if (v.includes('barata')) return 'bg-amber-500';
+    if (v.includes('rato') || v.includes('roedor')) return 'bg-slate-600';
+    if (v.includes('cupim')) return 'bg-orange-500';
+    if (v.includes('formiga')) return 'bg-rose-500';
+    if (v.includes('escorp')) return 'bg-purple-600';
+    return 'bg-emerald-500';
+  };
+
+  // Training Deck player operations
+  const startTrainingPlayer = (course: TrainingCourse) => {
+    setActiveTraining(course);
+    setCourseSlideIdx(0);
+    setIsQuizMode(false);
+    setQuizAnswers([]);
+    setShowQuizResult(false);
+    setCertifiedName('');
+  };
+
+  const handleNextSlide = () => {
+    if (!activeTraining) return;
+    if (courseSlideIdx < activeTraining.slides.length - 1) {
+      setCourseSlideIdx(prev => prev + 1);
+    } else {
+      setIsQuizMode(true);
+    }
+  };
+
+  const handleSelectQuizAnswer = (qIdx: number, oIdx: number) => {
+    const updated = [...quizAnswers];
+    updated[qIdx] = oIdx;
+    setQuizAnswers(updated);
+  };
+
+  const submitTrainingQuiz = () => {
+    if (!activeTraining) return;
+    if (quizAnswers.length < activeTraining.quiz.length) {
+      toast.warning('Responda todas as perguntas para obter o laudo técnico!');
+      return;
+    }
+    setShowQuizResult(true);
+  };
+
+  const downloadSimulatedCertificate = () => {
+    toast.success('Certificado gerado com sucesso!', {
+      description: 'O download do PDF de Habilitação DDSulf foi disponibilizado no repositório local.'
+    });
+  };
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 text-left">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 text-left" id="ddsulf_pops_panel_root">
       
-      {/* HEADER */}
-      <header className="mb-8 flex items-start justify-between">
+      {/* 1. TOP HEADER SECTION */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-gray-100 pb-5" id="pops-header-row">
         <div>
-          <span className="kpi-label text-[#2D6A4F] text-xs font-bold uppercase tracking-wider font-sans">Procedimentos Operacionais</span>
-          <h1 className="font-display text-3xl font-semibold text-[#141410] mt-1">POPs Cadastrados</h1>
-          <p className="text-sm text-[#6B6B5F] mt-1">
-            Base para cálculo automático de produtos na Calculadora.
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+            <span className="p-2 bg-emerald-50 text-[#1B3A2D] rounded-xl self-center shrink-0">
+              <BookOpen className="size-6" />
+            </span>
+            POPs e Procedimentos
+          </h1>
+          <p className="text-sm text-slate-500 mt-1.5 max-w-xl">
+            Central de conhecimento, padronização operacional e treinamento corporativo oficial da DDSulf.
           </p>
         </div>
-        <button 
-          onClick={triggerCreateModal}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#1B3A2D] text-white 
-                             text-sm font-semibold rounded-xl hover:bg-[#2D6A4F] transition-colors cursor-pointer"
-        >
-          <Plus className="size-4" /> Novo POP
-        </button>
-      </header>
-
-      {/* FILTER SEARCH BAR */}
-      <div className="relative max-w-xl">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#6B6B5F]" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filtrar POPs por praga, serviço ou nome..."
-          className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] text-[#141410] shadow-xs"
-        />
+        <div className="flex items-center gap-2.5 self-start md:self-auto" id="headers-action-buttons">
+          <button 
+            id="btn-trigger-new-pop"
+            onClick={triggerCreateModal}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#1B3A2D] text-white text-xs font-semibold rounded-lg hover:bg-[#2D6A4F] transition-all shadow-sm"
+          >
+            <Plus className="size-3.5" /> Novo POP
+          </button>
+          <button 
+            id="btn-trigger-upload-doc"
+            onClick={triggerUploadModal}
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-all"
+          >
+            <Upload className="size-3.5" /> Upload Documento
+          </button>
+          <button 
+            id="btn-new-category"
+            onClick={() => {
+              const catName = prompt("Digite o nome da nova categoria operacional/administrativa:");
+              if (catName && catName.trim()) {
+                toast.success(`Categoria "${catName}" pré-agendada para homologação do TI.`);
+              }
+            }}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-all"
+          >
+            <PlusCircle className="size-3.5" /> Nova Categoria
+          </button>
+        </div>
       </div>
 
-      {/* PROTOCOL MATRICES GRID OF CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {displayedProcedures.map((pop) => {
-          const pestColor = getPestColor(pop.pestType);
-          const pestLabel = getPestLabel(pop.pestType);
-          const pestBadgeStyle = getPestBadgeStyle(pop.pestType);
+      {/* 2. DYNAMIC UPPER COUNTERS (INDICATORS) */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5 mb-8" id="upper-metric-indicators">
+        <div className="bg-white p-4 rounded-xl border border-slate-150 shadow-xs flex flex-col justify-between" id="metric-total">
+          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Total de POPs</span>
+          <span className="text-2xl font-black text-slate-800 mt-2">{totalCount}</span>
+          <span className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1 font-semibold">
+            <Check className="size-3" /> Base em Dia
+          </span>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-150 shadow-xs flex flex-col justify-between" id="metric-oper">
+          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">POPs Operacionais</span>
+          <span className="text-2xl font-black text-slate-800 mt-2">{operationalCount}</span>
+          <span className="text-[10px] text-slate-500 mt-1 font-medium">Bicas e Dosagens</span>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-150 shadow-xs flex flex-col justify-between" id="metric-admin">
+          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">POPs Administrativos</span>
+          <span className="text-2xl font-black text-slate-800 mt-2">{adminCount}</span>
+          <span className="text-[10px] text-slate-500 mt-1 font-medium">Fluxos Internos</span>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-150 shadow-xs flex flex-col justify-between" id="metric-trainings">
+          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Treinamentos</span>
+          <span className="text-2xl font-black text-slate-800 mt-2">{trainingsCount}</span>
+          <span className="text-[10px] text-indigo-600 mt-1 flex items-center gap-1 font-bold">
+            <Zap className="size-3" /> Habilitadores
+          </span>
+        </div>
+        <div className={`p-4 rounded-xl border shadow-xs flex flex-col justify-between transition-colors ${pendingReviewCount > 0 ? 'bg-amber-50/50 border-amber-200' : 'bg-white border-slate-150'}`} id="metric-pendings">
+          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Pendentes de Revisão</span>
+          <span className={`text-2xl font-black mt-2 ${pendingReviewCount > 0 ? 'text-amber-700' : 'text-slate-800'}`}>{pendingReviewCount}</span>
+          <span className="text-[10px] text-slate-500 mt-1 font-medium flex items-center gap-1">
+            {pendingReviewCount > 0 ? '⚠️ Exige atenção' : '✓ Tudo revisado'}
+          </span>
+        </div>
+      </div>
 
+      {/* 3. CORE SEARCH AREA (PRIMARY VISUAL ELEMENT) */}
+      <div className="bg-slate-900 text-white rounded-2xl p-6 md:p-8 shadow-xl mb-8 relative overflow-hidden" id="prominent-search-billboard">
+        {/* Subtle dynamic backdrop decoration */}
+        <div className="absolute right-0 top-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute left-1/3 bottom-0 w-60 h-60 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="max-w-2xl mx-auto text-center z-10 relative">
+          <div className="inline-flex items-center gap-1 bg-white/10 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-slate-350 mb-3">
+            <Sparkles className="size-3 text-emerald-400 animate-pulse" /> Busca Semântica & Manual Oficial
+          </div>
+          <h2 className="text-2xl font-bold font-sans text-white mb-2">Central Única de Busca de Conhecimento</h2>
+          <p className="text-xs text-slate-300 mb-6">Localize dosagens químicas de pragas, diretrizes comerciais ou manuais ANVISA em segundos.</p>
+          
+          <div className="relative">
+            <Search className="absolute left-4.5 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
+            <input 
+              id="main-large-search-input"
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Pesquisar POPs, documentos, treinamentos ou palavras-chave..."
+              className="w-full h-14 pl-12 pr-4 rounded-xl bg-white text-slate-900 border-none text-sm font-medium focus:ring-4 focus:ring-emerald-500/30 transition-all placeholder:text-slate-400"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* HORIZONTAL QUICK CATEGORY METRIC FILTRES */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-4 mb-6 scrollbar-none" id="horizontal-filters-tabs">
+        {['Todos', 'Operacional', 'Administrativo', 'Financeiro', 'Comercial', 'Sistemas', 'Treinamentos', 'Pendentes Revisão'].map((filterName) => {
+          const isActive = selectedFilter === filterName;
           return (
-            <motion.div
-              layout
-              key={pop.id}
-              className="bg-white rounded-2xl border border-[#E8E6E1] overflow-hidden 
-                         hover:shadow-md hover:border-[#C8C5BF] transition-all group flex flex-col justify-between"
+            <button
+              key={filterName}
+              id={`filter-tab-${filterName.toLowerCase().replace(' ', '-')}`}
+              onClick={() => {
+                setSelectedFilter(filterName);
+                // Clear tree node sidebar so it focuses correctly on search results
+                setActiveCategory(null);
+                setActiveSubcategory(null);
+                if (filterName === 'Treinamentos') {
+                  setActiveCategory('Treinamentos');
+                }
+              }}
+              className={`px-4 py-2 text-xs font-semibold rounded-lg border whitespace-nowrap transition-all ${
+                isActive 
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm' 
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}
             >
-              <div>
-                {/* Stripe colorida no topo — cor por tipo de praga */}
-                <div className={`h-1.5 ${pestColor}`} />
-                
-                <div className="p-5">
-                  {/* Badge de praga */}
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold 
-                                    uppercase tracking-wider border mb-3 ${pestBadgeStyle}`}>
-                    {pestLabel}
-                  </span>
-                  
-                  {/* Nome do POP */}
-                  <h3 className="font-semibold text-[#141410] text-sm leading-snug mb-3">{pop.name}</h3>
-                  
-                  {/* Métricas */}
-                  <div className="flex items-center gap-4 text-xs text-[#6B6B5F] mb-4">
-                    <span className="flex items-center gap-1">
-                      <Beaker className="size-3" /> {pop.requiredProducts?.length || 0} produtos
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="size-3" /> {pop.estimatedTimeHoursPer100m2}h/100m²
-                    </span>
-                  </div>
-                  
-                  {/* Lista de produtos resumida */}
-                  <div className="bg-[#F7F6F3] rounded-xl p-3 mb-4 space-y-1.5">
-                    {pop.requiredProducts?.slice(0, 2).map(prod => (
-                      <div key={prod.productId} className="flex justify-between text-xs">
-                        <span className="text-[#6B6B5F] truncate">{prod.productName}</span>
-                        <span className="font-semibold text-[#141410] shrink-0 ml-2">
-                          {prod.quantityPer100m2} {prod.unit}/100m²
-                        </span>
-                      </div>
-                    ))}
-                    {(!pop.requiredProducts || pop.requiredProducts.length === 0) && (
-                      <p className="text-xs text-[#6B6B5F]/70 italic">Sem insumos indicados.</p>
-                    )}
-                    {pop.requiredProducts?.length > 2 && (
-                      <p className="text-[10px] text-[#6B6B5F]">+ {pop.requiredProducts.length - 2} mais</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Ações */}
-              <div className="p-5 pt-0">
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleViewFile(pop)}
-                    className="flex-1 text-center text-xs font-semibold py-2 rounded-lg 
-                               border border-[#E8E6E1] text-[#6B6B5F] hover:bg-[#FAFAF9] transition-colors cursor-pointer"
-                  >
-                    Visualizar
-                  </button>
-                  <button 
-                    onClick={() => triggerEditModal(pop)}
-                    className="flex-1 text-center text-xs font-semibold py-2 rounded-lg 
-                               bg-[#1B3A2D] text-white hover:bg-[#2D6A4F] transition-colors cursor-pointer"
-                  >
-                    Editar
-                  </button>
-                  <button 
-                    onClick={() => deleteProcedure(pop.id, pop.name)}
-                    className="p-2 rounded-lg text-[#6B6B5F] hover:text-[#C1361A] 
-                               hover:bg-[#FDDDD8] transition-all cursor-pointer"
-                    title="Excluir POP"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
+              {filterName}
+            </button>
           );
         })}
-
-        {displayedProcedures.length === 0 && (
-          <div className="col-span-full py-24 text-center border-2 border-dashed border-[#E8E6E1] rounded-2xl flex flex-col items-center justify-center gap-4 bg-[#FAFAF9]">
-            <SearchX className="size-10 text-[#6B6B5F] opacity-50" />
-            <div className="space-y-1">
-              <p className="text-sm font-bold text-[#141410] uppercase tracking-widest">Procedimento Não Encontrado</p>
-              <p className="text-xs text-[#6B6B5F] max-w-sm font-semibold">Crie novos arquivos do POP ou reajuste o filtro no topo.</p>
-            </div>
-            <button
-              onClick={triggerCreateModal}
-              className="px-5 py-2.5 bg-[#1B3A2D] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#2D6A4F] transition-all cursor-pointer"
-            >
-              Criar Primeiro POP
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* SECTION 2: WORKSHOP FORM MODAL (Add / Edit) */}
-      <AnimatePresence>
-        {isFormModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-[#E8E6E1] max-w-3xl w-full rounded-2xl shadow-2xl my-8 max-h-[90vh] overflow-y-auto text-left relative p-0"
-            >
-              {/* STICKY HEADER */}
-              <div className="sticky top-0 bg-[#1B3A2D] text-white p-6 flex items-start justify-between z-10 rounded-t-2xl border-b border-[#2D6A4F]/20">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div className="size-1.5 bg-white/60 rounded-full" />
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-white/75 font-sans">Diretriz da DDSulf</span>
-                  </div>
-                  <h2 className="text-xl font-semibold font-display text-white">
-                    {modalMode === 'create' ? 'Cadastrar Novo Procedimento' : 'Editar Procedimento Operacional'}
-                  </h2>
-                </div>
-                <button
-                  onClick={() => setIsFormModalOpen(false)}
-                  className="p-1.5 hover:bg-white/10 rounded-lg text-white/80 hover:text-white transition-colors cursor-pointer"
-                >
-                  <X className="size-5" />
-                </button>
-              </div>
+      {/* 4. MAIN SPLIT LAYOUT SYSTEM */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start" id="main-application-split">
+        
+        {/* LEFT COLUMN: LIBRARY DIRECTORY TREE (25%) */}
+        <div className="space-y-6 lg:sticky lg:top-4" id="left-column-sidebar">
+          
+          {/* FOLDER EXPLORER CARD */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden" id="directory-tree-card">
+            <div className="bg-slate-50 p-3.5 border-b border-slate-200 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <BookOpen className="size-3.5 text-slate-500" /> Diretório de Pastas
+              </span>
+              <button 
+                onClick={() => {
+                  setActiveCategory(null);
+                  setActiveSubcategory(null);
+                  setSelectedFilter('Todos');
+                }}
+                className="text-[10px] text-emerald-700 font-bold hover:underline"
+              >
+                Limpar Selação
+              </button>
+            </div>
 
-              <form onSubmit={handleSaveForm} className="p-6 space-y-6 text-xs font-semibold text-[#141410]">
-                
-                {/* ROW 1: BASIC INFO */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Nome do procedimento</label>
-                    <input
-                      type="text"
-                      required
-                      value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
-                      placeholder="Ex: Desinsetização Química Geral de Baratas no Esgoto"
-                      className="w-full h-11 px-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] text-[#141410]"
-                    />
-                  </div>
+            <div className="p-3.5 space-y-2.5" id="tree-container">
+              {CATEGORIES_TREE.map((node) => {
+                const isCatActive = activeCategory === node.name;
+                const hasSubs = node.subs.length > 0;
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Tipo de Praga Alvo</label>
-                    <select
-                      value={formPestType}
-                      onChange={(e) => setFormPestType(e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] text-[#141410] cursor-pointer"
+                return (
+                  <div key={node.name} className="space-y-1">
+                    <button
+                      id={`tree-node-${node.name.toLowerCase()}`}
+                      onClick={() => {
+                        setActiveCategory(isCatActive && !activeSubcategory ? null : node.name);
+                        setActiveSubcategory(null);
+                        setSelectedFilter(node.name === 'Treinamentos' ? 'Treinamentos' : 'Todos');
+                      }}
+                      className={`w-full flex items-center justify-between p-2 rounded-lg text-xs font-semibold text-left transition-colors ${
+                        isCatActive 
+                          ? 'bg-emerald-50/70 text-[#1B3A2D]' 
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
                     >
-                      {PESTS_LIST.map((pest) => (
-                        <option key={pest} value={pest}>{pest}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Tipo de Serviço</label>
-                    <select
-                      value={formServiceType}
-                      onChange={(e) => setFormServiceType(e.target.value)}
-                      className="w-full h-11 px-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] text-[#141410] cursor-pointer"
-                    >
-                      {SERVICES_LIST.map((srv) => (
-                        <option key={srv.value} value={srv.value}>{srv.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Tempo por 100m² (Horas)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0.1"
-                      required
-                      value={formTime}
-                      onChange={(e) => setFormTime(parseFloat(e.target.value) || 0.5)}
-                      className="w-full h-11 px-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] text-[#141410]"
-                    />
-                  </div>
-                </div>
-
-                {/* TEXTAREA DIRECTIVES */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F]">Instruções gerais recomendadas aos técnicos</label>
-                  <textarea
-                    rows={3}
-                    value={formInstructions}
-                    onChange={(e) => setFormInstructions(e.target.value)}
-                    placeholder="Detalhamento operacional. Métricas de diluição rápida, posicionamento perimetral, advertências, EPIs específicos ou alertas operacionais ambientais..."
-                    className="w-full p-4 rounded-xl border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-[#FAFAF9] text-[#141410] leading-relaxed resize-none font-sans"
-                  />
-                </div>
-
-                {/* DYNAMIC PRODUCTS PER 100M² LINKED TO INVENTORY */}
-                <div className="space-y-4 pt-4 border-t border-[#E8E6E1]">
-                  <div className="space-y-0.5">
-                    <h3 className="text-sm font-semibold text-[#141410] font-display">Insumos Químicos Necessários (Por 100m²)</h3>
-                    <p className="text-[11px] text-[#6B6B5F] font-medium">Estes insumos serão deduzidos automaticamente pelo assistente DDSulf nos orçamentos.</p>
-                  </div>
-
-                  {inventoryProducts.length === 0 ? (
-                    <div className="p-4 bg-[#FFF3CD]/50 border border-[#D4A017]/30 rounded-xl flex items-start gap-3">
-                      <AlertTriangle className="size-4 text-[#92600A] shrink-0 mt-0.5" />
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-bold text-[#92600A] uppercase">Nenhum Insumo no Estoque</p>
-                        <p className="text-[10px] text-[#92600A] font-medium">Você precisa adicionar produtos no estoque antes de vinculá-los aos POPs.</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="border border-[#E8E6E1] rounded-xl overflow-hidden">
-                      <table className="w-full text-left border-collapse">
-                        <thead className="bg-[#F0EDE8]">
-                          <tr className="border-b border-[#E8E6E1]">
-                            <th className="py-2.5 px-3 text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans">Insumo Químico / Concentrado</th>
-                            <th className="py-2.5 px-3 text-[10px] font-bold text-[#6B6B5F] uppercase tracking-wider font-sans text-right w-36">Quantidade por 100m²</th>
-                            <th className="py-2.5 px-3 w-12"></th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#E8E6E1]">
-                          {formRequiredProducts.map((item, index) => (
-                            <tr key={index} className="bg-[#FAFAF9] hover:bg-[#FAFAF9]/60 transition-colors border-b border-[#E8E6E1]">
-                              <td className="py-2 px-3">
-                                <select
-                                  value={item.productId}
-                                  onChange={(e) => handleUpdateChemicalLine(index, e.target.value)}
-                                  className="w-full h-9 px-2.5 rounded-lg border border-[#E8E6E1] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white cursor-pointer"
-                                >
-                                  {inventoryProducts.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td className="py-2 px-3 text-right">
-                                <div className="flex items-center gap-1.5 justify-end">
-                                  <input
-                                    type="number"
-                                    min="0.001"
-                                    step="any"
-                                    required
-                                    value={item.quantityPer100m2}
-                                    onChange={(e) => handleUpdateQuantityLine(index, parseFloat(e.target.value) || 0)}
-                                    placeholder="Qtd"
-                                    className="w-20 h-9 px-2 rounded-lg border border-[#E8E6E1] text-center text-xs font-bold focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white"
-                                  />
-                                  <span className="text-[11px] font-mono text-[#6B6B5F] font-bold shrink-0 w-8 text-left">{item.unit}</span>
-                                </div>
-                              </td>
-                              <td className="py-2 px-3 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveChemicalLine(index)}
-                                  className="p-1 px-1.5 text-[#6B6B5F] hover:text-[#C1361A] hover:bg-[#FDDDD8] rounded-md transition-colors shrink-0 cursor-pointer"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-
-                          {formRequiredProducts.length === 0 && (
-                            <tr>
-                              <td colSpan={3} className="py-8 text-center text-[#6B6B5F] text-[11px] bg-[#FAFAF9]">
-                                Nenhum químico acoplado a este POP por enquanto. Clique em "+ Produto" para adicionar.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-
-                      {/* FOOTER DO PRODUTO: BOTÃO NO RODAPÉ */}
-                      <div className="bg-[#F0EDE8] p-2.5 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={handleAddChemicalLine}
-                          className="h-8 px-4 bg-white hover:bg-[#1B3A2D] border border-[#E8E6E1] hover:border-[#1B3A2D] text-[#1B3A2D] hover:text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
-                        >
-                          <Plus className="size-3.5" />
-                          + Produto
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* ATTACHMENT UPLOAD INPUT PANEL */}
-                <div className="space-y-3 pt-4 border-t border-[#E8E6E1]">
-                  <div className="space-y-0.5">
-                    <h3 className="text-sm font-semibold text-[#141410] font-display">Documentação do POP</h3>
-                    <p className="text-[11px] text-[#6B6B5F] font-medium">Selecione o PDF oﬁcial ou foto de treinamento químico aprovada (Limite: 2MB).</p>
-                  </div>
-
-                  <div
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    onClick={() => document.getElementById('document-file-attacher')?.click()}
-                    className={`border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
-                      isDragging 
-                        ? 'border-[#1B3A2D] bg-[#FAFAF9]' 
-                        : 'border-[#E8E6E1] hover:border-[#1B3A2D] hover:bg-[#FAFAF9]/50 bg-[#FAFAF9]'
-                    }`}
-                  >
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="p-2.5 bg-white rounded-xl border border-[#E8E6E1] text-[#1B3A2D] shadow-xs">
-                        <Upload className="size-5" />
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-bold text-[#141410]">Arraste o arquivo do POP ou clique para localizar</p>
-                        <p className="text-[10px] text-[#6B6B5F] leading-normal mt-0.5">Formatos suportados: PDF, PNG, JPG, JPEG (Limite: 2MB).</p>
-                      </div>
-
-                      <input
-                        type="file"
-                        accept=".pdf,image/png,image/jpeg,image/jpg,.docx"
-                        onChange={handleFileChange}
-                        className="hidden"
-                        id="document-file-attacher"
-                      />
-
-                      {formFileName && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#D8EDE3] text-[#1B3A2D] border border-[#2D6A4F]/20 rounded-lg text-xs font-semibold" onClick={(e) => e.stopPropagation()}>
-                          <FileText className="size-4 text-[#2D6A4F]" />
-                          <span className="max-w-[200px] truncate text-[#1B3A2D]">{formFileName}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setFormFileName(undefined);
-                              setFormFileBase64(undefined);
-                            }}
-                            className="p-0.5 bg-white/60 hover:bg-white rounded text-[#1B3A2D] cursor-pointer inline-flex items-center justify-center size-5 ml-1"
-                          >
-                            <X className="size-3" />
-                          </button>
-                        </div>
+                      <span className="flex items-center gap-2">
+                        <span className={`size-1.5 rounded-full ${isCatActive ? 'bg-emerald-600' : 'bg-slate-350'}`} />
+                        {node.name}
+                      </span>
+                      {hasSubs && (
+                        <span className="text-slate-450 shrink-0">
+                          {isCatActive ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                        </span>
                       )}
-                    </div>
+                    </button>
+
+                    {/* SUBCATEGORIES SLIDE PANEL */}
+                    {hasSubs && isCatActive && (
+                      <div className="pl-4.5 border-l border-slate-250 py-1 space-y-1.5" id={`sub-tree-${node.name.toLowerCase()}`}>
+                        {node.subs.map((subName) => {
+                          const isSubActive = activeSubcategory === subName;
+                          return (
+                            <button
+                              key={subName}
+                              id={`sub-tree-node-${subName.toLowerCase().replace(/ /g, '-')}`}
+                              onClick={() => {
+                                setActiveSubcategory(isSubActive ? null : subName);
+                              }}
+                              className={`w-full flex items-center justify-between p-1.5 rounded text-[11px] font-medium text-left transition-all ${
+                                isSubActive 
+                                  ? 'text-emerald-700 font-bold' 
+                                  : 'text-slate-500 hover:text-slate-800'
+                              }`}
+                            >
+                              <span>{subName}</span>
+                              {isSubActive && <Check className="size-3 text-emerald-600 ml-1 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* SIMULATED MODEL B COLLABORATOR SUBMISSION BANNER & ALERTS INBOX */}
+          <div className="bg-white rounded-xl border border-slate-250 shadow-sm p-4 text-xs font-semibold space-y-3" id="collaborator-panel-suggestion">
+            <div className="flex items-center gap-1.5 text-slate-800">
+              <UserCheck className="size-4 text-emerald-600 shrink-0" />
+              <span className="font-bold text-slate-700 lowercase leading-tight">Revisões Pendentes (Modelo B)</span>
+            </div>
+            <p className="text-[11px] text-slate-450 leading-relaxed font-medium">
+              O fluxo de sugestões de alterações ativa técnicos a propor melhorias de diluição no campo para validação administrativa.
+            </p>
+            
+            <div className="space-y-2 border-t border-slate-100 pt-3" id="suggestion-alert-inbox">
+              {suggestedEdits.filter(s => s.status === 'pendente').map((sug) => (
+                <div key={sug.id} className="p-2.5 bg-amber-50/50 border border-amber-150 rounded-lg text-left" id={`sug-inbox-card-${sug.id}`}>
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-sans mb-1">
+                    <span className="font-bold text-[#1b3a2d]">{sug.proposer}</span>
+                    <span>{sug.date}</span>
+                  </div>
+                  <p className="font-medium text-slate-800 text-[11px] leading-relaxed mb-3">
+                    <strong>Ref:</strong> {sug.popName}<br/>
+                    "{sug.content}"
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => approveSuggestion(sug)}
+                      className="px-2 py-1 bg-[#1B3A2D] text-white hover:bg-emerald-700 text-[10px] font-bold rounded"
+                    >
+                      Aprovar & Publicar
+                    </button>
+                    <button
+                      onClick={() => rejectSuggestion(sug.id)}
+                      className="px-2 py-1 bg-white border border-slate-200 text-slate-600 hover:text-red-600 text-[10px] rounded"
+                    >
+                      Recusar
+                    </button>
                   </div>
                 </div>
+              ))}
+              {suggestedEdits.filter(s => s.status === 'pendente').length === 0 && (
+                <div className="text-center py-2 text-slate-400 font-medium text-[10px]" id="sug-inbox-empty">
+                  Nenhuma sugestão técnica pendente de aprovação.
+                </div>
+              )}
+            </div>
+          </div>
 
-                {/* MODAL ACTION KEYS */}
-                <div className="flex items-center justify-end gap-3 pt-6 border-t border-[#E8E6E1]">
-                  <button
-                    type="button"
-                    onClick={() => setIsFormModalOpen(false)}
-                    className="h-10 px-5 rounded-xl text-xs font-semibold text-[#6B6B5F] border border-[#E8E6E1] hover:bg-[#FAFAF9] transition-all cursor-pointer"
+          {/* AI SEARCH BOT CHAT PANEL */}
+          <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4" id="ai-chat-assistent-box">
+            <div className="flex items-center gap-2">
+              <div className="p-1 bg-[#1B3A2D] text-white rounded-md shrink-0">
+                <Sparkles className="size-3.5 text-emerald-300" />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-slate-800 leading-none">Biblioteca de Contato IA</h4>
+                <span className="text-[9px] text-slate-400 font-bold">Assistente de Consulta DDSulf</span>
+              </div>
+            </div>
+
+            <div className="max-h-48 overflow-y-auto space-y-2 border-b border-slate-100 pb-3" id="ai-chat-logs-screen">
+              {aiChatLog.map((logMsg, lIdx) => (
+                <div key={lIdx} className={`p-2.5 rounded-lg text-[11px] leading-relaxed font-sans ${logMsg.sender === 'user' ? 'bg-emerald-50 text-slate-800 ml-4 border border-emerald-100 text-right' : 'bg-white text-slate-700 border border-slate-150 mr-4 text-left'}`}>
+                  {logMsg.text}
+                </div>
+              ))}
+              {isAiLoading && (
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold px-1 animate-pulse">
+                  <RefreshCw className="size-3 animate-spin text-emerald-600" /> Buscando nas diretrizes operacionais...
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={submitAiQuestion} className="relative">
+              <input 
+                type="text"
+                value={aiChatQuery}
+                onChange={(e) => setAiChatQuery(e.target.value)}
+                placeholder="Como executar controle de cupins?"
+                className="w-full h-9 pl-3 pr-10 rounded-lg text-[11px] border border-slate-200 focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] bg-white font-medium"
+              />
+              <button 
+                type="submit" 
+                className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-emerald-600 hover:bg-slate-100 rounded-md"
+              >
+                <ArrowRight className="size-3.5" />
+              </button>
+            </form>
+          </div>
+
+        </div>
+
+        {/* RIGHT COLUMN: LIST OF CONTENTS AND CARDS (75%) */}
+        <div className="lg:col-span-3 space-y-6" id="right-column-contents">
+          
+          <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-500 font-semibold" id="browse-summary-heading">
+            <span>
+              Mostrando <strong className="text-slate-800">{selectedFilter === 'Treinamentos' ? trainingsCount : filteredProcedures.length}</strong> itens de conhecimento corporativo
+            </span>
+            <span className="font-sans text-[10px] bg-slate-200 px-2 py-0.5 rounded text-slate-600">
+              {activeCategory ? `Pasta: ${activeCategory}` : 'Todas as Categorias'}
+            </span>
+          </div>
+
+          {/* CONTENTS GRID CARDS */}
+          {selectedFilter === 'Treinamentos' ? (
+            /* TREINAMENTOS SPECIAL LAYOUT LIST */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4" id="trainings-data-grid">
+              {SEEDED_TRAININGS.map((course) => (
+                <div key={course.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-all flex flex-col justify-between" id={`course-card-${course.id}`}>
+                  <div>
+                    <div className="h-2.5 bg-indigo-500" />
+                    <div className="p-5 space-y-2 text-left">
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        <span className="flex items-center gap-1"><BookOpenCheck className="size-3.5 text-indigo-500" /> Academia Teórica</span>
+                        <span className="flex items-center gap-1 text-slate-500"><Clock className="size-3" /> {course.duration}</span>
+                      </div>
+                      <h4 className="font-bold text-slate-800 text-sm leading-snug">{course.title}</h4>
+                      <p className="text-xs text-slate-500 leading-relaxed font-medium">{course.description}</p>
+                    </div>
+                  </div>
+
+                  <div className="p-5 pt-0">
+                    <button
+                      id={`btn-start-course-${course.id}`}
+                      onClick={() => startTrainingPlayer(course)}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-all"
+                    >
+                      Iniciar Treinamento <ArrowRight className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* POP PROCEDURES CONTENT CARDS LIST */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4" id="pop-procedures-list-grid">
+              {filteredProcedures.map((pop) => {
+                const isPendingReview = suggestedEdits.some(s => s.popId === pop.id && s.status === 'pendente');
+
+                return (
+                  <div 
+                    key={pop.id} 
+                    id={`pop-card-${pop.id}`}
+                    className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-all flex flex-col justify-between"
                   >
-                    Cancelar
-                  </button>
+                    <div>
+                      {/* Left color bar indicator */}
+                      <div className={`h-1.5 ${getPestColor(pop.pestType)}`} />
+                      
+                      <div className="p-5 space-y-3 text-left">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-[#1B3A2D] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                            {pop.category} {pop.subcategory ? `· ${pop.subcategory}` : ''}
+                          </span>
+                          {isPendingReview && (
+                            <span className="text-[9px] font-bold uppercase tracking-widest text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1">
+                              <AlertCircle className="size-2.5" /> Em Sugestão
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="font-extrabold text-slate-800 text-sm leading-snug tracking-tight">
+                          {pop.name}
+                        </h3>
+
+                        {/* Brief summary text extraction from markdown instructions */}
+                        <p className="text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed">
+                          {pop.instructions ? pop.instructions.replace(/[#*`_-]/g, '').substring(0, 140) + '...' : 'Ficha de diretriz instrucional corporativa geral.'}
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 font-sans border-t border-slate-100 pt-2.5">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Clock className="size-3 text-slate-400" /> {pop.estimatedTimeHoursPer100m2}h / 100m²
+                          </div>
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Calendar className="size-3 text-slate-400" /> Revisado: {pop.lastRevision}
+                          </div>
+                          <div className="col-span-2 text-slate-400 flex items-center gap-1 truncate font-medium mt-0.5">
+                            Autor da Norma: <span className="text-slate-650 font-bold">{pop.author}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-5 pt-0 border-t border-slate-50 mt-1 flex items-center gap-2">
+                      <button
+                        id={`btn-read-pop-${pop.id}`}
+                        onClick={() => {
+                          setReadingPop(pop);
+                          setIsCompareMode(false);
+                        }}
+                        className="flex-1 text-center py-2 border border-slate-200 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-650 transition-all"
+                      >
+                        Visualizar
+                      </button>
+                      <button
+                        id={`btn-edit-pop-trigger-${pop.id}`}
+                        onClick={() => triggerEditModal(pop)}
+                        className="px-3 py-2 border border-slate-200 hover:bg-slate-50 rounded-lg text-xs text-slate-650 hover:text-emerald-700 transition-all"
+                        title="Editar Regulamento"
+                      >
+                        Editar
+                      </button>
+                      {pop.fileUrl ? (
+                        <a
+                          id={`btn-download-file-pop-${pop.id}`}
+                          href={pop.fileUrl}
+                          download={pop.fileName || 'diretriz_pop.pdf'}
+                          className="p-2 border border-slate-200 hover:bg-slate-50 rounded-lg text-slate-650 hover:text-blue-600 transition"
+                          title="Fazer Download do Anexo"
+                        >
+                          <Download className="size-3.5" />
+                        </a>
+                      ) : (
+                        <button
+                          id={`btn-simulated-download-${pop.id}`}
+                          onClick={() => toast.success('Conteúdo de texto impresso/exportado como documento corporativo oficial de instrução.')}
+                          className="p-2 border border-slate-200 hover:bg-slate-50 rounded-lg text-slate-650 transition"
+                          title="Imprimir Diretriz"
+                        >
+                          <Download className="size-3.5" />
+                        </button>
+                      )}
+                      <button
+                        id={`btn-delete-pop-${pop.id}`}
+                        onClick={() => handleDeletePOP(pop.id, pop.name)}
+                        className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition"
+                        title="Apagar permanentemente"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {filteredProcedures.length === 0 && (
+                <div className="col-span-full py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-white p-6" id="empty-state-card">
+                  <div className="p-3 bg-slate-50 text-slate-400 rounded-full mb-3">
+                    <BookOpen className="size-8" />
+                  </div>
+                  <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest">Nenhum POP encontrado para esta categoria</h4>
+                  <p className="text-xs text-slate-500 max-w-sm mt-1 font-medium leading-relaxed">
+                    Não localizamos diretrizes de procedimentos ativas sob os parâmetros selecionados de pesquisa e filtragem no formulário.
+                  </p>
                   <button
-                    type="submit"
-                    className="h-10 px-6 rounded-xl text-xs font-bold bg-[#1B3A2D] text-white hover:bg-[#2D6A4F] transition-all cursor-pointer shadow-xs"
+                    id="empty-state-create-btn"
+                    onClick={triggerCreateModal}
+                    className="mt-4 px-4 py-2 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-xs font-bold rounded-lg transition shadow-xs"
                   >
-                    Salvar POP
+                    Criar POP
                   </button>
                 </div>
+              )}
+            </div>
+          )}
 
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+        </div>
 
-      {/* SECTION 3: POP MANUSCRIPT DRAWER / TEXT INSTRUCTIONS VIEWER */}
+      </div>
+
+      {/* 5. INTERACTIVE READING ROOM & DUAL-COLUMN PREVIEW PANEL MODAL */}
       <AnimatePresence>
-        {viewingPopId && (() => {
-          const pop = procedures.find(p => p.id === viewingPopId);
-          if (!pop) return null;
+        {readingPop && (() => {
+          // Find standard version timeline logs
+          const activeVersions = readingPop.versions || [
+            { version: '1.0', date: readingPop.createdAt, change: 'Homologação primordial e publicação original.' }
+          ];
 
           return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto" id="reading-room-backdrop">
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white border text-left border-[#E8E6E1] max-w-xl w-full rounded-2xl overflow-hidden shadow-2xl relative flex flex-col"
+                initial={{ opacity: 0, scale: 0.98, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: 10 }}
+                className="bg-white rounded-2xl border border-slate-250 w-full max-w-5xl shadow-2xl flex flex-col overflow-hidden max-h-[92vh]"
+                id="reading-room-container"
               >
-                {/* Header view */}
-                <div className="bg-[#1B3A2D] text-white p-6 flex items-start justify-between">
+                
+                {/* HEAD BAR */}
+                <div className="bg-[#1B3A2D] text-white px-6 py-5 flex items-center justify-between pointer-events-auto" id="reading-room-header">
                   <div className="space-y-1">
-                    <span className="px-2.5 py-0.5 rounded-md font-mono text-[9px] font-bold border border-white/20 uppercase bg-white/10 text-white leading-none inline-block">
-                      POP #{pop.id}
-                    </span>
-                    <h3 className="text-lg font-semibold font-display text-white pr-4 pt-1 leading-tight">{pop.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-sans font-extrabold tracking-widest text-emerald-300 uppercase">
+                        {readingPop.category} {readingPop.subcategory ? `> ${readingPop.subcategory}` : ''}
+                      </span>
+                      <span className="h-1 w-1 bg-white/40 rounded-full" />
+                      <span className="text-[10px] font-mono text-slate-300">Versão Ativa: {readingPop.version}</span>
+                    </div>
+                    <h3 className="font-extrabold text-white text-lg font-sans tracking-tight leading-tight">{readingPop.name}</h3>
                   </div>
-                  <button
-                    onClick={() => setViewingPopId(null)}
-                    className="p-1.5 hover:bg-white/10 rounded-lg text-white/80 hover:text-white transition-colors cursor-pointer"
+                  <button 
+                    onClick={() => {
+                      setReadingPop(null);
+                      setIsCompareMode(false);
+                    }}
+                    className="p-1.5 hover:bg-white/10 rounded-lg text-white/80 hover:text-white transition cursor-pointer"
+                    id="btn-close-reader"
                   >
-                    <X className="size-4" />
+                    <X className="size-5" />
                   </button>
                 </div>
 
-                <div className="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
-                  {/* Scope criteria */}
-                  <div className="grid grid-cols-2 gap-3 text-xs font-semibold py-3 px-4 bg-[#FAFAF9] rounded-xl border border-[#E8E6E1]">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F] block pb-0.5 font-sans">Praga Principal</span>
-                      <span className="text-[#141410] font-bold">{getPestLabel(pop.pestType)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F] block pb-0.5 font-sans">Serviço de Combate</span>
-                      <span className="text-[#141410] font-bold">{getServiceLabel(pop.serviceType)}</span>
-                    </div>
-                  </div>
-
-                  {/* Operational instructions text */}
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F] block font-sans">Ficha de Instruções Sanitárias</span>
-                    <div className="p-4 bg-[#FAFAF9] rounded-xl text-xs text-[#141410] font-medium leading-relaxed max-h-[200px] overflow-y-auto whitespace-pre-wrap max-w-full border border-[#E8E6E1] font-sans">
-                      {pop.instructions}
-                    </div>
-                  </div>
-
-                  {/* Required products */}
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B6B5F] block font-sans">Insumos Químicos Associados</span>
-                    <div className="space-y-1.5">
-                      {pop.requiredProducts?.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between text-xs font-semibold text-[#141410] py-1.5 border-b border-dashed border-[#E8E6E1]">
-                          <span className="flex items-center gap-1.5 text-[#141410]">
-                            <span className="size-1.5 bg-[#2D6A4F] rounded-full" />
-                            {item.productName}
-                          </span>
-                          <span className="font-mono text-[#6B6B5F] font-bold">{item.quantityPer100m2} {item.unit} por 100m²</span>
+                {/* DUAL-COLUMN CONTENT GRID */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 overflow-y-auto" id="reading-content-splitter">
+                  
+                  {/* MAIN PANEL (LEFT 70% / 8 columns) */}
+                  <div className="lg:col-span-8 p-6 space-y-6 border-r border-slate-100 min-h-[450px]" id="reader-primary-pane">
+                    
+                    {isCompareMode ? (
+                      /* HISTORICAL VERSION COMPARE SCREEN */
+                      <div className="space-y-4" id="version-diff-container">
+                        <div className="flex items-center justify-between text-xs border-b border-slate-100 pb-3">
+                          <span className="font-bold text-slate-800 flex items-center gap-1.5"><History className="size-4 text-emerald-600" /> Comparando alterações da versão</span>
+                          <select 
+                            value={selectedDiffVersion}
+                            onChange={(e) => setSelectedDiffVersion(e.target.value)}
+                            className="bg-slate-50 border border-slate-200 px-2 py-1 rounded text-[11px] font-semibold text-slate-700"
+                          >
+                            {activeVersions.map(v => (
+                              <option key={v.version} value={v.version}>Versão {v.version}</option>
+                            ))}
+                          </select>
                         </div>
-                      ))}
-                      {(!pop.requiredProducts || pop.requiredProducts.length === 0) && (
-                        <p className="text-[10px] italic text-[#6B6B5F]">Nenhum solvente ou químico associado.</p>
+
+                        {/* Rich side by side Diff simulator */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4" id="simulated-diff-panels">
+                          <div className="bg-red-50/70 rounded-xl p-4 border border-red-100 text-xs">
+                            <span className="font-bold text-red-750 block border-b border-red-100 pb-1 mb-2">Versão {selectedDiffVersion} anterior</span>
+                            <p className="font-medium text-slate-650 leading-relaxed font-sans line-through opacity-70">
+                              No item 3. Pulverizar calda química de piretróides irritantes na pia com mangueira manual padrão sem regular bico difusor, concentrando defensivo bruto a 1.2%. Usar apenas botas.
+                            </p>
+                          </div>
+                          
+                          <div className="bg-emerald-50/75 rounded-xl p-4 border border-emerald-100 text-xs">
+                            <span className="font-bold text-[#1B3A2D] block border-b border-emerald-100 pb-1 mb-2">Versão {readingPop.version} atualizada (Ativo)</span>
+                            <p className="font-medium text-slate-750 leading-relaxed font-sans">
+                              No item 3. <ins className="bg-emerald-150 text-[#1B3A2D] font-bold no-underline rounded px-0.5">Substituir calda de piretróides por Bifentol 200SC residual,</ins> garantindo cobertura de rodapés perimetrais. <ins className="bg-emerald-150 text-[#1B3A2D] font-bold no-underline rounded px-0.5">Exigido uso obrigatório de máscara com cartucho químico de fita larga.</ins>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="p-3 bg-slate-50 text-slate-500 rounded-lg text-[11px] font-medium leading-relaxed flex items-start gap-2 border border-slate-150">
+                          <Info className="size-4 text-slate-400 shrink-0 mt-0.5" />
+                          <span>As diferenças acima destacam as revisões e atualizações executadas pelo Gestor Técnico DDSulf para fins de adequação de controle de qualidade e instruções da saúde pública de controle integrado.</span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* STANDARD TEXT READING VIEW & MINI DOCUMENT MOCK PREVIEWS */
+                      <div className="space-y-6" id="standard-manuscript-panel">
+                        <div className="prose prose-slate max-w-none text-left" id="markdown-instructions-scroll">
+                          {/* Instructions Header */}
+                          <div className="space-y-4">
+                            <div className="p-5 bg-slate-50 border border-slate-150 rounded-xl space-y-4 font-sans text-xs">
+                              <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                                <Beaker className="size-3.5 text-emerald-600" /> Dosagens e Insumos Químicos Regulamentados
+                              </h4>
+                              {readingPop.requiredProducts && readingPop.requiredProducts.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {readingPop.requiredProducts.map((p, pIdx) => (
+                                    <div key={pIdx} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200">
+                                      <span className="text-slate-600 font-medium truncate">{p.productName}</span>
+                                      <span className="font-mono font-bold text-slate-900 shrink-0 ml-2">
+                                        {p.quantityPer100m2} {p.unit}/100m²
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-slate-400 italic">Não há vinculação direta de insumos químicos para este POP administrativo, comercial ou financeiro.</p>
+                              )}
+                            </div>
+
+                            {/* Markdown render simulated area */}
+                            <div className="p-6 bg-white border border-slate-150 rounded-xl space-y-4 font-sans text-xs leading-relaxed max-h-[380px] overflow-y-auto whitespace-pre-wrap" id="manuscript-rendered-box">
+                              {readingPop.instructions}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* If file base64 is integrated: Show Mock previews (ANVISA Sheet / PDF style) */}
+                        {readingPop.fileUrl && (
+                          <div className="border border-slate-200 rounded-xl p-4 bg-slate-50-50 space-y-3 font-sans text-xs" id="file-attachments-preview-panel">
+                            <span className="font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wide text-[11px]"><FileText className="size-3.5 text-blue-500" /> Original do Anexo</span>
+                            <div className="bg-white border rounded-lg p-5 flex items-center justify-between text-left" id="attached-original-card">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-red-50 text-red-600 rounded">
+                                  <FileText className="size-6" />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <span className="font-bold text-slate-800 text-[11px] max-w-[200px] truncate block">{readingPop.fileName || 'diretriz_pop.pdf'}</span>
+                                  <span className="text-[10px] text-slate-400 font-medium">Documento Técnico Sanitário PDF</span>
+                                </div>
+                              </div>
+                              <a
+                                href={readingPop.fileUrl}
+                                download={readingPop.fileName || 'diretriz_pop.pdf'}
+                                className="px-3.5 py-1.5 bg-slate-50 border hover:bg-slate-100 text-slate-700 font-bold rounded-md"
+                              >
+                                Baixar Anexo
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                  </div>
+
+                  {/* SIDE QUICK INFO TAB (RIGHT 30% / 4 columns) */}
+                  <div className="lg:col-span-4 p-6 space-y-6 bg-slate-50 shrink-0 font-sans text-xs text-slate-700 font-medium" id="reader-side-panel">
+                    
+                    <div className="space-y-3" id="quick-side-info-card">
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-250 pb-2">Informações Rápidas</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center py-1">
+                          <span className="text-slate-450 font-semibold">Categoria</span>
+                          <span className="bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-bold">{readingPop.category}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-1">
+                          <span className="text-slate-450 font-semibold">Status Ativo</span>
+                          <span className={`px-2 py-0.5 rounded text-white font-extrabold text-[10px] uppercase ${readingPop.status === 'Ativo' ? 'bg-emerald-500' : 'bg-amber-500'}`}>{readingPop.status}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-1">
+                          <span className="text-slate-450 font-semibold">Versão Atual</span>
+                          <span className="font-mono font-bold text-slate-800">v{readingPop.version}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-1">
+                          <span className="text-slate-450 font-semibold">Duração Padrão</span>
+                          <span className="font-semibold text-slate-800">{readingPop.estimatedTimeHoursPer100m2} horas / 100m²</span>
+                        </div>
+                        <div className="flex justify-between items-center py-1">
+                          <span className="text-slate-450 font-semibold">Revisado em</span>
+                          <span className="font-semibold text-slate-800">{readingPop.lastRevision}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* HISTORY TIMELINE */}
+                    <div className="space-y-4 pt-1" id="versions-history-timeline">
+                      <div className="flex items-center justify-between border-b border-slate-250 pb-2">
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Controle de Versões</h4>
+                        <button
+                          onClick={() => setIsCompareMode(!isCompareMode)}
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded transition ${isCompareMode ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                          id="btn-trigger-compare-versions"
+                        >
+                          {isCompareMode ? 'Fechar Comparador' : 'Comparar versões'}
+                        </button>
+                      </div>
+
+                      <div className="relative pl-3.5 border-l border-slate-200 ml-1.5 space-y-4" id="timeline-steps">
+                        {activeVersions.map((log, lIdx) => (
+                          <div key={lIdx} className="relative" id={`timeline-item-${log.version}`}>
+                            <div className="absolute -left-5 top-1.5 size-2 bg-emerald-600 rounded-full border border-white" />
+                            <div className="space-y-0.5">
+                              <span className="text-[10px] font-semibold text-slate-400">{log.date || '01/01/2026'} — v{log.version}</span>
+                              <p className="text-[11px] text-slate-800 font-medium leading-relaxed">{log.change}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* SUGGEST REVISION INPUT BUTTON AREA (MODEL B FLOW PROCESS) */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3" id="suggestion-editor-card">
+                      <span className="font-bold text-slate-700 flex items-center gap-1.5"><HelpCircle className="size-4 text-emerald-600" /> Quer sugerir uma alteração?</span>
+                      <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                        Se identificou melhorias práticas para as dosagens sanitárias de campo, insira o detalhamento para crivo técnico do Admin.
+                      </p>
+                      
+                      {isSuggestOpen ? (
+                        <div className="space-y-2.5" id="form-suggest-sub">
+                          <textarea
+                            rows={3}
+                            value={suggestionProposal}
+                            onChange={(e) => setSuggestionProposal(e.target.value)}
+                            placeholder="Descreva seu adendo técnico aqui..."
+                            className="w-full text-[11px] p-2 rounded-lg border border-slate-200 focus:outline-[#1B3A2D] leading-relaxed resize-none font-sans font-medium"
+                          />
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={suggestAlteration}
+                              className="px-3 py-1.5 bg-[#1B3A2D] text-white text-[10px] font-bold rounded hover:bg-emerald-700"
+                            >
+                              Enviar Proposta
+                            </button>
+                            <button
+                              onClick={() => setIsSuggestOpen(false)}
+                              className="px-3 py-1.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded hover:bg-slate-200"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setIsSuggestOpen(true)}
+                          className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition"
+                          id="btn-propose-alteration"
+                        >
+                          Sugerir Alteração
+                        </button>
                       )}
                     </div>
+
                   </div>
+
                 </div>
 
-                <div className="p-6 bg-[#FAFAF9] border-t border-[#E8E6E1] flex justify-end gap-3 text-xs font-semibold">
-                  {pop.fileUrl && (
-                    <button
-                      onClick={() => {
-                        setViewingPopId(null);
-                        handleViewFile(pop);
-                      }}
-                      className="inline-flex items-center gap-1.5 bg-white border border-[#E8E6E1] hover:bg-[#FAFAF9] text-[#141410] px-4 py-2 rounded-xl transition-all cursor-pointer"
-                    >
-                      <ExternalLink className="size-3.5 text-[#6B6B5F]" />
-                      Abrir Anexo Original
-                    </button>
-                  )}
+                {/* BOTTOM FOOT ACTIONS */}
+                <div className="bg-slate-50 border-t border-slate-100 px-6 py-4 flex justify-end gap-2.5" id="reading-room-footer">
                   <button
-                    onClick={() => setViewingPopId(null)}
-                    className="bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white font-bold px-5 py-2 rounded-xl transition-all cursor-pointer shadow-sm"
+                    onClick={() => {
+                      setReadingPop(null);
+                      setIsCompareMode(false);
+                    }}
+                    className="px-5 py-2.5 bg-[#1B3A2D] text-white text-xs font-bold rounded-lg hover:bg-emerald-800 transition"
                   >
-                    Concluído
+                    Concluído a Leitura
                   </button>
                 </div>
 
@@ -877,24 +1552,708 @@ export function POPsPage() {
         })()}
       </AnimatePresence>
 
-      {/* DETACHED IMAGE VIEWER FULLSCREEN MODEL */}
+      {/* 6. MODAL FOR NEW POP CREATION */}
       <AnimatePresence>
-        {fullscreenImage && (
-          <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4 backdrop-blur-md">
-            <button
-              onClick={() => setFullscreenImage(null)}
-              className="absolute top-6 right-6 p-2 bg-white/10 text-white rounded-full hover:bg-white/20 transition-all cursor-pointer"
+        {isCreateOpen && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto" id="create-modal-backdrop">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              className="bg-white rounded-xl border border-slate-250 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              id="create-modal-container"
             >
-              <X className="size-6" />
-            </button>
-            <div className="max-w-4xl max-h-[80vh] overflow-hidden flex items-center justify-center rounded-2xl bg-white/5 p-2 border border-white/15">
-              <img
-                src={fullscreenImage}
-                alt="Procedimento Técnico DDSulf"
-                className="max-w-full max-h-[75vh] object-contain rounded-xl shadow-2xl"
-              />
-            </div>
-            <p className="text-white/60 text-xs font-bold font-mono tracking-widest uppercase mt-4">Visualizador do Procedimento Operacional</p>
+              <div className="bg-[#1B3A2D] text-white px-6 py-4 flex items-center justify-between" id="create-modal-header">
+                <div>
+                  <span className="text-[9px] font-extrabold tracking-widest text-[#1b3a2d] bg-emerald-300 px-2.5 py-0.5 rounded leading-none uppercase">Homologador DDSulf</span>
+                  <h3 className="font-bold text-white text-base font-sans tracking-tight pt-1">Cadastrar Nova Diretriz Técnica (POP)</h3>
+                </div>
+                <button onClick={() => setIsCreateOpen(false)} className="p-1 hover:bg-white/10 rounded-lg text-white/80 transition cursor-pointer">
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreatePOP} className="p-6 space-y-5 text-left text-xs font-semibold text-slate-700" id="create-pop-form">
+                
+                <div className="space-y-1">
+                  <label className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">Título Regulamentar</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="Ex: POP Controle de Baratas Residencial Especializado"
+                    className="w-full h-10 px-3 border border-slate-200 rounded-lg focus:outline-[#1B3A2D] bg-slate-50 font-medium text-slate-800"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3" id="create-form-selectors">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400 font-sans">Tipo de Praga</label>
+                    <select
+                      value={formPest}
+                      onChange={(e) => setFormPest(e.target.value)}
+                      className="w-full h-10 px-3 border border-slate-200 rounded-lg focus:outline-[#1B3A2D] bg-slate-50 cursor-pointer font-bold"
+                    >
+                      <option value="baratas">Baratas</option>
+                      <option value="formigas">Formigas</option>
+                      <option value="cupins">Cupins</option>
+                      <option value="ratos">Roedores</option>
+                      <option value="escorpioes">Escorpiões</option>
+                      <option value="outro">Outro / Geral</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400 font-sans">Setor de Atuação</label>
+                    <select
+                      value={formCategory}
+                      onChange={(e) => setFormCategory(e.target.value)}
+                      className="w-full h-10 px-3 border border-slate-200 rounded-lg focus:outline-[#1B3A2D] bg-slate-50 cursor-pointer font-bold"
+                    >
+                      <option value="Operacional">Operacional</option>
+                      <option value="Administrativo">Administrativo</option>
+                      <option value="Financeiro">Financeiro</option>
+                      <option value="Comercial">Comercial</option>
+                      <option value="Sistemas">Sistemas</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3" id="create-form-num-values">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">Tempo Estimado (Horas por 100m²)</label>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      required
+                      value={formTime}
+                      onChange={(e) => setFormTime(parseFloat(e.target.value) || 1.0)}
+                      className="w-full h-10 px-3 border border-slate-200 rounded-lg focus:outline-[#1B3A2D] bg-slate-50 font-medium text-slate-800"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">Subcategoria Opcional (Seletivo)</label>
+                    <input 
+                      type="text" 
+                      value={formSubcategory}
+                      onChange={(e) => setFormSubcategory(e.target.value)}
+                      placeholder="Ex: Controle de Baratas"
+                      className="w-full h-10 px-3 border border-slate-200 rounded-lg focus:outline-[#1B3A2D] bg-slate-50 font-medium text-slate-850"
+                    />
+                  </div>
+                </div>
+
+                {/* TEXT DIRECTIVES */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">Procedimento Operacional Descrito (Ficha / Práticas)</label>
+                  <textarea
+                    rows={4}
+                    required
+                    value={formInstructions}
+                    onChange={(e) => setFormInstructions(e.target.value)}
+                    placeholder="Escreva as advertências sanitárias e regulamento passo a passo corporativo..."
+                    className="w-full p-3 border border-slate-200 rounded-lg focus:outline-[#1B3A2D] bg-slate-50 font-sans font-medium text-slate-805"
+                  />
+                </div>
+
+                {/* CHEMICAL SELECTION */}
+                <div className="space-y-2 border-t border-slate-100 pt-3" id="form-chemical-sub-section">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase text-slate-500">Insumos Químicos Associados</span>
+                    <button
+                      type="button"
+                      onClick={addChemicalLine}
+                      className="px-2 py-1 bg-slate-100 border text-slate-650 hover:bg-slate-200 text-[10px] font-extrabold rounded flex items-center gap-1"
+                    >
+                      <Plus className="size-3" /> + Associar Insumo
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5" id="form-chemical-lines">
+                    {formRequiredProducts.map((p, pIdx) => (
+                      <div key={pIdx} className="flex items-center gap-2" id={`form-chem-line-${pIdx}`}>
+                        <select
+                          value={p.productId}
+                          onChange={(e) => updateChemicalField(pIdx, 'productId', e.target.value)}
+                          className="flex-1 h-9 px-2 border rounded-lg bg-white text-[11px]"
+                        >
+                          {inventoryProducts.map(pDef => (
+                            <option key={pDef.id} value={pDef.id}>{pDef.name}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          value={p.quantityPer100m2}
+                          onChange={(e) => updateChemicalField(pIdx, 'quantityPer100m2', parseFloat(e.target.value) || 0)}
+                          placeholder="Dosagem"
+                          className="w-20 h-9 px-2 border rounded-lg text-center font-bold text-[11px]"
+                        />
+                        <span className="text-[10px] font-mono font-bold text-slate-500 w-8">{p.unit}</span>
+                        <button 
+                          type="button"
+                          onClick={() => removeChemicalLine(pIdx)}
+                          className="p-1 px-1.5 text-red-500 hover:bg-red-50 rounded"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    {formRequiredProducts.length === 0 && (
+                      <p className="text-[10px] font-medium italic text-slate-400 py-1">Não há insumos indicados.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* ATTACHMENT DRAG AND DROP */}
+                <div className="space-y-2 border-t border-slate-100 pt-3" id="attacher-panel-create">
+                  <span className="text-[11px] font-bold uppercase text-slate-500">Documento ou Certificado Técnico de PDF (Opcional)</span>
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDrop}
+                    onClick={() => document.getElementById('pop-file-upload-create')?.click()}
+                    className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${isDragging ? 'bg-emerald-50/50 border-emerald-500' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}
+                  >
+                    <div className="flex flex-col items-center justify-center gap-1">
+                      <Upload className="size-5 text-slate-400" />
+                      <span className="text-[11px] font-extrabold text-slate-800">Escolha o anexo de laudo no computador</span>
+                      <span className="text-[9px] text-slate-400">Limite do navegador recomendado: 3MB (PDF, DOCX, XLSX)</span>
+                    </div>
+                    <input 
+                      type="file" 
+                      id="pop-file-upload-create" 
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) handleUploadedFiles(e.target.files[0]);
+                      }}
+                      className="hidden" 
+                    />
+                  </div>
+                  {uploadedFileName && (
+                    <div className="p-2 bg-blue-50 text-blue-800 rounded-lg flex items-center justify-between text-[11px] font-sans border border-blue-200 mt-2">
+                      <span className="truncate">{uploadedFileName}</span>
+                      <button type="button" onClick={() => { setUploadedFileName(undefined); setUploadedBase64(undefined); }} className="text-blue-500 font-bold ml-2">✕</button>
+                    </div>
+                  )}
+                </div>
+
+                {/* MODAL BOTTOM BUTTONS */}
+                <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4" id="create-pop-action-buttons">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsCreateOpen(false)}
+                    className="px-4 py-2 border rounded-lg text-slate-600 font-bold hover:bg-slate-55"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-5 py-2 bg-[#1B3A2D] text-white font-black rounded-lg hover:bg-emerald-800 shadow-sm"
+                  >
+                    Homologar e Salvar
+                  </button>
+                </div>
+
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 7. MODAL FOR POP EDITING */}
+      <AnimatePresence>
+        {isEditOpen && editingPop && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto" id="edit-modal-backdrop">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              className="bg-white rounded-xl border border-slate-250 shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto"
+              id="edit-modal-container"
+            >
+              <div className="bg-[#1B3A2D] text-white px-6 py-4 flex items-center justify-between" id="edit-modal-header">
+                <div>
+                  <span className="text-[9px] font-extrabold tracking-widest text-[#1b3a2d] bg-emerald-300 px-2.5 py-0.5 rounded leading-none uppercase">Homologador DDSulf</span>
+                  <h3 className="font-bold text-white text-base font-sans tracking-tight pt-1">Editar Procedimento Operacional</h3>
+                </div>
+                <button onClick={() => { setIsEditOpen(false); setEditingPop(null); }} className="p-1 hover:bg-white/10 rounded-lg text-white/80 transition cursor-pointer">
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleEditPOP} className="p-6 space-y-5 text-left text-xs font-semibold text-slate-700" id="edit-pop-form">
+                
+                <div className="space-y-1">
+                  <label className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">Título Regulamentar</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="Ex: POP Controle de Baratas Residencial"
+                    className="w-full h-10 px-3 border border-slate-200 rounded-lg focus:outline-[#1B3A2D] bg-slate-50 font-medium text-slate-800"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400 font-sans">Tipo de Praga</label>
+                    <select
+                      value={formPest}
+                      onChange={(e) => setFormPest(e.target.value)}
+                      className="w-full h-10 px-3 border border-slate-200 rounded-lg focus:outline-[#1B3A2D] bg-slate-50 cursor-pointer font-bold"
+                    >
+                      <option value="baratas">Baratas</option>
+                      <option value="formigas">Formigas</option>
+                      <option value="cupins">Cupins</option>
+                      <option value="ratos">Roedores</option>
+                      <option value="escorpioes">Escorpiões</option>
+                      <option value="outro">Outro / Geral</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400 font-sans">Setor de Atuação</label>
+                    <select
+                      value={formServiceType}
+                      onChange={(e) => setFormServiceType(e.target.value)}
+                      className="w-full h-10 px-3 border border-slate-200 rounded-lg focus:outline-[#1B3A2D] bg-slate-50 cursor-pointer font-bold"
+                    >
+                      <option value="dedetizacao">Dedetização (Operacional)</option>
+                      <option value="desratizacao">Desratização (Operacional)</option>
+                      <option value="descupinizacao">Descupinização (Operacional)</option>
+                      <option value="sanitizacao">Sanitização (Operacional)</option>
+                      <option value="administrativo">Administrativo</option>
+                      <option value="financeiro">Financeiro</option>
+                      <option value="comercial">Comercial</option>
+                      <option value="sistemas">Sistemas</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">Tempo Estimado (Horas por 100m²)</label>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      required
+                      value={formTime}
+                      onChange={(e) => setFormTime(parseFloat(e.target.value) || 1.0)}
+                      className="w-full h-10 px-3 border border-slate-200 rounded-lg focus:outline-[#1B3A2D] bg-slate-50 font-medium text-slate-800"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">Subcategoria Opcional (Seletivo)</label>
+                    <input 
+                      type="text" 
+                      value={formSubcategory}
+                      onChange={(e) => setFormSubcategory(e.target.value)}
+                      placeholder="Ex: Controle de Baratas"
+                      className="w-full h-10 px-3 border border-slate-200 rounded-lg focus:outline-[#1B3A2D] bg-slate-50 font-medium text-slate-850"
+                    />
+                  </div>
+                </div>
+
+                {/* TEXT DIRECTIVES */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">Procedimento Operacional Descrito</label>
+                  <textarea
+                    rows={4}
+                    required
+                    value={formInstructions}
+                    onChange={(e) => setFormInstructions(e.target.value)}
+                    placeholder="Escreva as advertências passo a passo..."
+                    className="w-full p-3 border border-slate-200 rounded-lg focus:outline-[#1B3A2D] bg-slate-50 font-sans font-medium text-slate-805"
+                  />
+                </div>
+
+                {/* CHEMICAL SELECTION */}
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase text-slate-500">Insumos Químicos Associados</span>
+                    <button
+                      type="button"
+                      onClick={addChemicalLine}
+                      className="px-2 py-1 bg-slate-100 border text-slate-650 hover:bg-slate-200 text-[10px] font-extrabold rounded flex items-center gap-1"
+                    >
+                      <Plus className="size-3" /> + Associar Insumo
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5" id="edit-chemical-lines">
+                    {formRequiredProducts.map((p, pIdx) => (
+                      <div key={pIdx} className="flex items-center gap-2" id={`edit-chem-line-${pIdx}`}>
+                        <select
+                          value={p.productId}
+                          onChange={(e) => updateChemicalField(pIdx, 'productId', e.target.value)}
+                          className="flex-1 h-9 px-2 border rounded-lg bg-white text-[11px]"
+                        >
+                          {inventoryProducts.map(pDef => (
+                            <option key={pDef.id} value={pDef.id}>{pDef.name}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          value={p.quantityPer100m2}
+                          onChange={(e) => updateChemicalField(pIdx, 'quantityPer100m2', parseFloat(e.target.value) || 0)}
+                          placeholder="Dosagem"
+                          className="w-20 h-9 px-2 border rounded-lg text-center font-bold text-[11px]"
+                        />
+                        <span className="text-[10px] font-mono font-bold text-slate-500 w-8">{p.unit}</span>
+                        <button 
+                          type="button"
+                          onClick={() => removeChemicalLine(pIdx)}
+                          className="p-1 px-1.5 text-red-500 hover:bg-red-50 rounded"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    {formRequiredProducts.length === 0 && (
+                      <p className="text-[10px] font-medium italic text-slate-400 py-1">Não há insumos indicados.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* MODAL BOTTOM BUTTONS */}
+                <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                  <button 
+                    type="button" 
+                    onClick={() => { setIsEditOpen(false); setEditingPop(null); }}
+                    className="px-4 py-2 border rounded-lg text-slate-600 font-bold hover:bg-slate-55"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-5 py-2 bg-[#1B3A2D] text-white font-black rounded-lg hover:bg-emerald-800 shadow-sm"
+                  >
+                    Salvar Alterações
+                  </button>
+                </div>
+
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 8. MODAL FOR UPLOAD DOCUMENTATION FLUX (DRAG & DROP) */}
+      <AnimatePresence>
+        {isUploadOpen && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto" id="upload-modal-backdrop">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              className="bg-white rounded-xl border border-slate-250 shadow-2xl w-full max-w-md p-6 relative"
+              id="upload-modal-container"
+            >
+              <button onClick={() => setIsUploadOpen(false)} className="absolute top-4 right-4 p-1 hover:bg-slate-100 rounded-lg text-slate-450 transition cursor-pointer">
+                <X className="size-5" />
+              </button>
+
+              <div className="space-y-4 text-left" id="upload-modal-main-view">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm">Biblioteca Global: Drag & Drop Uploader</h3>
+                  <p className="text-xs text-slate-400 font-medium">Cadastre insumos em lote arrastando arquivos para conversão instantânea.</p>
+                </div>
+
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  onClick={() => document.getElementById('uploader-file-selector-box')?.click()}
+                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${isDragging ? 'bg-emerald-50/50 border-emerald-500' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}
+                >
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <div className="p-3 bg-white border rounded-lg text-emerald-600 shadow-xs">
+                      <Upload className="size-5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800">Arraste a diretriz operacional aqui</span>
+                    <span className="text-[10px] text-slate-400 font-medium max-w-[220px] leading-relaxed">
+                      Formatos aceitos: PDF, DOCX, DOC, XLS, XLSX, CSV, PPT, PPTX, JPG, PNG (Limite: 3MB)
+                    </span>
+                  </div>
+                  <input 
+                    type="file" 
+                    id="uploader-file-selector-box" 
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) handleUploadedFiles(e.target.files[0]);
+                    }}
+                    className="hidden" 
+                  />
+                </div>
+
+                {uploadedFileName && (
+                  <div className="p-3 bg-emerald-50 text-[#1B3A2D] rounded-lg text-[11px] font-sans border border-emerald-200 mt-2 flex items-center justify-between font-bold">
+                    <span className="truncate">{uploadedFileName}</span>
+                    <button type="button" onClick={() => { setUploadedFileName(undefined); setUploadedBase64(undefined); }} className="text-[#1b3a2d] font-bold ml-2">✕</button>
+                  </div>
+                )}
+
+                <div className="space-y-2 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-400 font-medium">
+                  <p className="font-bold text-slate-650 flex items-center gap-1.5"><Info className="size-3.5" /> Requisito ANVISA:</p>
+                  <span>Cada arquivo acoplado deve conter obrigatoriamente as assinaturas do Responsável Químico correspondente no rodapé da folha oficial.</span>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                  <button 
+                    onClick={() => setIsUploadOpen(false)}
+                    className="px-4 py-2 border rounded-lg text-slate-600 text-xs font-bold hover:bg-slate-50"
+                  >
+                    Fechar Uploader
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (!uploadedFileName) {
+                        toast.error('Escolha um arquivo primeiro!');
+                        return;
+                      }
+                      // Pre-fill creation modal with current attached file boundaries
+                      setIsUploadOpen(false);
+                      setIsCreateOpen(true);
+                      setFormName(uploadedFileName.replace(/\.[^/.]+$/, ""));
+                    }}
+                    className="px-4 py-2 bg-[#1B3A2D] text-white text-xs font-bold rounded-lg hover:bg-emerald-800"
+                  >
+                    Seguir para Cadastro
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 9. MODAL FOR INTEGRATED TRAINING PLAYER (ACADEMY COURSE FLUX) */}
+      <AnimatePresence>
+        {activeTraining && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto" id="course-modal-backdrop">
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 15 }}
+              className="bg-white rounded-xl border border-slate-250 shadow-2xl w-full max-w-3xl overflow-hidden"
+              id="course-modal-container"
+            >
+              
+              {/* Header */}
+              <div className="bg-indigo-600 text-white px-6 py-4 flex items-center justify-between" id="course-header">
+                <div className="space-y-0.5 text-left">
+                  <span className="text-[9px] font-extrabold tracking-widest bg-white/25 px-2 py-0.5 rounded uppercase font-sans">DDSulf Corporate Academy</span>
+                  <h3 className="font-extrabold text-white text-base leading-tight mt-1">{activeTraining.title}</h3>
+                </div>
+                <button onClick={() => setActiveTraining(null)} className="p-1 hover:bg-white/10 rounded-lg text-red-100 transition cursor-pointer">
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              {/* Main Content Area */}
+              <div className="p-6 md:p-8 min-h-[350px] text-slate-800 font-sans" id="course-room-main-board">
+                
+                {isQuizMode ? (
+                  /* QUIZ VALIDATION CERTIFICATE SCREEN */
+                  <div className="space-y-6 text-left" id="course-quiz-flow">
+                    <div id="quiz-intro-row">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 flex items-center gap-1"><Award className="size-4" /> Certificação de Capacitação Técnica</span>
+                      <h4 className="text-base font-extrabold text-slate-800 mt-1">Gabarito de Verificação Técnica Sanitária</h4>
+                      <p className="text-xs text-slate-400 font-semibold leading-relaxed mt-0.5">Responda corretamente as questões abaixo para obter o seu certificado oficial da franquia DDSulf.</p>
+                    </div>
+
+                    {showQuizResult ? (
+                      /* SIMULATED WRITTEN CERTIFICATE PREVIEW */
+                      <div className="space-y-6 text-center" id="quiz-results-screen">
+                        {(() => {
+                          let correctCount = 0;
+                          activeTraining.quiz.forEach((q, qIdx) => {
+                            if (quizAnswers[qIdx] === q.correctIndex) correctCount++;
+                          });
+                          const isPassed = correctCount === activeTraining.quiz.length;
+
+                          return (
+                            <div className="space-y-5" id="certifications-outcome-wrapper">
+                              {isPassed ? (
+                                <div className="space-y-4" id="success-certificated-box">
+                                  <div className="inline-flex p-4 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-full animate-bounce">
+                                    <Award className="size-10" />
+                                  </div>
+                                  <div className="space-y-1 max-w-md mx-auto">
+                                    <h4 className="text-base font-black text-slate-800 uppercase tracking-wide">Parabéns! Técnica Homologada</h4>
+                                    <p className="text-xs text-slate-400 leading-relaxed font-semibold">Você acertou {correctCount} de {activeTraining.quiz.length} perguntas e obteve 100% de aproveitamento!</p>
+                                  </div>
+
+                                  {/* Beautiful classical layout certificate frame */}
+                                  <div className="p-6 bg-slate-50 border-4 border-double border-indigo-700/30 rounded-xl space-y-4 text-center max-w-lg mx-auto relative overflow-hidden" id="classical-laudo-frame">
+                                    <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl pointer-events-none" />
+                                    
+                                    <span className="text-[10px] tracking-widest text-[#1b3a2d] font-bold uppercase block">LAUDO DE HABILITAÇÃO SANITÁRIA</span>
+                                    <span className="text-[11px] italic font-sans block text-slate-400 leading-none">Certificamos para os devidos fins que</span>
+                                    
+                                    <input 
+                                      type="text"
+                                      value={certifiedName}
+                                      onChange={(e) => setCertifiedName(e.target.value)}
+                                      placeholder="Digite seu Nome de Operador Completo..."
+                                      className="border-b-2 border-indigo-200 focus:border-indigo-600 outline-none text-center h-10 w-full max-w-sm text-sm font-extrabold text-slate-800 bg-transparent placeholder:text-slate-350"
+                                    />
+
+                                    <p className="text-[11px] text-slate-500 max-w-md mx-auto font-medium leading-relaxed">
+                                      concluiu com êxito as diretrizes operacionais de 
+                                      <strong className="text-slate-800 block mt-0.5">{activeTraining.title} ({activeTraining.duration})</strong>
+                                    </p>
+
+                                    <div className="flex items-center justify-between text-[9px] text-slate-400 font-sans border-t border-slate-200 pt-3">
+                                      <span>Token: #{Math.random().toString(36).substring(2, 10).toUpperCase()}</span>
+                                      <span>DDSulf S/A - {new Date().toLocaleDateString('pt-BR')}</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      onClick={downloadSimulatedCertificate}
+                                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm"
+                                    >
+                                      Download Certificado
+                                    </button>
+                                    <button
+                                      onClick={() => setActiveTraining(null)}
+                                      className="px-4 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-lg"
+                                    >
+                                      Fechar Curso
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-4 max-w-md mx-auto" id="failure-certificated-box">
+                                  <div className="inline-flex p-4 bg-red-50 text-red-600 rounded-full">
+                                    <AlertTriangle className="size-8" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">Aproveitamento Insuficiente</h4>
+                                    <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                                      Você respondeu {correctCount} de {activeTraining.quiz.length} questões corretamente. Necessário acerto técnico integral (100%) para emissão do certificado sanitário.
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      onClick={() => {
+                                        setQuizAnswers([]);
+                                        setShowQuizResult(false);
+                                      }}
+                                      className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg"
+                                    >
+                                      Tentar Novamente
+                                    </button>
+                                    <button
+                                      onClick={() => setActiveTraining(null)}
+                                      className="px-4 py-2 border text-slate-650 text-xs rounded-lg"
+                                    >
+                                      Sair
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      /* ACTIVE QUIZ QUESTION PANEL */
+                      <div className="space-y-6" id="quiz-question-list">
+                        {activeTraining.quiz.map((q, qIdx) => {
+                          const userSelected = quizAnswers[qIdx];
+                          return (
+                            <div key={qIdx} className="space-y-2.5 p-4 bg-slate-50 rounded-xl border border-slate-200/60" id={`quiz-block-${qIdx}`}>
+                              <span className="text-[10px] text-slate-400 font-sans font-extrabold block">Questão #0{qIdx + 1} de {activeTraining.quiz.length}</span>
+                              <h5 className="font-extrabold text-slate-800 text-xs leading-relaxed">{q.question}</h5>
+                              <div className="grid grid-cols-1 gap-2 mt-2">
+                                {q.options.map((opt, oIdx) => {
+                                  const isSelected = userSelected === oIdx;
+                                  return (
+                                    <button
+                                      key={oIdx}
+                                      onClick={() => handleSelectQuizAnswer(qIdx, oIdx)}
+                                      className={`p-3 text-left text-xs font-semibold rounded-lg border transition-all ${
+                                        isSelected 
+                                          ? 'bg-indigo-50 border-indigo-400 text-indigo-900 shadow-xs' 
+                                          : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      <span className="flex items-center gap-2">
+                                        <span className={`size-1.5 rounded-full ${isSelected ? 'bg-indigo-600' : 'bg-slate-350'}`} />
+                                        {opt}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+                          <button
+                            onClick={() => setIsQuizMode(false)}
+                            className="text-slate-500 hover:text-slate-800 text-xs font-bold"
+                          >
+                            Voltar para o Material
+                          </button>
+                          <button
+                            onClick={submitTrainingQuiz}
+                            className="px-5 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-lg"
+                          >
+                            Finalizar e Corrigir Questões
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                ) : (
+                  /* CLASS SLIDES DECK MATERIAL VIEW */
+                  <div className="space-y-6 text-left" id="slides-deck-material-player">
+                    <div>
+                      <span className="text-[10px] font-extrabold tracking-wider text-indigo-600 font-sans uppercase">Leitura do Material</span>
+                      <h4 className="text-sm font-extrabold text-slate-800 mt-0.5">Módulo de Leitura: Slides {courseSlideIdx + 1} de {activeTraining.slides.length}</h4>
+                      <div className="w-full h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                        <div 
+                          className="h-full bg-indigo-600 transition-all duration-300"
+                          style={{ width: `${((courseSlideIdx + 1)/activeTraining.slides.length)*100}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Active dynamic visual slide card layout */}
+                    <div className="p-8 md:p-11 bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-inner flex items-center justify-center min-h-[190px] relative overflow-hidden" id="active-slide-sandbox">
+                      <div className="absolute right-0 top-0 w-44 h-44 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+                      <p className="text-sm md:text-base font-medium text-slate-100 leading-relaxed font-sans max-w-xl text-center">
+                        {activeTraining.slides[courseSlideIdx]}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-slate-100 pt-4" id="slides-action-buttons">
+                      <button
+                        disabled={courseSlideIdx === 0}
+                        onClick={() => setCourseSlideIdx(prev => prev - 1)}
+                        className={`px-4 py-2 border text-xs font-semibold rounded-lg transition ${courseSlideIdx === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-50'}`}
+                      >
+                        Slide Anterior
+                      </button>
+                      <button
+                        onClick={handleNextSlide}
+                        className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
+                      >
+                        {courseSlideIdx === activeTraining.slides.length - 1 ? 'Iniciar Exame Técnico' : 'Próximo Slide'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
+            </motion.div>
           </div>
         )}
       </AnimatePresence>

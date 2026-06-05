@@ -22,7 +22,8 @@ import {
   PackageCheck,
   Scale,
   Activity,
-  ArrowRight
+  ArrowRight,
+  XCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -30,7 +31,7 @@ import { ConfirmacaoServicoModal } from './ConfirmacaoServicoModal';
 import { MarcarRetornoModal } from './MarcarRetornoModal';
 
 export function ServicoConfirmacaoPage() {
-  const { quotes, confirmServiceExecuted, markAsRetorno } = useSystemStore();
+  const { quotes, confirmServiceExecuted, markAsRetorno, updateQuoteStatus } = useSystemStore();
   const quoteList = quotes?.list || [];
 
   // Active tab state in sub-page
@@ -42,6 +43,10 @@ export function ServicoConfirmacaoPage() {
 
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [selectedQuoteForReturn, setSelectedQuoteForReturn] = useState<Quote | null>(null);
+
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [selectedQuoteForReject, setSelectedQuoteForReject] = useState<Quote | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   // Date Filtering Helper
   const now = new Date();
@@ -171,26 +176,31 @@ export function ServicoConfirmacaoPage() {
     toast.success(`Retorno registrado! Custo de R$ ${cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} lançado no financeiro.`);
   };
 
+  const handleRejectQuote = () => {
+    if (!selectedQuoteForReject) return;
+    updateQuoteStatus(selectedQuoteForReject.id, 'recusado');
+    setIsRejectModalOpen(false);
+    setSelectedQuoteForReject(null);
+    setRejectReason('');
+    toast.success('Orçamento recusado. Estoque revertido automaticamente.');
+  };
+
   return (
     <div className="flex-1 w-full bg-[#FAF9F5] min-h-[calc(100vh-64px)] p-6 md:p-8 font-sans antialiased text-[#1D1D18]">
       <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Upper Header styling with minimalist badge */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-slate-200/40 pb-4">
           <div>
-            <div className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-[#2D6A4F] uppercase tracking-widest bg-[#E3EFE5] px-3 py-1 rounded-full mb-2 w-fit">
-              <span className="size-1.5 bg-[#2E7D32] rounded-full animate-pulse" />
-              Sincronia de Atendimento e Insumos
-            </div>
-            <h1 className="text-3xl font-display font-black text-[#141410] tracking-tight">
-              Gerente de Confirmações
+            <h1 className="text-[40px] font-bold text-slate-900 leading-none tracking-tight">
+              Confirmação de Serviços
             </h1>
-            <p className="text-sm text-[#706F65] max-w-xl">
-              Selecione orçamentos fechados para validar execuções em campo, registrando laudos técnicos, baixas de inventário integradas e contingência de retornos gratuitos em garantia.
+            <p className="text-base text-slate-500 font-normal mt-2">
+              Valide execuções em campo, laudos técnicos, baixas de estoque e retornos de garantia.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-white border border-[#EBEBE5] px-4 py-2.5 rounded-2xl shadow-xs">
+          <div className="flex items-center gap-3 bg-white border border-slate-200 px-4 py-2.5 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] shrink-0">
             <Activity className="size-4 text-[#2D6A4F]" />
             <div className="text-left">
               <span className="block text-[10px] font-mono text-slate-400 font-bold uppercase leading-tight">Canal Ativo</span>
@@ -449,9 +459,18 @@ export function ServicoConfirmacaoPage() {
                               className="flex-1 h-11 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1"
                               id={`btn-confirm-${q.id}`}
                             >
-                              <CheckCircle2 className="size-3.5" /> Confirmar Exercício
+                              <CheckCircle2 className="size-3.5" /> Confirmar Execução
                             </button>
                           )}
+
+                          <button
+                            type="button"
+                            onClick={() => { setSelectedQuoteForReject(q); setIsRejectModalOpen(true); }}
+                            className="px-3 h-11 border border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-700 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1"
+                            title="Recusar orçamento"
+                          >
+                            <XCircle className="size-4" /> Recusar
+                          </button>
 
                           {!q.hasReturn && (
                             <button
@@ -690,6 +709,83 @@ export function ServicoConfirmacaoPage() {
               setSelectedQuoteForReturn(null);
             }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* REJECTION MODAL */}
+      <AnimatePresence>
+        {isRejectModalOpen && selectedQuoteForReject && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white border border-[#EBEBE5] rounded-3xl max-w-md w-full overflow-hidden shadow-xl text-left"
+            >
+              <div className="px-6 py-4 border-b border-[#FAF9F5] flex items-center justify-between">
+                <div>
+                  <h3 className="font-display font-black text-[#141410] text-sm uppercase tracking-wider">
+                    Recusar orçamento?
+                  </h3>
+                  <p className="text-[10px] text-[#706F65] mt-0.5">Confirme a recusa do orçamento #{selectedQuoteForReject.id}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRejectModalOpen(false);
+                    setSelectedQuoteForReject(null);
+                    setRejectReason('');
+                  }}
+                  className="p-1 text-[#706F65] hover:text-[#141410] bg-[#FAF9F5] border border-[#EBEBE5] rounded-lg cursor-pointer"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {selectedQuoteForReject.status === 'aprovado' && (
+                  <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-xl text-xs text-rose-800 font-medium flex items-start gap-2.5">
+                    <AlertCircle className="size-4 text-rose-700 shrink-0 mt-0.5 animate-pulse" />
+                    <span>
+                      Este orçamento já foi aprovado. O estoque será revertido automaticamente.
+                    </span>
+                  </div>
+                )}
+
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#706F65]">Motivo da recusa (opcional)</label>
+                  <textarea
+                    placeholder="Escreva opcionalmente a justificativa para a recusa..."
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    rows={3}
+                    className="w-full bg-[#FAF9F5] border border-[#EBEBE5] rounded-xl px-3.5 py-2 text-xs font-sans text-[#141410] focus:ring-1 focus:ring-[#1B3A2D] focus:outline-none"
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-[#FAF9F5] flex justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsRejectModalOpen(false);
+                      setSelectedQuoteForReject(null);
+                      setRejectReason('');
+                    }}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[#141410] text-[10px] font-bold uppercase tracking-wider rounded-lg cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRejectQuote}
+                    className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg cursor-pointer flex items-center gap-1.5"
+                  >
+                    Confirmar Recusa
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

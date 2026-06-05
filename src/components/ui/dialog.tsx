@@ -55,19 +55,28 @@ function DialogOverlay({
 
 function DialogContent({
   className,
+  size = "md",
   children,
   showCloseButton = true,
   ...props
 }: DialogPrimitive.Popup.Props & {
+  size?: "sm" | "md" | "lg"
   showCloseButton?: boolean
 }) {
+  const sizeClasses = {
+    sm: "sm:max-w-[480px]",
+    md: "sm:max-w-[640px]",
+    lg: "sm:max-w-[900px]",
+  }
+
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-2xl bg-white p-6 shadow-xl border border-slate-150 duration-150 outline-none ease-out data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          sizeClasses[size],
           className
         )}
         {...props}
@@ -79,14 +88,13 @@ function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-2 right-2"
-                size="icon-sm"
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
+                size="icon-xs"
               />
             }
           >
-            <XIcon
-            />
-            <span className="sr-only">Close</span>
+            <XIcon className="size-4" />
+            <span className="sr-only">Fechar</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Popup>

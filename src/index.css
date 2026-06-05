@@ -83,6 +83,77 @@
     letter-spacing: -0.01em;
   }
 
+  /* Input, Select, Textarea global focus and SaaS style styling */
+  input[type="text"]:not(#global-search-input), 
+  input[type="email"], 
+  input[type="password"], 
+  input[type="number"], 
+  input[type="tel"]:not([id^="phone"]),
+  select:not([data-slot="select-trigger"]) {
+    height: 48px !important;
+    border-radius: 12px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    border-color: #E2E8F0 !important;
+    font-size: 0.875rem !important;
+    background-color: #FFFFFF !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+  input[type="text"]:not(#global-search-input):focus, 
+  input[type="email"]:focus, 
+  input[type="password"]:focus, 
+  input[type="number"]:focus, 
+  input[type="tel"]:not([id^="phone"]):focus,
+  select:not([data-slot="select-trigger"]):focus {
+    border-color: #1B3A2D !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(27, 58, 45, 0.1) !important;
+  }
+  
+  textarea {
+    min-height: 120px !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    border-color: #E2E8F0 !important;
+    font-size: 0.875rem !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+  textarea:focus {
+    border-color: #1B3A2D !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(27, 58, 45, 0.1) !important;
+  }
+
+  /* Radio button base style */
+  input[type="radio"] {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    width: 20px !important;
+    height: 20px !important;
+    border: 2px solid #CBD5E1 !important;
+    border-radius: 50% !important;
+    outline: none !important;
+    background-color: #FFFFFF !important;
+    cursor: pointer !important;
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease-in-out !important;
+  }
+  input[type="radio"]:checked {
+    border-color: #1B3A2D !important;
+    background-color: #FFFFFF !important;
+  }
+  input[type="radio"]:checked::after {
+    content: "" !important;
+    display: block !important;
+    width: 10px !important;
+    height: 10px !important;
+    background-color: #1B3A2D !important;
+    border-radius: 50% !important;
+  }
+
   /* Scrollbar customizada */
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }

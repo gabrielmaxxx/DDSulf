@@ -1,4 +1,17 @@
-import { Shield, LayoutDashboard, Calculator, Receipt, ClipboardCheck, Package, Settings, LogOut, BrainCircuit, CheckSquare, CalendarDays, Users } from 'lucide-react';
+import { 
+  Shield, 
+  LayoutDashboard, 
+  Calculator, 
+  Receipt, 
+  ClipboardCheck, 
+  Package, 
+  Settings, 
+  LogOut, 
+  BrainCircuit, 
+  CheckSquare, 
+  CalendarDays, 
+  Users 
+} from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
@@ -24,7 +37,6 @@ export function AppSidebar() {
 
   const handleLogout = () => {
     useSystemStore.getState().logoutCompany();
-    // Simulate logging out from current account view
     window.location.reload();
   };
 
@@ -35,16 +47,20 @@ export function AppSidebar() {
   const mainGroup = [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/' },
     { title: 'IA Operacional', icon: BrainCircuit, path: '/ai', aiBadge: true },
+    { title: 'Financeiro', icon: Receipt, path: '/financial' },
   ];
 
   const operationGroup = [
     { title: 'Calculadora', icon: Calculator, path: '/calculator' },
+    { title: 'Agenda e Serviços', icon: CalendarDays, path: '/agenda' },
     { title: 'Confirmação de Serviços', icon: ClipboardCheck, path: '/confirmacoes' },
     { title: 'Clientes', icon: Users, path: '/clientes' },
-    { title: 'Agenda', icon: CalendarDays, path: '/agenda' },
-    { title: 'Financeiro', icon: Receipt, path: '/financial' },
-    { title: 'POPs Operacionais', icon: CheckSquare, path: '/pops' },
+    { title: 'POPs e Procedimentos', icon: CheckSquare, path: '/pops' },
     { title: 'Estoque', icon: Package, path: '/inventory' },
+  ];
+
+  const configGroup = [
+    { title: 'Configurações', icon: Settings, path: '/settings' },
   ];
 
   const renderMenuItem = (item: { title: string; icon: any; path: string; aiBadge?: boolean }) => {
@@ -57,22 +73,25 @@ export function AppSidebar() {
           render={<Link to={item.path} />}
           isActive={isActive}
           className={cn(
-            "transition-all duration-200 h-10 px-4 rounded-xl flex items-center gap-3 w-full border border-transparent font-medium",
+            "transition-all duration-200 h-12 w-full flex items-center px-4 rounded-xl cursor-pointer border border-transparent font-semibold tracking-wide text-sm select-none",
             isActive
-              ? "bg-white text-[#1B3A2D] font-bold shadow-md shadow-emerald-950/10 hover:bg-white hover:text-[#1B3A2D]"
-              : "text-[#E8F4EE]/90 hover:bg-[#2D6A4F] hover:text-white"
+              ? "bg-white text-[#1B3A2D] shadow-md shadow-emerald-950/20 hover:bg-white hover:text-[#1B3A2D]"
+              : "bg-transparent text-white hover:bg-white/10 text-white/90 hover:text-white"
           )}
           tooltip={item.title}
         >
-          <Icon className={cn("size-[18px] shrink-0", isActive ? "text-[#1B3A2D]" : "text-[#E8F4EE]/85")} />
-          <span className="text-xs tracking-tight">{item.title}</span>
+          <Icon className={cn("size-5 shrink-0 transition-colors", isActive ? "text-[#1B3A2D]" : "text-white/80")} />
+          <span className="ml-3 text-sm truncate">{item.title}</span>
           {item.path === '/confirmacoes' && pendingCount > 0 && (
-            <span className="ml-auto bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+            <span className={cn(
+              "ml-auto text-[10px] font-black px-2 py-0.5 rounded-full transition-all shrink-0",
+              isActive ? "bg-[#1B3A2D] text-white" : "bg-rose-500 text-white"
+            )}>
               {pendingCount}
             </span>
           )}
           {item.aiBadge && (
-            <span className="ml-auto flex items-center justify-center">
+            <span className="ml-auto inline-flex items-center justify-center shrink-0">
               <span className="relative flex h-2 w-2 mr-1">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D4A017] opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D4A017]"></span>
@@ -81,7 +100,7 @@ export function AppSidebar() {
                 "text-[9px] font-black tracking-wider uppercase px-1.5 py-0.5 rounded-md",
                 isActive 
                   ? "bg-[#D4A017] text-white" 
-                  : "bg-[#D4A017] text-slate-900"
+                  : "bg-[#D4A017]/20 text-[#D4A017] border border-[#D4A017]/30"
               )}>
                 IA
               </span>
@@ -93,26 +112,28 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar variant="sidebar" collapsible="icon" className="bg-[#1B3A2D] border-r border-[#2D6A4F]/60 text-[#E8F4EE]">
-      {/* Header with Luxury Shield Logo */}
-      <SidebarHeader className="px-6 py-6 border-b border-[#2D6A4F] bg-[#1B3A2D]">
-        <div className="flex items-center gap-3.5 overflow-hidden">
-          <div className="relative size-10 shrink-0 flex items-center justify-center bg-[#2D6A4F]/40 border border-[#D4A017]/55 rounded-xl text-[#D4A017] shadow-lg shadow-emerald-950/20">
+    <Sidebar variant="sidebar" collapsible="icon" className="bg-gradient-to-b from-[#1B3A2D] to-[#12271E] border-r border-[#2D6A4F]/20 text-[#E8F4EE]">
+      {/* Top Sidebar: Padding 32px top (pt-8), 24px horizontal (px-6) */}
+      <SidebarHeader className="px-6 pt-8 pb-6 bg-transparent">
+        <div className="flex items-center gap-4 overflow-hidden">
+          <div className="relative size-12 shrink-0 flex items-center justify-center bg-white/10 border border-[#D4A017]/40 rounded-xl text-[#D4A017] shadow-md shadow-emerald-950/15">
             <Shield className="size-6 shrink-0 fill-[#D4A017]/5" />
-            <span className="absolute text-[10px] font-black tracking-tighter text-[#D4A017] select-none">DD</span>
+            <span className="absolute text-[11px] font-black tracking-tighter text-[#D4A017] select-none">DD</span>
           </div>
-          <div className="flex flex-col truncate">
-            <span className="font-display font-extrabold text-lg text-white tracking-wide leading-tight">DDSulf</span>
-            <span className="text-[9px] font-semibold text-[#82B29D] tracking-wider uppercase font-sans mt-0.5">Centro de Inteligência</span>
+          <div className="flex flex-col truncate text-left">
+            <span className="font-sans font-black text-xl text-white tracking-wide leading-tight">DDSulf</span>
+            <span className="text-[10px] font-bold text-[#82B29D] tracking-wide uppercase font-mono mt-0.5">
+              Sistema Operacional Inteligente
+            </span>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="bg-[#1B3A2D] px-2.5 py-4 space-y-4">
-        {/* GROUP 1: PRINCIPAL */}
-        <SidebarGroup className="p-0">
-          <div className="px-4 mb-2.5">
-            <span className="text-[10px] font-black text-[#82B29D] uppercase tracking-wider font-sans">
+      <SidebarContent className="bg-transparent px-4 py-4 space-y-6">
+        {/* GRUPO PRINCIPAL */}
+        <SidebarGroup className="p-0 space-y-2">
+          <div className="px-3">
+            <span className="text-[10px] font-bold text-[#82B29D] uppercase tracking-wider font-sans">
               Principal
             </span>
           </div>
@@ -123,13 +144,13 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Separator */}
-        <div className="h-px bg-[#2D6A4F] my-4 mx-2" />
+        {/* Separator Line */}
+        <div className="h-px bg-[#2D6A4F]/20 mx-2" />
 
-        {/* GROUP 2: OPERAÇÃO */}
-        <SidebarGroup className="p-0">
-          <div className="px-4 mb-2.5">
-            <span className="text-[10px] font-black text-[#82B29D] uppercase tracking-wider font-sans">
+        {/* GRUPO OPERAÇÃO */}
+        <SidebarGroup className="p-0 space-y-2">
+          <div className="px-3">
+            <span className="text-[10px] font-bold text-[#82B29D] uppercase tracking-wider font-sans">
               Operação
             </span>
           </div>
@@ -139,51 +160,41 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-      </SidebarContent>
 
-      <SidebarFooter className="bg-[#1B3A2D] mt-auto">
-        {/* Separator, Config & User Controls in footer */}
-        <div className="h-px bg-[#2D6A4F] my-2 mx-2" />
+        {/* Separator Line */}
+        <div className="h-px bg-[#2D6A4F]/20 mx-2" />
 
-        <SidebarGroup className="p-1">
+        {/* GRUPO CONFIGURAÇÕES */}
+        <SidebarGroup className="p-0 space-y-2">
+          <div className="px-3">
+            <span className="text-[10px] font-bold text-[#82B29D] uppercase tracking-wider font-sans">
+              Configurações
+            </span>
+          </div>
           <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  render={<Link to="/settings" />} 
-                  tooltip="Configurações"
-                  className={cn(
-                    "transition-all duration-200 h-10 px-4 rounded-xl flex items-center gap-3 w-full font-medium",
-                    location.pathname === '/settings'
-                      ? "bg-white text-[#1B3A2D] font-bold"
-                      : "text-[#E8F4EE]/90 hover:bg-[#2D6A4F]"
-                  )}
-                >
-                  <Settings className="size-[18px] shrink-0" />
-                  <span className="text-xs">Configurações</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+            <SidebarMenu className="gap-1.5">
+              {configGroup.map(renderMenuItem)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+      </SidebarContent>
 
-        <div className="h-px bg-[#2D6A4F] my-2 mx-2" />
-
-        {/* Premium User Info and Logout bar */}
-        <div className="p-3 mx-2.5 mb-2.5 rounded-2xl bg-[#2D6A4F]/30 border border-[#2D6A4F]/40 flex items-center justify-between gap-3.5 shadow-sm shadow-emerald-950/15">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <Avatar className="size-9 rounded-full border-2 border-[#D4A017] shadow-inner shrink-0 bg-emerald-950/20">
+      {/* Footer Slack-style */}
+      <SidebarFooter className="bg-transparent p-4 mt-auto">
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10 text-[#E8F4EE] shadow-inner gap-2.5">
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar className="size-10 rounded-xl border-2 border-[#D4A017] shrink-0 bg-emerald-950/20">
               <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${currentCompanyName}`} />
-              <AvatarFallback className="rounded-full bg-slate-900 text-white font-semibold">
+              <AvatarFallback className="rounded-xl bg-[#2D6A4F] text-white font-bold text-xs">
                 {currentCompanyName.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col truncate text-left">
               <span className="truncate font-bold text-xs text-white leading-tight">
-                {currentCompanyName}
+                {user?.name || currentCompanyName}
               </span>
-              <span className="truncate text-[9px] font-medium text-[#82B29D] capitalize mt-0.5">
-                {user?.role || 'Diretoria'}
+              <span className="truncate text-[10px] font-semibold text-[#82B29D] mt-0.5 capitalize leading-none">
+                {user?.role || 'Gestor'}
               </span>
             </div>
           </div>
@@ -191,7 +202,7 @@ export function AppSidebar() {
           <button
             onClick={handleLogout}
             title="Sair do Sistema"
-            className="p-1.5 rounded-lg bg-emerald-900/40 hover:bg-[#C1361A]/20 hover:text-red-400 text-[#E8F4EE] transition-all cursor-pointer shrink-0 border border-[#2D6A4F]/50 hover:border-[#C1361A]/50"
+            className="p-2 rounded-xl bg-white/5 hover:bg-rose-500/10 hover:text-rose-400 text-white/80 transition-all cursor-pointer shrink-0 border border-white/10 hover:border-rose-500/30"
           >
             <LogOut className="size-4" />
           </button>

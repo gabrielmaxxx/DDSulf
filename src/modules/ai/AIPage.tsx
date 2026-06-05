@@ -185,16 +185,20 @@ INSTRUÇÕES DE TOM DE VOZ E COMPORTAMENTO DA IA:
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-56px)] max-w-3xl mx-auto">
+    <div className="flex flex-col h-full max-w-5xl mx-auto">
       {/* Header fixo */}
-      <div className="py-6 px-4 border-b border-[#E8E6E1] shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="size-10 rounded-xl bg-[#1B3A2D] flex items-center justify-center">
-            <BrainCircuit className="size-5 text-[#D4A017]" />
-          </div>
-          <div>
-            <h1 className="font-display text-xl text-[#141410]">IA Operacional</h1>
-            <p className="text-xs text-[#6B6B5F]">Consultor inteligente com dados reais do sistema</p>
+      <div className="pb-6 border-b border-slate-200/40 shrink-0">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="size-14 rounded-2xl bg-[#1B3A2D] flex items-center justify-center shadow-md shadow-emerald-900/10 shrink-0">
+              <BrainCircuit className="size-7 text-[#D4A017]" />
+            </div>
+            <div>
+              <h1 className="text-[40px] font-bold text-slate-900 leading-none tracking-tight">IA Operacional</h1>
+              <p className="text-base text-slate-500 font-normal mt-2">
+                Consulte o assistente treinado com dados reais de inventário, laudos e fluxo financeiro.
+              </p>
+            </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
             {messages.length > 0 && (

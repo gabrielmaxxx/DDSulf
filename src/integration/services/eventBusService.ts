@@ -189,22 +189,7 @@ export class EventBusService {
           store.updateQuoteStatus(quoteId, 'aprovado');
         }
 
-        // 2. Criar Receita Prevista (cost isPaid: false)
-        const dateStr = payload.date || new Date().toISOString().split('T')[0];
-        const quoteValue = quote?.pricing?.finalPrice || payload.value || 0;
-        store.addFinancialMovement({
-          date: dateStr,
-          dueDate: dateStr,
-          description: `Receita Prevista - Orçamento #${quoteId} (${quote?.client?.name || payload.clientName || 'Cliente'})`,
-          category: 'RECEITAS',
-          subcategory: 'Orçamentos',
-          value: quoteValue,
-          paymentMethod: 'Pix',
-          costCenter: 'Geral',
-          isPaid: false
-        });
-
-        // 3. Criar Agendamento / Ordem de Serviço (AgendaEvent)
+        // 2. Criar Agendamento / Ordem de Serviço (AgendaEvent)
         const agendaId = `ev-os-${Math.random().toString(36).substring(2, 11)}`;
         store.addAgendaEvent({
           id: agendaId,

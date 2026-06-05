@@ -1,5 +1,4 @@
 import * as React from "react"
-
 import { cn } from "@/lib/utils"
 
 function Card({
@@ -12,7 +11,7 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        "group/card flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        "group/card flex flex-col gap-5 overflow-hidden rounded-2xl border border-slate-200/40 bg-white p-6 text-sm text-slate-800 shadow-[0_2px_12px_rgba(0,0,0,0.02)] transition-all duration-200 hover:shadow-[0_4px_20px_rgba(0,0,0,0.04)]",
         className
       )}
       {...props}
@@ -25,7 +24,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-header"
       className={cn(
-        "group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-xl px-4 group-data-[size=sm]/card:px-3 has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-4 group-data-[size=sm]/card:[.border-b]:pb-3",
+        "group/card-header flex flex-col gap-1.5 pb-2",
         className
       )}
       {...props}
@@ -38,7 +37,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-title"
       className={cn(
-        "font-heading text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",
+        "font-sans text-[22px] font-semibold text-slate-800 tracking-tight leading-snug",
         className
       )}
       {...props}
@@ -50,7 +49,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-xs text-slate-500 font-medium tracking-wide leading-relaxed", className)}
       {...props}
     />
   )
@@ -61,7 +60,7 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-action"
       className={cn(
-        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        "ml-auto",
         className
       )}
       {...props}
@@ -73,7 +72,7 @@ function CardContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-content"
-      className={cn("px-4 group-data-[size=sm]/card:px-3", className)}
+      className={cn("pt-2", className)}
       {...props}
     />
   )
@@ -84,7 +83,7 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-footer"
       className={cn(
-        "flex items-center rounded-b-xl border-t bg-muted/50 p-4 group-data-[size=sm]/card:p-3",
+        "flex items-center border-t border-slate-100 pt-4 mt-4 bg-transparent",
         className
       )}
       {...props}
@@ -100,4 +99,44 @@ export {
   CardAction,
   CardDescription,
   CardContent,
+  KpiCard,
+}
+
+function KpiCard({
+  title,
+  value,
+  trend,
+  trendType = 'default',
+  icon: Icon,
+  className
+}: {
+  title: string;
+  value: string | number;
+  trend?: string;
+  trendType?: 'positive' | 'negative' | 'neutral' | 'default';
+  icon?: any;
+  className?: string;
+}) {
+  return (
+    <Card className={cn("p-6", className)}>
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">{title}</span>
+        {Icon && <Icon className="size-5 text-slate-300 shrink-0" />}
+      </div>
+      <div className="mt-2.5 flex flex-col gap-1 text-left">
+        <span className="text-[32px] font-black text-slate-800 tracking-tight leading-none">{value}</span>
+        {trend && (
+          <span className={cn(
+            "text-xs font-bold tracking-wide mt-1",
+            trendType === 'positive' && "text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md w-fit",
+            trendType === 'negative' && "text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-md w-fit",
+            trendType === 'neutral' && "text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-md w-fit",
+            trendType === 'default' && "text-slate-500 bg-slate-50 border border-slate-100 px-3 py-1 rounded-md w-fit"
+          )}>
+            {trend}
+          </span>
+        )}
+      </div>
+    </Card>
+  )
 }

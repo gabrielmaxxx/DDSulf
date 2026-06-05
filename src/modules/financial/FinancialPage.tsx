@@ -94,24 +94,19 @@ export function FinancialPage() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
       
       {/* Top Header of page */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white border border-[#E8E6E1] p-6 rounded-3xl shadow-xs">
-        <div className="text-left space-y-1">
-          <span className="bg-[#EBFDF5] text-[#065F46] font-bold text-[10px] px-3 py-1 rounded-md border border-[#A7F3D0] uppercase tracking-wider inline-block">
-            Módulo Financeiro Integrado
-          </span>
-          <h1 className="font-display text-3xl font-black text-[#141410] mt-1.5">
-            Plano de Contas <span className="text-[#2D6A4F] italic">Inteligente</span> (DDSulf)
-          </h1>
-          <p className="text-xs text-[#6B6B5F] font-semibold leading-none">
-            Análise e reconciliação automática de faturamento e despesas do controle de pragas.
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-slate-200/40 pb-4">
+        <div>
+          <h1 className="text-[40px] font-bold text-slate-900 leading-none tracking-tight">Financeiro</h1>
+          <p className="text-base text-slate-500 font-normal mt-2">
+            Gerencie de forma integrada o fluxo de caixa, orçamento projetado e parâmetros de markup.
           </p>
         </div>
 
         {/* Floating Quick Action Demo Controller */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             onClick={handleResetForDemo}
-            className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold uppercase tracking-wider px-4 py-3 rounded-xl flex items-center gap-2 h-11 cursor-pointer transition-all"
+            className="bg-rose-50 hover:bg-rose-100 text-red-600 border border-rose-200 text-xs font-semibold uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-2 h-11 cursor-pointer transition-all"
             id="btn-demo-reset"
             title="Apaga os dados para iniciar a simulação comercial do absoluto zero"
           >

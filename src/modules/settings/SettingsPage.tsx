@@ -137,14 +137,12 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="size-2 bg-black rounded-full" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Painel Administrativo</span>
-          </div>
-          <h1 className="text-5xl font-black tracking-tightest text-black">Configurações do Sistema</h1>
-          <p className="text-xl text-[#6B7280] font-medium max-w-2xl">Defina as diretrizes financeiras, teto operacional e informações cadastrais da empresa.</p>
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200/40 pb-4">
+        <div>
+          <h1 className="text-[40px] font-bold text-slate-900 leading-none tracking-tight">Configurações</h1>
+          <p className="text-base text-slate-500 font-normal mt-2">
+            Defina as diretrizes financeiras, parâmetros de Markup e informações cadastrais da empresa.
+          </p>
         </div>
       </header>
 

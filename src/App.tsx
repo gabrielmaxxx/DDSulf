@@ -57,7 +57,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
-      <Toaster />
+      <Toaster position="top-right" duration={4000} />
     </AppProvider>
   );
 }
