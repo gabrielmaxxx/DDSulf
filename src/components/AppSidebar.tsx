@@ -1,4 +1,4 @@
-import { Shield, LayoutDashboard, Calculator, Receipt, ClipboardCheck, Package, Settings, LogOut, BrainCircuit, CheckSquare } from 'lucide-react';
+import { Shield, LayoutDashboard, Calculator, Receipt, ClipboardCheck, Package, Settings, LogOut, BrainCircuit, CheckSquare, CalendarDays, Users } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
@@ -40,6 +40,8 @@ export function AppSidebar() {
   const operationGroup = [
     { title: 'Calculadora', icon: Calculator, path: '/calculator' },
     { title: 'Confirmação de Serviços', icon: ClipboardCheck, path: '/confirmacoes' },
+    { title: 'Clientes', icon: Users, path: '/clientes' },
+    { title: 'Agenda', icon: CalendarDays, path: '/agenda' },
     { title: 'Financeiro', icon: Receipt, path: '/financial' },
     { title: 'POPs Operacionais', icon: CheckSquare, path: '/pops' },
     { title: 'Estoque', icon: Package, path: '/inventory' },

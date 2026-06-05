@@ -19,6 +19,8 @@ import { InventoryPage } from '@/modules/inventory/InventoryPage';
 import { AIPage } from '@/modules/ai/AIPage';
 import { SettingsPage } from '@/modules/settings/SettingsPage';
 import { ServicoConfirmacaoPage } from '@/modules/confirmacoes/ServicoConfirmacaoPage';
+import { AgendaPage } from '@/modules/agenda/AgendaPage';
+import { ClientesPage } from '@/modules/clientes/ClientesPage';
 
 import { AuthGuard } from '@/auth/guards/AuthGuard';
 
@@ -47,6 +49,8 @@ export default function App() {
           <Route path="/pops" element={<ProtectedLayout><POPsPage /></ProtectedLayout>} />
           <Route path="/inventory" element={<ProtectedLayout><InventoryPage /></ProtectedLayout>} />
           <Route path="/confirmacoes" element={<ProtectedLayout><ServicoConfirmacaoPage /></ProtectedLayout>} />
+          <Route path="/agenda" element={<ProtectedLayout><AgendaPage /></ProtectedLayout>} />
+          <Route path="/clientes" element={<ProtectedLayout><ClientesPage /></ProtectedLayout>} />
           <Route path="/ai" element={<ProtectedLayout><AIPage /></ProtectedLayout>} />
           <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
           
