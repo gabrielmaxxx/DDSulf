@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSystemStore } from '@/store';
 import { Button } from '@/components/ui/button';
 import { getPOPForService, calculateProductsForArea } from '@/utils/popUtils';
@@ -324,10 +325,28 @@ const mapEnvironmentType = (prop: string): EnvironmentType => {
 };
 
 export function CalculatorPage() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { financial, inventory, pops, settings, addQuote, clients, addClient, addAgendaEvent, quotes } = useSystemStore();
 
   const procedures = pops?.procedures || [];
   const products = inventory?.products || [];
+
+  // Effect to handle automatic client loading on mount from search parameters (?clientId=...)
+  useEffect(() => {
+    const clientIdParam = searchParams.get('clientId');
+    if (clientIdParam && clients && clients.length > 0) {
+      const found = clients.find((c: any) => c.id === clientIdParam);
+      if (found) {
+        setSelectedClient(found);
+        setClientName(found.name);
+        setClientAddress(typeof found.address === 'string' ? found.address : `${found.address?.street || ''}, ${found.address?.number || ''} - ${found.address?.neighborhood || ''}`);
+        setClientPhone(found.phone || '');
+        setSearchQuery(found.name);
+        toast.success(`Cliente "${found.name}" selecionado via fluxo operacional!`);
+      }
+    }
+  }, [searchParams, clients]);
 
   // Wizard active step: 1: Cliente, 2: Serviço, 3: Ambiente, 4: Área, 5: Complexidade, 6: Resultado
   const [currentStep, setCurrentStep] = useState(1);
@@ -364,6 +383,29 @@ export function CalculatorPage() {
   const [urgency, setUrgency] = useState<UrgencyLevel>('Normal');
   const [recurrence, setRecurrence] = useState<'Único' | 'Mensal' | 'Trimestral' | 'Semestral' | 'Anual'>('Único');
   const [customMargin, setCustomMargin] = useState<number>(35);
+
+  // Memoized historical statistics of the selected customer for context-aware calculator display
+  const clientStats = React.useMemo(() => {
+    if (!selectedClient) return null;
+    const clientQuotes = (quotes?.list || []).filter((q: any) => q.clientId === selectedClient.id && q.status !== 'rascunho');
+    const totalBilled = clientQuotes.reduce((acc, q) => acc + (q.pricing?.finalPrice || 0), 0);
+    const avgTicket = clientQuotes.length > 0 ? totalBilled / clientQuotes.length : 0;
+    
+    // Last completed service
+    const clientServices = (agenda || []).filter(e => e.clientId === selectedClient.id);
+    const lastServiceObj = clientServices.length > 0 ? clientServices[clientServices.length - 1] : null;
+    const lastService = lastServiceObj ? `${lastServiceObj.title} (${lastServiceObj.date})` : 'Sem registros anteriores';
+
+    // Active warranty check
+    const activeWarranty = clientQuotes.some((q: any) => q.status === 'enviado') ? 'Ativa (120 dias)' : 'Nenhuma garantia ativa';
+
+    return {
+      totalBilled,
+      avgTicket,
+      lastService,
+      activeWarranty
+    };
+  }, [selectedClient, quotes, agenda]);
 
   // Matched POP & modal states
   const [matchedPop, setMatchedPop] = useState<any>(null);
@@ -1021,6 +1063,37 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
                               <p className="font-extrabold text-slate-700 mt-0.5 truncate" title={clientAddress}>{clientAddress}</p>
                             </div>
                           </div>
+
+                          {/* SUBMÓDULO INTEGRADO: HISTÓRICO CONTEXTUAL DO CLIENTE */}
+                          {clientStats && (
+                            <div className="bg-white/90 border border-emerald-100/60 rounded-xl p-4.5 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs shadow-2xs">
+                              <div>
+                                <span className="text-[9px] text-[#1B3A2D] uppercase font-black tracking-wider block">Faturamento Total</span>
+                                <p className="font-black text-slate-800 mt-1 font-mono text-xs">
+                                  R$ {clientStats.totalBilled.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-[9px] text-[#1B3A2D] uppercase font-black tracking-wider block">Ticket Médio</span>
+                                <p className="font-black text-slate-800 mt-1 font-mono text-xs">
+                                  R$ {clientStats.avgTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-[9px] text-[#1B3A2D] uppercase font-black tracking-wider block">Garantia Ativa</span>
+                                <p className="text-slate-700 font-extrabold mt-1.5 flex items-center gap-1.5 leading-none">
+                                  <span className={`inline-block size-2 rounded-full ${clientStats.activeWarranty.includes('Ativa') ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                                  <span>{clientStats.activeWarranty}</span>
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-[9px] text-[#1B3A2D] uppercase font-black tracking-wider block">Último Serviço Executado</span>
+                                <p className="font-bold text-slate-700 mt-1 truncate" title={clientStats.lastService}>
+                                  {clientStats.lastService}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -1845,7 +1918,22 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3 text-xs font-semibold">
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3 text-xs font-semibold">
+                {selectedClient ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowShareModal(false);
+                      resetAllForm();
+                      navigate(`/clientes?clientId=${selectedClient.id}`);
+                    }}
+                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold uppercase text-[10px] rounded-xl transition-all cursor-pointer"
+                  >
+                    Abrir Perfil do Cliente
+                  </button>
+                ) : (
+                  <div />
+                )}
                 <button
                   type="button"
                   onClick={() => {

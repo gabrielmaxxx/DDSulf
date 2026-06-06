@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSystemStore } from '@/store';
 import { 
+  Activity,
+  Package,
   FileText, 
   Trash2, 
   Plus, 
@@ -268,7 +271,9 @@ const SEEDED_TRAININGS: TrainingCourse[] = [
 ];
 
 export function POPsPage() {
-  const { pops, inventory, addPOP, updatePOP, removePOP } = useSystemStore();
+  const { pops, inventory, agenda, clients, addPOP, updatePOP, removePOP } = useSystemStore();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const dbProcedures = pops?.procedures || [];
   const inventoryProducts = inventory?.products || [];
 
@@ -393,6 +398,22 @@ export function POPsPage() {
 
     setProcedures([...formattedDb, ...cleanSeeds]);
   }, [dbProcedures]);
+
+  // Listen for search or popId URL parameters to auto-focus POP and search entries
+  useEffect(() => {
+    const qSearch = searchParams.get('search');
+    if (qSearch && qSearch.trim() !== '') {
+      setSearchTerm(decodeURIComponent(qSearch));
+    }
+    const qPopId = searchParams.get('popId');
+    if (qPopId && procedures.length > 0) {
+      const found = procedures.find(p => p.id === qPopId);
+      if (found) {
+        setReadingPop(found);
+        toast.info(`Visualizando procedimento: ${found.name}`);
+      }
+    }
+  }, [searchParams, procedures]);
 
   // Load collaborator suggestions simulation local list
   useEffect(() => {
@@ -1193,15 +1214,26 @@ ${productsText}
                           {pop.instructions ? pop.instructions.replace(/[#*`_-]/g, '').substring(0, 140) + '...' : 'Ficha de diretriz instrucional corporativa geral.'}
                         </p>
 
+                        {/* INTEGRATED COLLABORATIVE DATA SHOWN DYNAMICALLY */}
+                        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 space-y-1.5 text-[10px]">
+                          <div className="flex items-center justify-between text-slate-600 font-bold">
+                            <span className="flex items-center gap-1"><Activity className="size-3 text-slate-400" /> Serviços Agendados:</span>
+                            <span className="text-[#1B3A2D] font-black">{matchingAgenda.length} OS vinculadas</span>
+                          </div>
+                          <div className="flex items-start justify-between text-slate-650 font-bold">
+                            <span className="flex items-center gap-1 mt-0.5"><Package className="size-3 text-slate-400" /> Insumos Associados:</span>
+                            <span className="text-[#1B3A2D] font-black text-right truncate max-w-[130px]">
+                              {activeProducts.map(p => p.name).join(', ') || pop.requiredProducts?.join(', ') || 'Nenhum insumo'}
+                            </span>
+                          </div>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 font-sans border-t border-slate-100 pt-2.5">
                           <div className="flex items-center gap-1.5 truncate">
                             <Clock className="size-3 text-slate-400" /> {pop.estimatedTimeHoursPer100m2}h / 100m²
                           </div>
                           <div className="flex items-center gap-1.5 truncate">
                             <Calendar className="size-3 text-slate-400" /> Revisado: {pop.lastRevision}
-                          </div>
-                          <div className="col-span-2 text-slate-400 flex items-center gap-1 truncate font-medium mt-0.5">
-                            Autor da Norma: <span className="text-slate-650 font-bold">{pop.author}</span>
                           </div>
                         </div>
                       </div>
@@ -1214,9 +1246,9 @@ ${productsText}
                           setReadingPop(pop);
                           setIsCompareMode(false);
                         }}
-                        className="flex-1 text-center py-2 border border-slate-200 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-650 transition-all"
+                        className="flex-1 text-center py-2.5 bg-slate-900 border border-slate-950 hover:bg-slate-800 rounded-lg text-xs font-black uppercase text-white transition-all cursor-pointer shadow-2xs leading-none"
                       >
-                        Visualizar
+                        Abrir POP
                       </button>
                       <button
                         id={`btn-edit-pop-trigger-${pop.id}`}
@@ -1527,6 +1559,88 @@ ${productsText}
                           Sugerir Alteração
                         </button>
                       )}
+                    </div>
+
+                    {/* CONTEXT INTEGRATION PANELS (UMA INFORMAÇÃO, MÚLTIPLOS CONTEXTOS) */}
+                    <div className="space-y-4 pt-2" id="pop-reading-room-shortcuts">
+                      
+                      {/* RELATING SERVICES */}
+                      <div className="p-4 bg-white rounded-xl border border-slate-100 space-y-2.5">
+                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#1B3A2D] flex items-center gap-1.5 border-b border-slate-105 pb-1.5">
+                          <Activity className="size-3.5 text-[#1B3A2D]" /> Serviços Relacionados ({readingMatchingAgenda.length})
+                        </h4>
+                        {readingMatchingAgenda.length > 0 ? (
+                          <div className="space-y-2">
+                            {readingMatchingAgenda.slice(0, 3).map((ev) => (
+                              <div key={ev.id} className="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-150">
+                                <span className="text-[10px] font-bold text-slate-700 truncate max-w-[150px]" title={ev.title}>
+                                  {ev.title}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    setReadingPop(null);
+                                    navigate(`/agenda?eventId=${ev.id}`);
+                                  }}
+                                  className="text-[9px] bg-white border border-slate-200 hover:bg-[#1B3A2D] hover:text-white px-2 py-0.5 rounded font-semibold cursor-pointer transition-all leading-6"
+                                >
+                                  Ver OS
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-slate-400 italic">Sem OS vinculada recentemente.</p>
+                        )}
+                      </div>
+
+                      {/* RELATING PRODUCTS AND QUANTITIES */}
+                      <div className="p-4 bg-white rounded-xl border border-slate-100 space-y-2.5">
+                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#1B3A2D] flex items-center gap-1.5 border-b border-slate-105 pb-1.5">
+                          <Package className="size-3.5 text-[#1B3A2D]" /> Produtos Relacionados ({readingActiveProducts.length})
+                        </h4>
+                        {readingActiveProducts.length > 0 ? (
+                          <div className="space-y-2">
+                            {readingActiveProducts.slice(0, 3).map((prod) => {
+                              const isLow = prod.quantity <= prod.minQuantity;
+                              return (
+                                <div key={prod.id} className="flex justify-between items-center bg-slate-50 p-2 rounded border border-slate-150">
+                                  <div className="space-y-0.5 text-left truncate max-w-[140px]">
+                                    <span className="text-[10px] font-bold text-slate-700 block truncate">{prod.name}</span>
+                                    <span className={`text-[9px] font-bold block ${isLow ? 'text-red-600 animate-pulse font-extrabold' : 'text-emerald-700'}`}>
+                                      Qtd: {prod.quantity} {prod.unit}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      setReadingPop(null);
+                                      navigate(`/inventory?search=${encodeURIComponent(prod.name)}`);
+                                    }}
+                                    className="text-[9px] bg-white border border-slate-200 hover:bg-[#1B3A2D] hover:text-white px-2 py-0.5 rounded font-semibold cursor-pointer transition-all leading-6"
+                                  >
+                                    Ver Estoque
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-slate-400 italic">Nenhum insumo de estoque associado.</p>
+                        )}
+                      </div>
+
+                      {/* RECENT ACCESS TRAILS */}
+                      <div className="p-4 bg-white rounded-xl border border-slate-100 space-y-2">
+                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-450 border-b border-slate-250 pb-1 flex items-center gap-1"><Clock className="size-3" /> Últimos Acessos ao POP</h4>
+                        <div className="space-y-1.5">
+                          {recentAccesses.map((acc, aIdx) => (
+                            <div key={aIdx} className="flex justify-between items-center text-[10px] border-b border-slate-50 pb-1 last:border-0">
+                              <span className="font-semibold text-slate-700 truncate max-w-[120px]">{acc.user}</span>
+                              <span className="text-[9px] text-[#1B3A2D] font-bold">{acc.action} · <span className="text-slate-400 font-medium">{acc.date}</span></span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
                     </div>
 
                   </div>

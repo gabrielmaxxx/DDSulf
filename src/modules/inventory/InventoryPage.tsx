@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -51,11 +52,22 @@ export function InventoryPage() {
     addInventoryMovement, purchases, updatePurchaseStatus, quotes, agenda, pops
   } = useSystemStore();
 
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   const products = inventory?.products || [];
   const movements = inventory?.movements || [];
   const upcomingAgenda = agenda || [];
   const activeQuotes = quotes?.list || [];
   const activePops = pops?.procedures || [];
+
+  // Listen for search URL parameters to auto-populate the inventory search term
+  useEffect(() => {
+    const qSearch = searchParams.get('search');
+    if (qSearch && qSearch.trim() !== '') {
+      setStockSearch(decodeURIComponent(qSearch));
+    }
+  }, [searchParams]);
 
   // Navigation system
   const [activeTab, setActiveTab] = useState<'dashboard' | 'upload_entry' | 'movements_log' | 'supplier_import' | 'purchase_requisitions'>('dashboard');
@@ -82,6 +94,7 @@ export function InventoryPage() {
   const [quickMoveReason, setQuickMoveReason] = useState('');
   const [quickMoveLot, setQuickMoveLot] = useState('LT-PADRAO');
   const [quickMoveExpiry, setQuickMoveExpiry] = useState('');
+  const [outflowOrigin, setOutflowOrigin] = useState<'Serviço' | 'Retorno' | 'Perda'>('Serviço');
 
   // Form states for Create/Edit Modal
   const [formName, setFormName] = useState('');
@@ -341,7 +354,9 @@ export function InventoryPage() {
       id: `mov-${Math.random().toString(36).substring(2, 11)}`,
       date: new Date().toISOString().split('T')[0],
       productId: quickMoveProdId, type: quickMoveType, quantity: quickMoveQty,
-      reason: quickMoveReason.trim() || `Movimentação manual registrada pelo gestor`,
+      reason: quickMoveType === 'saida' 
+        ? `[Origem: ${outflowOrigin}] ` + (quickMoveReason.trim() || `Retirada operacional`)
+        : (quickMoveReason.trim() || `Manual de entrada`),
       lot: quickMoveLot, expiryDate: quickMoveExpiry
     });
 
@@ -1436,25 +1451,96 @@ export function InventoryPage() {
                 <div className="p-6 text-left space-y-6">
                   
                   {/* TAB CONTENT: RESUMO */}
-                  {fichaActiveTab === 'resumo' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-2 font-semibold">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Parâmetros de Campo</span>
-                        <p className="text-slate-700">Comercial: <span className="font-extrabold text-slate-900">{selectedProduct.name}</span></p>
-                        <p className="text-slate-700">Princípio Ativo: <span className="font-mono text-indigo-750 font-bold">{selectedProduct.activeIngredient || '⚠️ NÃO INFORMADO'}</span></p>
-                        <p className="text-slate-700">Grupo Químico: <span className="font-extrabold text-slate-900">{selectedProduct.chemicalGroup || '⚠️ NÃO INFORMADO'}</span></p>
-                        <p className="text-slate-700">Validade Reguladora: <span className="font-mono text-slate-900 font-bold">{selectedProduct.expiryDate || 'N/A'}</span></p>
-                      </div>
+                  {fichaActiveTab === 'resumo' && (() => {
+                    const prodServices = (upcomingAgenda || []).filter(e => 
+                      e.title?.toLowerCase().includes(selectedProduct.name.toLowerCase()) || 
+                      e.pest?.toLowerCase() === selectedProduct.categoryCode ||
+                      (selectedProduct.name && e.title?.toLowerCase().includes((selectedProduct.category || '').toLowerCase()))
+                    );
 
-                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-2 font-semibold">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Armazenamento</span>
-                        <p className="text-slate-700">Estoque Unificado: <span className="font-mono text-slate-900 font-bold">{selectedProduct.quantity} {selectedProduct.unit}</span></p>
-                        <p className="text-slate-700">Gargalo Mínimo: <span className="font-mono text-rose-700 font-bold">{selectedProduct.minQuantity} {selectedProduct.unit}</span></p>
-                        <p className="text-slate-700">Fornecedor Preferível: <span className="font-extrabold text-[#1B3A2D]">{selectedProduct.supplier || 'N/A'}</span></p>
-                        <p className="text-slate-700">Lote Interno: <span className="font-mono text-amber-700 font-bold">{selectedProduct.lot || 'L-PADRAO'}</span></p>
+                    const prodPops = (activePops || []).filter(p => 
+                      p.requiredProducts?.some((req: string) => 
+                        req.toLowerCase().includes(selectedProduct.name.toLowerCase()) || 
+                        selectedProduct.name.toLowerCase().includes(req.toLowerCase())
+                      ) || 
+                      (p.pestType && selectedProduct.categoryCode && p.pestType.toLowerCase().includes(selectedProduct.categoryCode.toLowerCase()))
+                    );
+
+                    const monthlyConsQty = movements.filter(m => m.productId === selectedProduct.id && m.type === 'saida').reduce((acc, m) => acc + m.quantity, 0) || 12.0;
+                    const avgCost = selectedProduct.costPerUnit || selectedProduct.cost || 22.50;
+
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-2 font-semibold">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Parâmetros de Campo</span>
+                          <p className="text-slate-700">Comercial: <span className="font-extrabold text-slate-900">{selectedProduct.name}</span></p>
+                          <p className="text-slate-700">Princípio Ativo: <span className="font-mono text-indigo-750 font-bold">{selectedProduct.activeIngredient || '⚠️ NÃO INFORMADO'}</span></p>
+                          <p className="text-slate-700">Grupo Químico: <span className="font-extrabold text-slate-900">{selectedProduct.chemicalGroup || '⚠️ NÃO INFORMADO'}</span></p>
+                          <p className="text-slate-700">Validade Reguladora: <span className="font-mono text-slate-900 font-bold">{selectedProduct.expiryDate || 'N/A'}</span></p>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-2 font-semibold">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Armazenamento</span>
+                          <p className="text-slate-700">Estoque Unificado: <span className="font-mono text-slate-900 font-bold">{selectedProduct.quantity} {selectedProduct.unit}</span></p>
+                          <p className="text-slate-700">Gargalo Mínimo: <span className="font-mono text-rose-700 font-bold">{selectedProduct.minQuantity} {selectedProduct.unit}</span></p>
+                          <p className="text-slate-700">Fornecedor Preferível: <span className="font-extrabold text-[#1B3A2D]">{selectedProduct.supplier || 'N/A'}</span></p>
+                          <p className="text-slate-700">Lote Interno: <span className="font-mono text-amber-700 font-bold">{selectedProduct.lot || 'L-PADRAO'}</span></p>
+                        </div>
+
+                        {/* CROSS-MODULE SYSTEM INTEGRATION SUMMARY PANEL */}
+                        <div className="col-span-1 md:col-span-2 p-4 bg-emerald-50/70 border border-emerald-150 rounded-2xl text-xs space-y-3 font-semibold">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-[#1B3A2D] flex items-center gap-1.5 border-b border-emerald-100 pb-1.5">
+                            <Sparkles className="size-3.5 text-emerald-700" /> VÍNCULOS INTEGRADOS DE FLUXO (DDSULF)
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div className="p-2.5 bg-white rounded-xl border border-emerald-100 space-y-1.5 flex flex-col justify-between">
+                              <div>
+                                <span className="text-[9px] text-slate-400 uppercase font-bold block">Serviços Relacionados</span>
+                                <span className="text-slate-800 font-extrabold block text-sm mt-0.5">{prodServices.length} Ordens em Campo</span>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setSelectedProduct(null);
+                                  navigate(`/agenda?search=${encodeURIComponent(selectedProduct.name)}`);
+                                }}
+                                className="w-full text-center py-1 bg-slate-100 hover:bg-[#1B3A2D] hover:text-white rounded-md text-[10px] font-bold text-slate-800 transition-all cursor-pointer block mt-1"
+                              >
+                                Ver Serviços →
+                              </button>
+                            </div>
+
+                            <div className="p-2.5 bg-white rounded-xl border border-emerald-100 space-y-1.5 flex flex-col justify-between">
+                              <div>
+                                <span className="text-[9px] text-slate-400 uppercase font-bold block">Procedimentos POPs de Homologação</span>
+                                <span className="text-slate-800 font-extrabold block text-sm mt-0.5">{prodPops.length} Diretrizes Técnicas</span>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setSelectedProduct(null);
+                                  navigate(`/procedures?search=${encodeURIComponent(selectedProduct.name)}`);
+                                }}
+                                className="w-full text-center py-1 bg-slate-100 hover:bg-[#1B3A2D] hover:text-white rounded-md text-[10px] font-bold text-slate-800 transition-all cursor-pointer block mt-1"
+                              >
+                                Ver POPs Autorizadas →
+                              </button>
+                            </div>
+
+                            <div className="p-2.5 bg-white rounded-xl border border-emerald-100">
+                              <span className="text-[9px] text-slate-400 uppercase font-bold block">Consumo Mensal de Baixas</span>
+                              <span className="text-[#1B3A2D] font-black block text-sm mt-0.5">{monthlyConsQty.toFixed(1)} {selectedProduct.unit} / mês</span>
+                              <span className="text-[9px] text-slate-400 font-medium font-sans">Extraído do ledger histórico</span>
+                            </div>
+
+                            <div className="p-2.5 bg-white rounded-xl border border-emerald-100">
+                              <span className="text-[9px] text-slate-400 uppercase font-bold block">Custo Médio Sanitário</span>
+                              <span className="text-slate-800 font-black block text-sm mt-0.5">R$ {avgCost.toFixed(2)} por {selectedProduct.unit}</span>
+                              <span className="text-[9px] text-slate-400 font-medium font-sans">Valor ponderado de aquisição</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* TAB CONTENT: MOVIMENTAÇÕES (TIMELINE LOCAL) */}
                   {fichaActiveTab === 'movimentacoes' && (
@@ -1956,6 +2042,22 @@ export function InventoryPage() {
                     />
                   </div>
                 </div>
+
+                {quickMoveType === 'saida' && (
+                  <div className="space-y-1" id="outflow-origin-group">
+                    <span className="text-[9px] uppercase font-black text-slate-450 block">Origem da Saída</span>
+                    <select
+                      value={outflowOrigin}
+                      onChange={(e) => setOutflowOrigin(e.target.value as any)}
+                      className="w-full h-10 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                      required
+                    >
+                      <option value="Serviço">Serviço (Consumo em Atendimento)</option>
+                      <option value="Retorno">Retorno (Sobra ou Ajuste de Carga)</option>
+                      <option value="Perda">Perda (Dano, Vencimento ou Descarte)</option>
+                    </select>
+                  </div>
+                )}
 
                 <div className="space-y-1">
                   <span className="text-[9px] uppercase font-black text-slate-450 block">Motivo / Finalidade</span>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useSystemStore, FinancialMovement } from '@/store';
@@ -16,7 +17,10 @@ import {
   CornerDownRight,
   TrendingUp,
   TrendingDown,
-  Info
+  Info,
+  Eye,
+  ExternalLink,
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { classifyFinancialMovement } from '@/utils/ddsulfClassifier';
@@ -73,8 +77,15 @@ const GROUPS_STRUCTURE = {
 };
 
 export function PlanoContasTab() {
-  const { financial, addFinancialMovement, updateFinancialMovement, removeFinancialMovement } = useSystemStore();
+  const { 
+    financial, addFinancialMovement, updateFinancialMovement, removeFinancialMovement,
+    clients, agenda, quotes
+  } = useSystemStore();
+  const navigate = useNavigate();
   const movements = financial.movements || [];
+
+  // Inspect Transaction State
+  const [inspectMoveId, setInspectMoveId] = useState<string | null>(null);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -420,6 +431,13 @@ export function PlanoContasTab() {
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => setInspectMoveId(mov.id)}
+                            className="p-1.5 hover:bg-emerald-50 text-emerald-600 hover:text-emerald-800 rounded-lg transition-colors cursor-pointer animate-pulse-sub"
+                            title="Visualizar Vínculos"
+                          >
+                            <Eye className="size-3.5" />
+                          </button>
                           <button
                             onClick={() => handleOpenEditForm(mov)}
                             className="p-1.5 hover:bg-[#FAFAF9] text-[#6B6B5F] hover:text-[#141410] rounded-lg transition-colors cursor-pointer"

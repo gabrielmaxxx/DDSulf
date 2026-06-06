@@ -15,6 +15,11 @@ export interface FinancialMovement {
   refName?: string;      // Metadata display name
   isPaid?: boolean;
   dueDate?: string;
+  clientId?: string;     // Linked Client ID
+  serviceId?: string;    // Linked Service/OS Event ID
+  quoteId?: string;      // Linked Quote/Budget ID
+  documentUrl?: string;  // Linked Invoice/Direct Document File Base64 or path
+  documentName?: string; // Linked Invoice filename
 }
 
 export interface FinancialCostConfig {

@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSystemStore, AgendaEvent } from '@/store/systemStore';
 import { 
   Calendar, 
@@ -28,7 +29,10 @@ import {
   Share2,
   BookOpen,
   History,
-  Timer
+  Timer,
+  Users,
+  Package,
+  DollarSign
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -96,10 +100,36 @@ export function AgendaPage() {
   const currentMonthPrefix = '2026-06';
 
   // State Management
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(() => new Date(2026, 5, 5)); // Prefilled to June 2026
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<'todos' | 'hoje' | 'semana' | 'mes' | 'atrasados' | 'garantia' | 'retornos'>('todos');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // Focus effect based on URL param deep link (?eventId=...) or client prefilling (?clientId=...)
+  useEffect(() => {
+    const paramEvId = searchParams.get('eventId');
+    if (paramEvId && agenda && agenda.length > 0) {
+      const match = agenda.some(e => e.id === paramEvId);
+      if (match) {
+        setSelectedEventId(paramEvId);
+      }
+    } else {
+      const paramClientId = searchParams.get('clientId');
+      if (paramClientId && clients && clients.length > 0) {
+        const found = clients.find(c => c.id === paramClientId);
+        if (found) {
+          setIsModalOpen(true);
+          setModalMode('create');
+          setFormClientId(found.id);
+          setFormClientName(found.name);
+          setFormTitle(`Controle de Pragas - ${found.name}`);
+          toast.success(`Iniciando agendamento para: ${found.name}`);
+        }
+      }
+    }
+  }, [searchParams, agenda, clients]);
   
   // Selected Event inside Column 3 details
   const [selectedEventId, setSelectedEventId] = useState<string | null>(() => {
@@ -988,6 +1018,57 @@ export function AgendaPage() {
                         Garantia Ativa
                       </span>
                     )}
+                  </div>
+
+                  {/* ATALHOS INTEGRADOS DE MÓDULOS (UMA INFORMAÇÃO, MÚLTIPLOS CONTEXTOS) */}
+                  <div className="pt-3 border-t border-zinc-200/90 flex flex-wrap items-center gap-1.5 text-[10px]">
+                    <span className="text-zinc-600 font-extrabold uppercase mr-1">Ir para:</span>
+                    
+                    {/* Link to Clientes */}
+                    {selectedEvent.clientId ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/clientes?clientId=${selectedEvent.clientId}`)}
+                        className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-250/60 rounded-md font-bold transition-all flex items-center gap-1 cursor-pointer leading-none"
+                      >
+                        <Users className="size-3" /> Ficha do Cliente
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/clientes?search=${encodeURIComponent(selectedEvent.clientName)}`)}
+                        className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-250/60 rounded-md font-bold transition-all flex items-center gap-1 cursor-pointer leading-none"
+                      >
+                        <Users className="size-3" /> Ficha do Cliente
+                      </button>
+                    )}
+
+                    {/* Link to POPs */}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/procedures?search=${encodeURIComponent(selectedEvent.pest || 'Baratas')}`)}
+                      className="px-2 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-250/60 rounded-md font-bold transition-all flex items-center gap-1 cursor-pointer leading-none"
+                    >
+                      <BookOpen className="size-3" /> Ver POP
+                    </button>
+
+                    {/* Link to Inventory */}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/inventory?search=${encodeURIComponent(selectedEvent.products?.[0] || 'Demand')}`)}
+                      className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-250/60 rounded-md font-bold transition-all flex items-center gap-1 cursor-pointer leading-none"
+                    >
+                      <Package className="size-3" /> Ver Estoque
+                    </button>
+
+                    {/* Link to Financial */}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/financial?search=${encodeURIComponent(selectedEvent.clientName)}`)}
+                      className="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-250/60 rounded-md font-bold transition-all flex items-center gap-1 cursor-pointer leading-none"
+                    >
+                      <DollarSign className="size-3" /> Ver Financeiro
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] font-semibold text-zinc-500 border-t border-zinc-200/90 pt-3">

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSystemStore, Client, Contract, AgendaEvent, Quote } from '@/store/systemStore';
 import { 
   Users, 
@@ -75,6 +76,8 @@ const INITIAL_DOCS: Record<string, ClientDoc[]> = {
 };
 
 export function ClientesPage() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const {
     clients,
     contracts,
@@ -90,6 +93,21 @@ export function ClientesPage() {
     quotes,
     financial
   } = useSystemStore();
+
+  // Listen for clientId and activeTab in URL parameters and automatically select the client and tab on mount or change
+  useEffect(() => {
+    const cid = searchParams.get('clientId');
+    if (cid && clients && clients.length > 0) {
+      const exists = clients.some(c => c.id === cid);
+      if (exists) {
+        setSelectedClientId(cid);
+        const tab = searchParams.get('activeTab');
+        if (tab && ['servicos', 'contratos', 'financeiro', 'documentos', 'garantias', 'retornos', 'timeline'].includes(tab)) {
+          setActiveProfileTab(tab as any);
+        }
+      }
+    }
+  }, [searchParams, clients]);
 
   // Active view states
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -958,6 +976,75 @@ export function ClientesPage() {
                       <MapPin className="size-3.5 text-slate-400 shrink-0" />
                       <span className="truncate">{activeClient.address}</span>
                     </p>
+                  </div>
+
+                  {/* ATALHOS RÁPIDOS OPERACIONAIS (INTEGRAÇÃO DE MÓDULOS) */}
+                  <div className="pt-4 mt-3 border-t border-slate-150 flex flex-wrap items-center gap-2 text-[10px]">
+                    <span className="text-slate-400 font-extrabold uppercase tracking-wider mr-1">Atalhos Operacionais:</span>
+                    
+                    {/* Cross-Module Link to Calculator */}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/calculator?clientId=${activeClient.id}`)}
+                      className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-800 border border-emerald-200/50 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer leading-none"
+                    >
+                      <Plus className="size-3" /> Novo Orçamento (Calculadora)
+                    </button>
+
+                    {/* Cross-Module Link to Calendar */}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/agenda?clientId=${activeClient.id}`)}
+                      className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100/80 text-amber-800 border border-amber-200/50 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer leading-none"
+                    >
+                      <Calendar className="size-3" /> Novo Serviço (Agenda)
+                    </button>
+
+                    {/* Cross-Module Link to Financial */}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/financial?search=${activeClient.name}`)}
+                      className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-800 border border-indigo-200/50 rounded-md font-bold transition-all flex items-center gap-1.5 cursor-pointer leading-none"
+                    >
+                      <DollarSign className="size-3" /> Extrato Financeiro
+                    </button>
+
+                    {/* Local profile tab switches */}
+                    <button
+                      type="button"
+                      onClick={() => setActiveProfileTab('timeline')}
+                      className={`px-2.5 py-1 rounded-md font-bold transition-all border cursor-pointer leading-none ${
+                        activeProfileTab === 'timeline'
+                          ? 'bg-slate-900 border-slate-900 text-white'
+                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      Sua Linha de Tempo
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveProfileTab('garantias')}
+                      className={`px-2.5 py-1 rounded-md font-bold transition-all border cursor-pointer leading-none ${
+                        activeProfileTab === 'garantias'
+                          ? 'bg-slate-900 border-slate-900 text-white'
+                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      Painel de Garantias
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveProfileTab('documentos')}
+                      className={`px-2.5 py-1 rounded-md font-bold transition-all border cursor-pointer leading-none ${
+                        activeProfileTab === 'documentos'
+                          ? 'bg-slate-900 border-slate-900 text-white'
+                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      Documentos & Anexos
+                    </button>
                   </div>
                 </div>
 
