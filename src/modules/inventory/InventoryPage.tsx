@@ -1454,15 +1454,16 @@ export function InventoryPage() {
                   {fichaActiveTab === 'resumo' && (() => {
                     const prodServices = (upcomingAgenda || []).filter(e => 
                       e.title?.toLowerCase().includes(selectedProduct.name.toLowerCase()) || 
-                      e.pest?.toLowerCase() === selectedProduct.categoryCode ||
+                      (e as any).pest?.toLowerCase() === selectedProduct.categoryCode ||
                       (selectedProduct.name && e.title?.toLowerCase().includes((selectedProduct.category || '').toLowerCase()))
                     );
 
                     const prodPops = (activePops || []).filter(p => 
-                      p.requiredProducts?.some((req: string) => 
-                        req.toLowerCase().includes(selectedProduct.name.toLowerCase()) || 
-                        selectedProduct.name.toLowerCase().includes(req.toLowerCase())
-                      ) || 
+                      p.requiredProducts?.some((req: any) => {
+                        const name = typeof req === 'string' ? req : (req?.productName || '');
+                        return name.toLowerCase().includes(selectedProduct.name.toLowerCase()) || 
+                               selectedProduct.name.toLowerCase().includes(name.toLowerCase());
+                      }) || 
                       (p.pestType && selectedProduct.categoryCode && p.pestType.toLowerCase().includes(selectedProduct.categoryCode.toLowerCase()))
                     );
 

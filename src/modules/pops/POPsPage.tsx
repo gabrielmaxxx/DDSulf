@@ -1182,6 +1182,16 @@ ${productsText}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4" id="pop-procedures-list-grid">
               {filteredProcedures.map((pop) => {
                 const isPendingReview = suggestedEdits.some(s => s.popId === pop.id && s.status === 'pendente');
+                const matchingAgenda = (agenda || []).filter(e => 
+                  e.title?.toLowerCase().includes((pop.pestType || '').toLowerCase()) ||
+                  e.title?.toLowerCase().includes((pop.category || '').toLowerCase())
+                );
+                const activeProducts = (inventory?.products || []).filter(p => 
+                  pop.requiredProducts?.some((req: any) => {
+                    const name = typeof req === 'string' ? req : (req?.productName || '');
+                    return name.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(name.toLowerCase());
+                  })
+                );
 
                 return (
                   <div 
@@ -1322,6 +1332,21 @@ ${productsText}
           // Find standard version timeline logs
           const activeVersions = readingPop.versions || [
             { version: '1.0', date: readingPop.createdAt, change: 'Homologação primordial e publicação original.' }
+          ];
+
+          const readingMatchingAgenda = (agenda || []).filter(e => 
+            e.title?.toLowerCase().includes((readingPop.pestType || '').toLowerCase()) ||
+            e.title?.toLowerCase().includes((readingPop.category || '').toLowerCase())
+          );
+          const readingActiveProducts = (inventory?.products || []).filter(p => 
+            readingPop.requiredProducts?.some((req: any) => {
+              const name = typeof req === 'string' ? req : (req?.productName || '');
+              return name.toLowerCase().includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(name.toLowerCase());
+            })
+          );
+          const recentAccesses = [
+            { user: 'Marcio Souza (Técnico)', date: 'Segunda-feira, 14:12', client: 'Condomínio Spazio', action: 'Visualização' },
+            { user: 'Roberto Dias (Diretor)', date: 'Ontem, 09:45', client: 'Revisão Técnica Corporativa', action: 'Revisão' }
           ];
 
           return (

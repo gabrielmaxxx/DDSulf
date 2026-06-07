@@ -45,17 +45,11 @@ import {
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { Card } from '@/components/ui/card';
+import { formatBRL } from '@/utils/format';
 
-// Unified type-safe currency formatting helper for pt-BR compliance
+// Unified type-safe currency formatting helper for pt-BR compliance using the unified utility
 function formatCurrency(val: number): string {
-  try {
-    return new Intl.NumberFormat('pt-BR', { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
-    }).format(val);
-  } catch (e) {
-    return val.toFixed(2);
-  }
+  return formatBRL(val).replace('R$', '').trim();
 }
 
 // Automatic offline distance estimator between headquarters (sede in Volta Redonda/RJ) and client address across the entire State of Rio de Janeiro
@@ -327,7 +321,7 @@ const mapEnvironmentType = (prop: string): EnvironmentType => {
 export function CalculatorPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { financial, inventory, pops, settings, addQuote, clients, addClient, addAgendaEvent, quotes } = useSystemStore();
+  const { financial, inventory, pops, settings, addQuote, clients, addClient, addAgendaEvent, quotes, agenda } = useSystemStore();
 
   const procedures = pops?.procedures || [];
   const products = inventory?.products || [];
@@ -340,7 +334,7 @@ export function CalculatorPage() {
       if (found) {
         setSelectedClient(found);
         setClientName(found.name);
-        setClientAddress(typeof found.address === 'string' ? found.address : `${found.address?.street || ''}, ${found.address?.number || ''} - ${found.address?.neighborhood || ''}`);
+        setClientAddress(typeof found.address === 'string' ? found.address : `${(found.address as any)?.street || ''}, ${(found.address as any)?.number || ''} - ${(found.address as any)?.neighborhood || ''}`);
         setClientPhone(found.phone || '');
         setSearchQuery(found.name);
         toast.success(`Cliente "${found.name}" selecionado via fluxo operacional!`);
@@ -423,9 +417,9 @@ export function CalculatorPage() {
 
   // Synchronize target margin with database defaults on mounts
   useEffect(() => {
-    const targetVal = financial?.markupMargemAlvoPercent ?? settings?.operationalGoals?.targetMarginPercent ?? 35;
+    const targetVal = settings?.operationalGoals?.targetMarginPercent ?? 35;
     setCustomMargin(targetVal);
-  }, [financial?.markupMargemAlvoPercent, settings?.operationalGoals?.targetMarginPercent]);
+  }, [settings?.operationalGoals?.targetMarginPercent]);
 
   // Handle automatic POP binding based on selected parameters
   useEffect(() => {
@@ -594,12 +588,12 @@ export function CalculatorPage() {
 
   // Setup markup engine parameters
   const markupSettings = {
-    costPerHour: Number(financial?.variableCosts?.laborPerHour || settings?.operationalGoals?.costPerHour || 45),
-    costPerKm: Number(settings?.operationalGoals?.costPerKm || 2.40),
-    baseEquipmentAmortization: Number(settings?.operationalGoals?.equipmentAmortization || 35),
-    despesasVariaveisPercent: Number(financial?.markupDespesasVariaveisPercent ?? settings?.operationalGoals?.variableExpensesPercent ?? 15),
-    margemAlvoPercent: Number(financial?.markupMargemAlvoPercent ?? settings?.operationalGoals?.targetMarginPercent ?? 35),
-    margemMinimaPercent: Number(financial?.markupMargemMinimaPercent ?? settings?.operationalGoals?.minMarginPercent ?? 20),
+    costPerHour: Number(settings?.operationalGoals?.costPerHour ?? 45),
+    costPerKm: Number(settings?.operationalGoals?.costPerKm ?? 2.40),
+    baseEquipmentAmortization: Number(settings?.operationalGoals?.equipmentAmortization ?? 35),
+    despesasVariaveisPercent: Number(settings?.operationalGoals?.variableExpensesPercent ?? 15),
+    margemAlvoPercent: Number(settings?.operationalGoals?.targetMarginPercent ?? 35),
+    margemMinimaPercent: Number(settings?.operationalGoals?.minMarginPercent ?? 20),
   };
 
   const selectedProductsMapped = productsWithStockCosts.map(p => {

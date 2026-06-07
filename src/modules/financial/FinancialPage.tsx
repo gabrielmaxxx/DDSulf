@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -38,7 +39,7 @@ import {
   FileUp,
   Settings2
 } from 'lucide-react';
-import { useSystemStore, FinancialMovement, Quote, Client, InventoryProduct } from '@/store';
+import { useSystemStore, FinancialMovement, Quote, Client, InventoryProduct, selectProjecaoCaixa, ProjecaoCaixa } from '@/store';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ResponsiveContainer, 
@@ -60,6 +61,7 @@ import {
 import { FileUpload, UploadedFile } from '@/components/FileUpload';
 import { SpreadsheetImportTab } from './components/SpreadsheetImportTab';
 import { PlanoContasTab } from './components/PlanoContasTab';
+import { formatBRL, formatPercent } from '@/utils/format';
 
 const COLORS = ['#1B3A2D', '#2D6A4F', '#D4A017', '#C1361A', '#7C6F5B', '#A8CDB8', '#3F51B5'];
 const COST_CENTERS = ['Geral', 'Equipe Alfa', 'Equipe Beta', 'Veículo 01', 'Veículo 02'];
@@ -82,6 +84,7 @@ const GROUPS_STRUCTURE = {
 };
 
 export function FinancialPage() {
+  const navigate = useNavigate();
   const { 
     financial, 
     quotes, 
@@ -97,7 +100,7 @@ export function FinancialPage() {
   const productList = inventory.products || [];
 
   // Interactive Sub-Tabs
-  const [activeTab, setActiveTab] = useState<'painel' | 'lancamentos' | 'planilha' | 'precificador'>('painel');
+  const [activeTab, setActiveTab] = useState<'painel' | 'lancamentos' | 'caixa' | 'planilha'>('painel');
 
   // Modals status
   const [isNewTxOpen, setIsNewTxOpen] = useState(false);
@@ -284,6 +287,31 @@ export function FinancialPage() {
   const totalDelinquencyVolume = useMemo(() => {
     return defaultDelinquentClients.reduce((sum, c) => sum + c.value, 0);
   }, [defaultDelinquentClients]);
+
+  const [caixaHorizon, setCaixaHorizon] = useState<30 | 60 | 90>(90);
+
+  const systemState = useSystemStore();
+
+  const projecao30 = useMemo(() => selectProjecaoCaixa(systemState, 30), [systemState]);
+  const projecao60 = useMemo(() => selectProjecaoCaixa(systemState, 60), [systemState]);
+  const projecao90 = useMemo(() => selectProjecaoCaixa(systemState, 90), [systemState]);
+
+  const activeProjecao = useMemo(() => {
+    if (caixaHorizon === 30) return projecao30;
+    if (caixaHorizon === 60) return projecao60;
+    return projecao90;
+  }, [caixaHorizon, projecao30, projecao60, projecao90]);
+
+  const currentTodayStr = useMemo(() => {
+    return new Date().toISOString().slice(0, 10);
+  }, []);
+
+  const maioresVencimentosProximos = useMemo(() => {
+    return (financial.movements || [])
+      .filter(m => m.isPaid === false && m.dueDate && m.dueDate >= currentTodayStr)
+      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+      .slice(0, 5);
+  }, [financial.movements, currentTodayStr]);
 
   // ----------------------------------------------------
   // SECTION 1: ALERT GERATOR (MAX 5 ALERTS)
@@ -759,6 +787,16 @@ export function FinancialPage() {
         </button>
 
         <button
+          onClick={() => setActiveTab('caixa')}
+          className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+            activeTab === 'caixa' ? 'bg-[#1B3A2D] text-white shadow-sm' : 'text-[#6B6B5F] hover:text-[#141410]'
+          }`}
+        >
+          <Clock className="size-4" />
+          Projeção de Caixa
+        </button>
+
+        <button
           onClick={() => setActiveTab('planilha')}
           className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
             activeTab === 'planilha' ? 'bg-[#1B3A2D] text-white shadow-sm' : 'text-[#6B6B5F] hover:text-[#141410]'
@@ -766,16 +804,6 @@ export function FinancialPage() {
         >
           <Sparkles className="size-4" />
           Auditoria de Planilhas
-        </button>
-
-        <button
-          onClick={() => setActiveTab('precificador')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'precificador' ? 'bg-[#1B3A2D] text-white shadow-sm' : 'text-[#6B6B5F] hover:text-[#141410]'
-          }`}
-        >
-          <Settings2 className="size-4" />
-          Configuração de Custos
         </button>
       </div>
 
@@ -793,6 +821,25 @@ export function FinancialPage() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
+            {/* Banner Configurações de Precificação/Markup */}
+            <div className="bg-emerald-50 border border-emerald-100/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-left shadow-2xs">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#1B3A2D] text-white rounded-xl shrink-0">
+                  <Settings2 className="size-4" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-[#1B3A2D] text-xs leading-tight font-sans">Configurações de Precificação e Markup</h4>
+                  <p className="text-[11px] text-[#2D6A4F] font-bold mt-0.5 font-sans">Para ajustar margens de lucro, comissões, impostos e metas operacionais do Markup, acesse as Configurações.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/settings')}
+                className="shrink-0 text-xs font-black uppercase tracking-wider text-white bg-[#1B3A2D] hover:bg-[#2D6A4F] px-4 py-2 rounded-xl transition-all h-9 flex items-center gap-1.5 cursor-pointer shadow-3xs"
+              >
+                <span>Ajustar Configurações</span>
+                <ChevronRight className="size-3.5" />
+              </button>
+            </div>
             
             {/* SECTION 1: ALERTAS CONTEXTUAIS */}
             {alertsList.length > 0 && (
@@ -1518,6 +1565,305 @@ export function FinancialPage() {
           </motion.div>
         )}
 
+        {/* TAB CAIXA (PROJEÇÃO DE CAIXA) */}
+        {activeTab === 'caixa' && (
+          <motion.div
+            key="caixa-view"
+            className="space-y-6"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.15 }}
+          >
+            {/* Header / Config Row */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl border border-slate-200 shadow-xs gap-4">
+              <div className="text-left">
+                <h2 className="font-extrabold text-slate-800 text-base flex items-center gap-2">
+                  <Clock className="size-5 text-[#1B3A2D]" />
+                  Painel de Projeção & Gestão de Fluxo de Caixa
+                </h2>
+                <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                  Visão preditiva do caixa consolidando saldo reconciliado, cobranças previstas de duplicatas, receitas recorrentes de contratos ativos e saídas de custos operacionais fixos.
+                </p>
+              </div>
+
+              {/* Horizon Selectors */}
+              <div className="flex bg-[#F0EDE8]/60 p-1 rounded-xl border border-slate-200 self-stretch sm:self-auto shrink-0">
+                {([30, 60, 90] as const).map((h) => (
+                  <button
+                    key={h}
+                    onClick={() => setCaixaHorizon(h)}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                      caixaHorizon === h 
+                        ? 'bg-[#1B3A2D] text-white shadow-xs' 
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Horizonte {h}D
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Three Summary Cards Side-By-Side: 30D / 60D / 90D */}
+            <div className="grid gap-4 md:grid-cols-3">
+              
+              {/* Card 30D */}
+              <Card className={`p-6 rounded-2xl border text-left flex flex-col justify-between shadow-xs transition-colors ${caixaHorizon === 30 ? 'bg-[#FAFAF9] border-emerald-600/30 ring-2 ring-emerald-600/5' : 'bg-white border-slate-200'}`}>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center transition-all">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[#6B6B5F] font-sans">Saldo Projetado 30 dias</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase font-mono shrink-0 ${
+                      projecao30.riscoCaixa 
+                        ? 'bg-rose-150 text-rose-800 border border-rose-200' 
+                        : 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                    }`}>
+                      {projecao30.riscoCaixa ? '⚠️ RISCO' : 'SADIO'}
+                    </span>
+                  </div>
+                  <h4 className={`text-2xl font-black font-mono tracking-tight ${projecao30.saldoFinal >= 0 ? 'text-[#1B3A2D]' : 'text-rose-700'}`}>
+                    R$ {projecao30.saldoFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </h4>
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100 text-[11px] text-[#6B6B5F] font-bold font-sans leading-none">
+                    <div className="flex justify-between">
+                      <span>Saldo Reconciliado Inicial:</span>
+                      <span className="font-mono text-slate-700">R$ {projecao30.saldoAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-emerald-700">Entradas Previstas (+):</span>
+                      <span className="font-mono text-emerald-700 font-bold">+ R$ {projecao30.entradasPrevistas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-rose-700">Saídas Previstas (-):</span>
+                      <span className="font-mono text-rose-700 font-bold">- R$ {projecao30.saidasPrevistas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Card 60D */}
+              <Card className={`p-6 rounded-2xl border text-left flex flex-col justify-between shadow-xs transition-colors ${caixaHorizon === 60 ? 'bg-[#FAFAF9] border-emerald-600/30 ring-2 ring-emerald-600/5' : 'bg-white border-slate-200'}`}>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center transition-all">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[#6B6B5F] font-sans">Saldo Projetado 60 dias</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase font-mono shrink-0 ${
+                      projecao60.riscoCaixa 
+                        ? 'bg-rose-150 text-rose-800 border border-rose-200' 
+                        : 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                    }`}>
+                      {projecao60.riscoCaixa ? '⚠️ RISCO' : 'SADIO'}
+                    </span>
+                  </div>
+                  <h4 className={`text-2xl font-black font-mono tracking-tight ${projecao60.saldoFinal >= 0 ? 'text-[#1B3A2D]' : 'text-rose-700'}`}>
+                    R$ {projecao60.saldoFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </h4>
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100 text-[11px] text-[#6B6B5F] font-bold font-sans leading-none">
+                    <div className="flex justify-between">
+                      <span>Saldo Reconciliado Inicial:</span>
+                      <span className="font-mono text-slate-700">R$ {projecao60.saldoAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-emerald-700">Entradas Previstas (+):</span>
+                      <span className="font-mono text-emerald-700 font-bold">+ R$ {projecao60.entradasPrevistas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-rose-700">Saídas Previstas (-):</span>
+                      <span className="font-mono text-rose-700 font-bold">- R$ {projecao60.saidasPrevistas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Card 90D */}
+              <Card className={`p-6 rounded-2xl border text-left flex flex-col justify-between shadow-xs transition-colors ${caixaHorizon === 90 ? 'bg-[#FAFAF9] border-emerald-600/30 ring-2 ring-emerald-600/5' : 'bg-white border-slate-200'}`}>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center transition-all">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[#6B6B5F] font-sans">Saldo Projetado 90 dias</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase font-mono shrink-0 ${
+                      projecao90.riscoCaixa 
+                        ? 'bg-rose-150 text-rose-800 border border-rose-200' 
+                        : 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                    }`}>
+                      {projecao90.riscoCaixa ? '⚠️ RISCO' : 'SADIO'}
+                    </span>
+                  </div>
+                  <h4 className={`text-2xl font-black font-mono tracking-tight ${projecao90.saldoFinal >= 0 ? 'text-[#1B3A2D]' : 'text-rose-700'}`}>
+                    R$ {projecao90.saldoFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </h4>
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100 text-[11px] text-[#6B6B5F] font-bold font-sans leading-none">
+                    <div className="flex justify-between">
+                      <span>Saldo Reconciliado Inicial:</span>
+                      <span className="font-mono text-slate-700">R$ {projecao90.saldoAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-emerald-700">Entradas Previstas (+):</span>
+                      <span className="font-mono text-emerald-700 font-bold">+ R$ {projecao90.entradasPrevistas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-rose-700">Saídas Previstas (-):</span>
+                      <span className="font-mono text-rose-700 font-bold">- R$ {projecao90.saidasPrevistas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+            </div>
+
+            {/* Destaque em vermelho se algum período projeta saldo negativo */}
+            {activeProjecao.riscoCaixa && (
+              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 text-left flex gap-3.5 items-start animate-in fade-in slide-in-from-top-1">
+                <div className="p-2 bg-rose-100 text-rose-800 rounded-xl">
+                  <ShieldAlert className="size-5 shrink-0" />
+                </div>
+                <div className="space-y-1 pr-4">
+                  <h3 className="font-black text-rose-950 text-xs uppercase tracking-wider">⚠️ Alerta Crítico: Estresse de Liquidez Projetado</h3>
+                  <p className="text-xs text-rose-800 font-medium leading-relaxed mt-0.5">
+                    Identificamos risco de liquidez no horizonte de {caixaHorizon} dias, com estimativa de saldo negativo em algum momento da projeção.
+                    Recomenda-se antecipar faturamentos ou regularizar duplicatas em atraso para assegurar capital de giro suficiente.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Visual Timeline and Table Section Grid */}
+            <div className="grid gap-6 lg:grid-cols-12 items-start text-left">
+              
+              {/* Timeline Chart Column */}
+              <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+                <div>
+                  <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest">Evolução Mensal do Fluxo de Caixa (Horizonte {caixaHorizon} Dias)</h3>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
+                    Linha do tempo consolidada mostrando entradas previstas, saídas recorrentes e saldo final acumulado em cada mês.
+                  </p>
+                </div>
+
+                <div className="h-[280px] w-full" id="cashflow-timeline-holder">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={activeProjecao.timeline} margin={{ top: 15, right: 15, left: -15, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#F1F0EC" />
+                      <XAxis 
+                        dataKey="mes" 
+                        stroke="#6B6B5F" 
+                        style={{ fontSize: '10px', fontWeight: 'bold', fontFamily: 'monospace' }} 
+                        tickFormatter={(val) => {
+                          const parts = val.split('-');
+                          const year = parts[0];
+                          const month = parts[1];
+                          const monthsMap: Record<string, string> = {
+                            '01': 'Jan', '02': 'Fev', '03': 'Mar', '04': 'Abr',
+                            '05': 'Mai', '06': 'Jun', '07': 'Jul', '08': 'Ago',
+                            '09': 'Set', '10': 'Out', '11': 'Nov', '12': 'Dez'
+                          };
+                          return `${monthsMap[month]} ${year}`;
+                        }}
+                      />
+                      <YAxis 
+                        stroke="#6B6B5F" 
+                        style={{ fontSize: '10px' }} 
+                        tickFormatter={(val) => `R$ ${val >= 1000 ? (val/1000).toFixed(0) + 'k' : (val <= -1000 ? (val/1000).toFixed(0) + 'k' : val)}`} 
+                      />
+                      <Tooltip 
+                        formatter={(value, name) => {
+                          const formattedVal = `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+                          const labelMap: Record<string | number, string> = {
+                            'entradas': 'Entradas Previstas',
+                            'saidas': 'Saídas Previstas',
+                            'saldo': 'Saldo Acumulado'
+                          };
+                          return [formattedVal, labelMap[name] || name];
+                        }}
+                        contentStyle={{ borderRadius: '12px', borderColor: '#E2E8F0', padding: '10px' }}
+                      />
+                      <Legend 
+                        verticalAlign="top" 
+                        height={36} 
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: '10.5px', fontWeight: '600' }}
+                        formatter={(value) => {
+                          const labelMap: Record<string, string> = {
+                            'entradas': 'Entradas (+)',
+                            'saidas': 'Saídas (-)',
+                            'saldo': 'Saldo Projetado'
+                          };
+                          return labelMap[value] || value;
+                        }}
+                      />
+                      {/* Areas for visual cashflow balance */}
+                      <Area 
+                        type="monotone" 
+                        dataKey="saldo" 
+                        fill="rgba(27, 58, 45, 0.08)" 
+                        stroke="#1B3A2D" 
+                        strokeWidth={2.5} 
+                      />
+                      <Bar dataKey="entradas" fill="#2D6A4F" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                      <Bar dataKey="saidas" fill="#C1361A" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Closest major cash due list (5 maiores vencimentos seguintes) */}
+              <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+                <div>
+                  <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest">Maiores Vencimentos Próximos</h3>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
+                    Lista dos 5 maiores compromissos ou faturamentos que ainda não foram liquidados no sistema.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {maioresVencimentosProximos.length === 0 ? (
+                    <div className="text-center py-8 text-[#9CA3AF] text-xs font-medium space-y-1 bg-slate-50 border border-dashed border-slate-200 p-4 rounded-2xl">
+                      <p>✨ Nenhuma conta futura pendente encontrada.</p>
+                      <p className="text-[10px] opacity-75">Todas as receitas e despesas lançadas estão quitadas!</p>
+                    </div>
+                  ) : (
+                    maioresVencimentosProximos.map((m) => {
+                      const isReceita = m.value > 0;
+                      return (
+                        <div 
+                          key={m.id} 
+                          className={`flex items-center justify-between p-3.5 border rounded-2xl shadow-xxs font-sans transition-all hover:bg-slate-50/50 ${
+                            isReceita ? 'border-emerald-100 bg-emerald-50/10' : 'border-rose-100 bg-rose-50/10'
+                          }`}
+                        >
+                          <div className="space-y-0.5 text-left max-w-[60%]">
+                            <span className={`text-[8.5px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md ${
+                              isReceita ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                            }`}>
+                              {isReceita ? 'Recebimento' : 'Pagamento'}
+                            </span>
+                            <h4 className="font-bold text-slate-800 truncate text-[11.5px] mt-1" title={m.description}>
+                              {m.description}
+                            </h4>
+                            <p className="text-[10px] text-slate-500 font-medium flex items-center gap-1 font-mono">
+                              <Calendar className="size-3" /> Vence em: {m.dueDate ? m.dueDate.split('-').reverse().join('/') : '⚠️ NÃO INFORMADO'}
+                            </p>
+                          </div>
+                          
+                          <div className="text-right">
+                            <span className={`text-xs font-black font-mono block ${
+                              isReceita ? 'text-emerald-700' : 'text-rose-700'
+                            }`}>
+                              {isReceita ? '+' : ''} R$ {Math.abs(m.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-medium block mt-0.5 font-sans">
+                              {m.subcategory || m.category}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+          </motion.div>
+        )}
+
         {/* TAB PLANILHA */}
         {activeTab === 'planilha' && (
           <motion.div
@@ -1529,228 +1875,6 @@ export function FinancialPage() {
             transition={{ duration: 0.15 }}
           >
             <SpreadsheetImportTab />
-          </motion.div>
-        )}
-
-        {/* TAB CONFIG DE PARÂMETROS DE CUSTO */}
-        {activeTab === 'precificador' && (
-          <motion.div
-            key="precificador-view"
-            className="grid gap-6 lg:grid-cols-12"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-          >
-            {/* Form Column */}
-            <form onSubmit={handleSaveCosts} className="lg:col-span-8 space-y-6" id="precificador-form">
-              <div className="grid gap-6 md:grid-cols-2 items-start">
-                
-                {/* Fixed Costs Card */}
-                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-                  <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200 bg-slate-50/50">
-                    <div className="size-8 rounded-lg bg-[#1B3A2D] flex items-center justify-center text-white font-extrabold text-xs">
-                      $
-                    </div>
-                    <div className="text-left">
-                      <h3 className="font-bold text-slate-800 text-sm">Fração de Custos Fixos</h3>
-                      <p className="text-[11px] text-slate-500">Comprometimento fixo basilar de frotas e sede</p>
-                    </div>
-                  </div>
-                  
-                  <div className="p-6 space-y-4 text-xs text-left">
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Aluguel / Manutenção de Frota (Mês)</label>
-                      <input 
-                        type="number"
-                        min="0"
-                        value={vehicleRental || ''}
-                        onChange={(e) => setVehicleRental(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-[#FAFAF9] border border-slate-200 rounded-xl py-3 px-4 font-mono font-bold text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Folha de Salários + Benefícios (Mês)</label>
-                      <input 
-                        type="number"
-                        min="0"
-                        value={salaries || ''}
-                        onChange={(e) => setSalaries(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-[#FAFAF9] border border-slate-200 rounded-xl py-3 px-4 font-mono font-bold text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Aluguel do Galpão / Escritório</label>
-                      <input 
-                        type="number"
-                        min="0"
-                        value={rent || ''}
-                        onChange={(e) => setRent(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-[#FAFAF9] border border-slate-200 rounded-xl py-3 px-4 font-mono font-bold text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Previsão Combustíveis da Frota</label>
-                      <input 
-                        type="number"
-                        min="0"
-                        value={fuel || ''}
-                        onChange={(e) => setFuel(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-[#FAFAF9] border border-slate-200 rounded-xl py-3 px-4 font-mono font-bold text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Seguros da Sede e Frota</label>
-                      <input 
-                        type="number"
-                        min="0"
-                        value={insurance || ''}
-                        onChange={(e) => setInsurance(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-[#FAFAF9] border border-slate-200 rounded-xl py-3 px-4 font-mono font-bold text-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Outro Despesas Fixos</label>
-                      <input 
-                        type="number"
-                        min="0"
-                        value={other || ''}
-                        onChange={(e) => setOther(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-[#FAFAF9] border border-slate-200 rounded-xl py-3 px-4 font-mono font-bold text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Variable Costs */}
-                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-                    <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200 bg-slate-50/50">
-                      <div className="size-8 rounded-lg bg-[#D4A017] flex items-center justify-center text-white font-extrabold text-xs">
-                        V
-                      </div>
-                      <div className="text-left">
-                        <h3 className="font-bold text-slate-800 text-sm">Pesos de Custos Variáveis</h3>
-                        <p className="text-[11px] text-slate-500">Estimativas indiretas por OS de controle</p>
-                      </div>
-                    </div>
-
-                    <div className="p-6 space-y-4 text-xs text-left">
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Químicos Consumíveis Sazonal / Serviço (R$)</label>
-                        <input 
-                          type="number"
-                          min="0"
-                          value={productsPerService || ''}
-                          onChange={(e) => setProductsPerService(parseFloat(e.target.value) || 0)}
-                          className="w-full bg-[#FAFAF9] border border-slate-200 rounded-xl py-3 px-4 font-mono font-bold text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Custos Logísticos Horários de Mão de Obra</label>
-                        <input 
-                          type="number"
-                          min="0"
-                          value={laborPerHour || ''}
-                          onChange={(e) => setLaborPerHour(parseFloat(e.target.value) || 0)}
-                          className="w-full bg-[#FAFAF9] border border-slate-200 rounded-xl py-3 px-4 font-mono font-bold text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Depreciação dos Equipamentos e Bombas</label>
-                        <input 
-                          type="number"
-                          min="0"
-                          value={equipmentDepreciation || ''}
-                          onChange={(e) => setEquipmentDepreciation(parseFloat(e.target.value) || 0)}
-                          className="w-full bg-[#FAFAF9] border border-slate-200 rounded-xl py-3 px-4 font-mono font-bold text-xs"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Target Metas */}
-                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-                    <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200 bg-slate-50/50">
-                      <div className="size-8 rounded-lg bg-slate-800 flex items-center justify-center text-white font-extrabold text-xs">
-                        T
-                      </div>
-                      <div className="text-left">
-                        <h3 className="font-bold text-slate-800 text-sm">Metas de Equilíbrio (Break-Even)</h3>
-                        <p className="text-[11px] text-slate-500">Bases de comutação para amortizações corporativas</p>
-                      </div>
-                    </div>
-
-                    <div className="p-6 space-y-4 text-xs text-left">
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Volume de Serviços Alvo / Mês</label>
-                        <input 
-                          type="number"
-                          min="1"
-                          value={servicesPerMonth || ''}
-                          onChange={(e) => setServicesPerMonth(parseInt(e.target.value) || 120)}
-                          className="w-full bg-[#FAFAF9] border border-slate-200 rounded-xl py-3 px-4 font-mono font-bold text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Duração Média Atendimento (Horas)</label>
-                        <input 
-                          type="number"
-                          min="1"
-                          value={avgServiceDurationHours || ''}
-                          onChange={(e) => setAvgServiceDurationHours(parseFloat(e.target.value) || 3)}
-                          className="w-full bg-[#FAFAF9] border border-slate-200 rounded-xl py-3 px-4 font-mono font-bold text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Margem Operacional Alvo Mínima (%)</label>
-                        <input 
-                          type="number"
-                          min="5"
-                          max="95"
-                          value={minimumMarginPercent || ''}
-                          onChange={(e) => setMinimumMarginPercent(parseFloat(e.target.value) || 35)}
-                          className="w-full bg-[#FAFAF9] border border-slate-200 rounded-xl py-3 px-4 font-mono font-bold text-xs"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-              
-              <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 col-span-12 w-full">
-                <Button 
-                  type="submit"
-                  className="bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white px-8 py-3 text-xs uppercase tracking-wider font-extrabold rounded-xl h-11 cursor-pointer"
-                >
-                  Sincronizar Parâmetros de Custo
-                </Button>
-              </div>
-            </form>
-
-            {/* Quick documentation side panel - Right */}
-            <div className="lg:col-span-4 space-y-6 text-left text-xs font-sans">
-              <div className="bg-[#FAF9F5] rounded-3xl p-6 border border-slate-200 space-y-4">
-                <div className="space-y-1">
-                  <h4 className="font-bold text-slate-800 text-[13px]">Calibração do Ponto do Break-even</h4>
-                  <p className="text-[11.5px] text-slate-500 leading-relaxed">Estes parâmetros impactam frontalmente as inteligências financeiras e alertas DDSulf do painel principal.</p>
-                </div>
-                
-                <div className="space-y-2.5 text-slate-500 leading-relaxed">
-                  <p><strong>Custo Fixo Basilar:</strong> Somas fixas de frotas e sede consumidas antes de que qualquer OS seja efetuada no mês.</p>
-                  <p><strong>Margem Alvo Mínima:</strong> Markup financeiro mínimo de segurança na precificação preliminar do sistema.</p>
-                </div>
-
-                <div className="bg-[#1B3A2D] text-white p-4.5 rounded-2xl flex items-start gap-2.5">
-                  <Sparkles className="size-4 shrink-0 text-yellow-300 mt-0.5 animate-pulse" />
-                  <p className="text-[10px] font-medium leading-normal">
-                    Re-organize os parâmetros para reuniões de conselho com franquias e calibrar markups corretivos.
-                  </p>
-                </div>
-              </div>
-            </div>
-
           </motion.div>
         )}
       </AnimatePresence>

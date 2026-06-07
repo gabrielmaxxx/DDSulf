@@ -149,6 +149,7 @@ export interface QuotePricing {
   suggestedPrice: number;
   finalPrice: number;
   marginPercent: number;
+  marginPercentOriginal?: number;
 }
 
 export interface QuoteProductUsed {
@@ -156,6 +157,14 @@ export interface QuoteProductUsed {
   productName: string;
   quantity: number;
   unit: string;
+}
+
+export interface DREBreakdown {
+  fixedCostShare: number;
+  variableCost: number;
+  totalCost: number;
+  netMargin: number;
+  netMarginPercent: number;
 }
 
 export interface Quote {
@@ -175,6 +184,7 @@ export interface Quote {
   confirmedBy?: string;           // nome/identificador de quem confirmou
   serviceNotes?: string;          // observações do técnico no ato da confirmação
   hasReturn?: boolean;            // true se possui retorno associado/ativo
+  dreBreakdown?: DREBreakdown;
 }
 
 export interface QuotesState {
@@ -238,6 +248,7 @@ export interface SystemSettings {
   city: string;
   state: string;
   phone: string;
+  maxReturnRatePercent?: number;
   operationalGoals: {
     targetServicesPerMonth: number;
     minimumMarginPercent: number;
@@ -582,6 +593,7 @@ const INITIAL_STATE: SystemState = {
     city: 'Volta Redonda',
     state: 'RJ',
     phone: '(24) 3344-5566',
+    maxReturnRatePercent: 8,
     operationalGoals: {
       targetServicesPerMonth: 120,
       minimumMarginPercent: 35,
@@ -977,6 +989,10 @@ export const useSystemStore = create<SystemState & SystemActions>()(
               }
             }
 
+            if (status === 'executado') {
+              updatedQuote.dreBreakdown = calcularDREPorOS(updatedQuote, state);
+            }
+
             return updatedQuote;
           }
           return q;
@@ -1028,6 +1044,8 @@ export const useSystemStore = create<SystemState & SystemActions>()(
                 confirmedBy: confirmedBy || q.confirmedBy,
                 serviceNotes: serviceNotes || q.serviceNotes
               };
+
+              updatedQuote.dreBreakdown = calcularDREPorOS(updatedQuote, state);
 
               matchedQuote = updatedQuote;
 
@@ -1283,10 +1301,31 @@ export const useSystemStore = create<SystemState & SystemActions>()(
           serviceNotes: notes
         };
 
-        const updatedOriginalQuote = {
+        const originalCostTotal = Number(originalQuote.costs?.total) || 0;
+        const novoCustoTotal = originalCostTotal + returnCostEstimate;
+        const finalPrice = Number(originalQuote.pricing?.finalPrice) || 0;
+        const newMarginPercent = finalPrice > 0 ? ((finalPrice - novoCustoTotal) / finalPrice) * 100 : 0;
+        const marginPercentOriginal = originalQuote.pricing.marginPercentOriginal !== undefined 
+          ? originalQuote.pricing.marginPercentOriginal 
+          : originalQuote.pricing.marginPercent;
+
+        let updatedOriginalQuote: Quote = {
           ...originalQuote,
-          hasReturn: true
+          hasReturn: true,
+          costs: {
+            ...(originalQuote.costs || { products: 0, labor: 0, transport: 0, overhead: 0, total: 0 }),
+            total: novoCustoTotal
+          },
+          pricing: {
+            ...originalQuote.pricing,
+            marginPercent: newMarginPercent,
+            marginPercentOriginal: marginPercentOriginal
+          }
         };
+
+        if (updatedOriginalQuote.dreBreakdown) {
+          updatedOriginalQuote.dreBreakdown = calcularDREPorOS(updatedOriginalQuote, state);
+        }
 
         const updatedQuotesList = state.quotes.list.map(q => {
           if (q.id === originalQuoteId) {
@@ -1567,6 +1606,7 @@ export const useSystemStore = create<SystemState & SystemActions>()(
             city: '',
             state: '',
             phone: '',
+            maxReturnRatePercent: 8,
             operationalGoals: { targetServicesPerMonth: 0, minimumMarginPercent: 35, costPerKm: 0 },
           }
         };
@@ -1914,3 +1954,326 @@ export const useSystemStore = create<SystemState & SystemActions>()(
     }
   )
 );
+
+export function calcularDREPorOS(quote: Quote, state: SystemState): DREBreakdown {
+  const targetMonth = quote.createdAt ? quote.createdAt.substring(0, 7) : new Date().toISOString().substring(0, 7);
+  
+  // Find all approved/executed services in that month from the state
+  const otherApprovedServices = (state.quotes?.list || []).filter(q => 
+    q.id !== quote.id &&
+    (q.status === 'aprovado' || q.status === 'executado') && 
+    q.createdAt && q.createdAt.substring(0, 7) === targetMonth
+  );
+
+  let serviceCount = otherApprovedServices.length;
+  // If the quote itself is approved or executed, count it
+  if (quote.status === 'aprovado' || quote.status === 'executado') {
+    serviceCount += 1;
+  }
+
+  // Ensure minimum is 1 to avoid Division by Zero
+  if (serviceCount === 0) serviceCount = 1;
+
+  const fc = state.financial?.fixedCosts || {
+    vehicleRental: 0,
+    salaries: 0,
+    rent: 0,
+    fuel: 0,
+    insurance: 0,
+    other: 0,
+  };
+
+  const totalFixedCosts = (Number(fc.vehicleRental) || 0) + 
+                          (Number(fc.salaries) || 0) + 
+                          (Number(fc.rent) || 0) + 
+                          (Number(fc.fuel) || 0) + 
+                          (Number(fc.insurance) || 0) + 
+                          (Number(fc.other) || 0);
+
+  const fixedCostShare = totalFixedCosts / serviceCount;
+  const variableCost = Number(quote.costs?.total) || 0;
+  const totalCost = fixedCostShare + variableCost;
+
+  const finalPrice = Number(quote.pricing?.finalPrice) || 0;
+  const netMargin = finalPrice - totalCost;
+  const netMarginPercent = finalPrice > 0 ? (netMargin / finalPrice) * 100 : 0;
+
+  return {
+    fixedCostShare,
+    variableCost,
+    totalCost,
+    netMargin,
+    netMarginPercent
+  };
+}
+
+export function selectDREMensal(state: SystemState, optionalMonth?: string) {
+  const monthStr = optionalMonth || new Date().toISOString().slice(0, 7); // YYYY-MM
+  
+  const monthQuotes = (state.quotes?.list || []).filter(q => 
+    q.createdAt && q.createdAt.startsWith(monthStr)
+  );
+
+  let totalReceita = 0;
+  let totalCustoVariavel = 0;
+  let totalCustoFixoRateado = 0;
+
+  monthQuotes.forEach(q => {
+    if (q.status === 'aprovado' || q.status === 'executado') {
+      const breakdown = q.dreBreakdown || calcularDREPorOS(q, state);
+      totalReceita += Number(q.pricing?.finalPrice) || 0;
+      totalCustoVariavel += Number(breakdown.variableCost) || 0;
+      totalCustoFixoRateado += Number(breakdown.fixedCostShare) || 0;
+    }
+  });
+
+  const margemOperacional = totalReceita - (totalCustoVariavel + totalCustoFixoRateado);
+  const margemPercent = totalReceita > 0 ? (margemOperacional / totalReceita) * 100 : 0;
+
+  return {
+    totalReceita,
+    totalCustoVariavel,
+    totalCustoFixoRateado,
+    margemOperacional,
+    margemPercent
+  };
+}
+
+export interface ProjecaoCaixa {
+  horizonte: number;
+  saldoAtual: number;
+  entradasPrevistas: number;
+  saidasPrevistas: number;
+  saldoFinal: number;
+  riscoCaixa: boolean;
+  timeline: Array<{ mes: string; entradas: number; saidas: number; saldo: number; }>;
+}
+
+export function selectProjecaoCaixa(state: SystemState, horizonte: 30 | 60 | 90): ProjecaoCaixa {
+  const movements = state.financial?.movements || [];
+  const contracts = state.contracts || [];
+  const fc = state.financial?.fixedCosts || {
+    vehicleRental: 0,
+    salaries: 0,
+    rent: 0,
+    fuel: 0,
+    insurance: 0,
+    other: 0,
+  };
+
+  const totalFixedCosts = (Number(fc.vehicleRental) || 0) + 
+                          (Number(fc.salaries) || 0) + 
+                          (Number(fc.rent) || 0) + 
+                          (Number(fc.fuel) || 0) + 
+                          (Number(fc.insurance) || 0) + 
+                          (Number(fc.other) || 0);
+
+  // 1. Calculate saldoAtual: sum of all elements that are paid (isPaid === true)
+  const saldoAtual = movements
+    .filter(m => m.isPaid === true)
+    .reduce((sum, m) => sum + (Number(m.value) || 0), 0);
+
+  // Define dates for horizon
+  const today = new Date();
+  const horizonDate = new Date();
+  horizonDate.setDate(today.getDate() + horizonte);
+
+  const todayStr = today.toISOString().slice(0, 10);
+  const horizonStr = horizonDate.toISOString().slice(0, 10);
+
+  // Build the months list for the timeline
+  const monthsList: string[] = [];
+  const numMonths = Math.ceil(horizonte / 30) + 1; // e.g. 30 -> 2 months, 60 -> 3 months, 90 -> 4 months
+  for (let i = 0; i < numMonths; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    const yearStr = d.getFullYear();
+    const monthStr = String(d.getMonth() + 1).padStart(2, '0');
+    monthsList.push(`${yearStr}-${monthStr}`);
+  }
+
+  // Pre-calculate inputs by month for the timeline
+  // Unpaid movements (isPaid === false) whose dueDate is within the horizon and matches a month in our timeline
+  const unpaidMovementsInHorizon = movements.filter(m => 
+    m.isPaid === false && 
+    m.dueDate && 
+    m.dueDate <= horizonStr
+  );
+
+  // Contract billing forecasts:
+  // For each active contract, find its billing occurrences in the horizon
+  const contractRevenuesByMonth: Record<string, number> = {};
+  monthsList.forEach(m => {
+    contractRevenuesByMonth[m] = 0;
+  });
+
+  contracts.forEach(contract => {
+    if (contract.status === 'ativo') {
+      const startD = new Date(contract.startDate);
+      const endD = new Date(contract.endDate);
+      const recMonths = contract.recurrencyMonths || 1;
+      const val = Number(contract.recurrentValue) || Number(contract.value) || 0;
+
+      if (!isNaN(startD.getTime()) && !isNaN(endD.getTime()) && val > 0) {
+        let currentD = new Date(startD);
+        // Avoid infinite loop if recMonths is <= 0
+        const interval = recMonths > 0 ? recMonths : 1;
+        while (currentD <= endD) {
+          const currentDStr = currentD.toISOString().slice(0, 10);
+          if (currentDStr >= todayStr && currentDStr <= horizonStr) {
+            const mStr = currentD.toISOString().slice(0, 7);
+            if (contractRevenuesByMonth[mStr] !== undefined) {
+              contractRevenuesByMonth[mStr] += val;
+            }
+          }
+          currentD.setMonth(currentD.getMonth() + interval);
+        }
+      }
+    }
+  });
+
+  // Now, construct the timeline
+  let runningBalance = saldoAtual;
+  let totalEntradas = 0;
+  let totalSaidas = 0;
+
+  const timeline = monthsList.map(mStr => {
+    // Unpaid revenues (isPaid === false, value > 0) due in this month (and inside horizon)
+    const movementsEntradas = unpaidMovementsInHorizon
+      .filter(m => m.dueDate && m.dueDate.startsWith(mStr) && m.value > 0)
+      .reduce((sum, m) => sum + m.value, 0);
+
+    // Unpaid expenses (isPaid === false, value < 0) due in this month (and inside horizon)
+    const movementsSaidas = Math.abs(unpaidMovementsInHorizon
+      .filter(m => m.dueDate && m.dueDate.startsWith(mStr) && m.value < 0)
+      .reduce((sum, m) => sum + m.value, 0));
+
+    const contractEntradas = contractRevenuesByMonth[mStr] || 0;
+    
+    // Total entries for this month
+    const monthEntradas = movementsEntradas + contractEntradas;
+    
+    // Total exits for this month: fixed costs + unpaid expenses due this month
+    const monthSaidas = totalFixedCosts + movementsSaidas;
+
+    const monthSaldo = runningBalance + monthEntradas - monthSaidas;
+    runningBalance = monthSaldo;
+
+    totalEntradas += monthEntradas;
+    totalSaidas += monthSaidas;
+
+    return {
+      mes: mStr,
+      entradas: monthEntradas,
+      saidas: monthSaidas,
+      saldo: monthSaldo
+    };
+  });
+
+  const saldoFinal = runningBalance;
+  // risk of cash is true if final balance is negative, or if we dip negative at any point of the timeline
+  const riscoCaixa = saldoFinal < 0 || timeline.some(t => t.saldo < 0);
+
+  return {
+    horizonte,
+    saldoAtual,
+    entradasPrevistas: totalEntradas,
+    saidasPrevistas: totalSaidas,
+    saldoFinal,
+    riscoCaixa,
+    timeline
+  };
+}
+
+export interface ClienteRentabilidade {
+  totalFaturado: number;
+  totalCusto: number;
+  margemTotal: number;
+  margemPercent: number;
+  qtdServicos: number;
+  qtdRetornos: number;
+  taxaRetorno: number;
+  ultimoServico: string | null;
+  proximoVencimento: string | null;
+}
+
+export function selectClienteRentabilidade(clientId: string, state: SystemState): ClienteRentabilidade {
+  const client = (state.clients || []).find(c => c.id === clientId);
+  if (!client) {
+    return {
+      totalFaturado: 0,
+      totalCusto: 0,
+      margemTotal: 0,
+      margemPercent: 0,
+      qtdServicos: 0,
+      qtdRetornos: 0,
+      taxaRetorno: 0,
+      ultimoServico: null,
+      proximoVencimento: null,
+    };
+  }
+
+  const clientNameLower = client.name.toLowerCase();
+  const clientQuotes = (state.quotes?.list || []).filter(q => {
+    const qNameLower = q.client?.name?.toLowerCase();
+    const qClientId = (q as any).clientId;
+    const qClientObjId = (q.client as any)?.id;
+    return qNameLower === clientNameLower || qClientId === clientId || qClientObjId === clientId;
+  });
+
+  const executedOrApproved = clientQuotes.filter(q => q.status === 'aprovado' || q.status === 'executado');
+  const totalFaturado = executedOrApproved.reduce((sum, q) => sum + (Number(q.pricing?.finalPrice) || 0), 0);
+  
+  // Total cost: sum of raw quote costs that are processed (everything except rascunho / recusado)
+  const nonDraftQuotes = clientQuotes.filter(q => q.status !== 'rascunho' && q.status !== 'recusado');
+  const totalCusto = nonDraftQuotes.reduce((sum, q) => sum + (Number(q.costs?.total) || 0), 0);
+
+  const margemTotal = totalFaturado - totalCusto;
+  const margemPercent = totalFaturado > 0 ? (margemTotal / totalFaturado) * 100 : 0;
+
+  const qtdServicos = clientQuotes.filter(q => q.status === 'executado').length;
+  const qtdRetornos = clientQuotes.filter(q => q.status === 'retorno').length;
+  const taxaRetorno = qtdServicos > 0 ? (qtdRetornos / qtdServicos) * 100 : 0;
+
+  // Let's find latest service
+  const lastServiceQuote = clientQuotes
+    .filter(q => q.status === 'executado' || q.status === 'aprovado')
+    .sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime())[0];
+  const ultimoServico = lastServiceQuote 
+    ? (lastServiceQuote.confirmedAt ? lastServiceQuote.confirmedAt.slice(0, 10) : lastServiceQuote.createdAt.slice(0, 10)) 
+    : null;
+
+  const activeContract = (state.contracts || []).find(c => c.clientId === clientId && c.status === 'ativo');
+  const proximoVencimento = activeContract ? activeContract.endDate : null;
+
+  return {
+    totalFaturado,
+    totalCusto,
+    margemTotal,
+    margemPercent,
+    qtdServicos,
+    qtdRetornos,
+    taxaRetorno,
+    ultimoServico,
+    proximoVencimento,
+  };
+}
+
+export function selectMargemMesAnterior(state: SystemState): number {
+  const prevMonthDate = new Date();
+  prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+  const prevMonthStr = prevMonthDate.toISOString().slice(0, 7);
+
+  const prevMonthQuotes = (state.quotes?.list || []).filter(q => 
+    q.createdAt?.startsWith(prevMonthStr) && q.status !== 'rascunho' && q.status !== 'recusado'
+  );
+
+  if (prevMonthQuotes.length === 0) {
+    return 0;
+  }
+
+  const sumMargin = prevMonthQuotes.reduce((sum, q) => sum + (q.pricing?.marginPercent || 0), 0);
+  return sumMargin / prevMonthQuotes.length;
+}
+
+
+

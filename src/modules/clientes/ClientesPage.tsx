@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useSystemStore, Client, Contract, AgendaEvent, Quote } from '@/store/systemStore';
+import { useSystemStore, Client, Contract, AgendaEvent, Quote, selectClienteRentabilidade, ClienteRentabilidade } from '@/store/systemStore';
 import { 
   Users, 
   FileText, 
@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
+import { formatBRL, formatPercent, formatDate } from '@/utils/format';
 
 // Extended client and document types
 type ExtendedClient = Client & {
@@ -324,6 +325,21 @@ export function ClientesPage() {
       ticketMedio
     };
   }, [activeClient, agenda, contracts, movements]);
+
+  // Rentabilidade mappings and active calculations
+  const clientRentabilities = useMemo(() => {
+    const mapping: Record<string, ClienteRentabilidade> = {};
+    const state = { clients, contracts, quotes, agenda } as any;
+    (clients || []).forEach(c => {
+      mapping[c.id] = selectClienteRentabilidade(c.id, state);
+    });
+    return mapping;
+  }, [clients, contracts, quotes, agenda]);
+
+  const activeRentabilidade = useMemo(() => {
+    if (!activeClient) return null;
+    return selectClienteRentabilidade(activeClient.id, { clients, contracts, quotes, agenda } as any);
+  }, [activeClient, clients, contracts, quotes, agenda]);
 
   // Customer health calculation
   const clientHealth = useMemo(() => {
@@ -883,6 +899,31 @@ export function ClientesPage() {
                 const firstWord = c.address.split(',')[0];
                 const activeContr = (contracts || []).some(contr => contr.clientId === c.id && contr.status === 'ativo');
 
+                const rent = clientRentabilities[c.id];
+                let marginBadge = null;
+                if (rent) {
+                  const isRetornosFrequentes = rent.taxaRetorno > 15 || rent.qtdRetornos >= 2;
+                  if (rent.margemPercent < 20 || isRetornosFrequentes) {
+                    marginBadge = (
+                      <span className="bg-rose-50 text-rose-800 border border-rose-150 text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
+                        {isRetornosFrequentes ? `⚠️ Retornos (${rent.taxaRetorno.toFixed(0)}%)` : `📉 Margem (${rent.margemPercent.toFixed(0)}%)`}
+                      </span>
+                    );
+                  } else if (rent.margemPercent <= 35) {
+                    marginBadge = (
+                      <span className="bg-amber-50 text-amber-800 border border-amber-150 text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
+                        📊 Margem: {rent.margemPercent.toFixed(0)}%
+                      </span>
+                    );
+                  } else {
+                    marginBadge = (
+                      <span className="bg-emerald-50 text-emerald-850 border border-emerald-150 text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
+                        📈 Margem: {rent.margemPercent.toFixed(0)}%
+                      </span>
+                    );
+                  }
+                }
+
                 return (
                   <div
                     key={c.id}
@@ -917,6 +958,7 @@ export function ClientesPage() {
                             Contrato Ativo
                           </span>
                         )}
+                        {marginBadge}
                         <span className="text-[9px] text-[#2D6A4F] font-mono leading-none truncate">
                           {firstWord}
                         </span>
@@ -1525,8 +1567,80 @@ export function ClientesPage() {
 
                 </div>
 
-                {/* 4️⃣ AI OPPORTUNITY CARD (COLATERAL 4 LANES) */}
-                <div className="xl:col-span-4 w-full">
+                {/* 4️⃣ AI OPPORTUNITY CARD & DESEMPENHO FINANCEIRO */}
+                <div className="xl:col-span-4 w-full space-y-4">
+                  {activeRentabilidade && (
+                    <div id="desempenho-financeiro-card" className="bg-white p-5 border border-[#E8E6E1] rounded-2xl shadow-xxs space-y-4 text-left">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-display font-black text-[#141410] uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                            <TrendingUp className="size-4 text-[#1B3A2D]" />
+                            Desempenho Financeiro
+                          </h4>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {activeRentabilidade.margemPercent > 40 && activeRentabilidade.qtdServicos > 5 && (
+                            <span className="bg-amber-100 text-amber-900 border border-amber-250 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider leading-none">
+                              ⭐ Cliente Premium
+                            </span>
+                          )}
+                          {activeRentabilidade.taxaRetorno > 15 && (
+                            <span className="bg-rose-100 text-rose-900 border border-rose-250 text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider leading-none">
+                              ⚠️ Atenção: Retornos
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div className="bg-emerald-50/20 border border-emerald-100/50 p-2.5 rounded-xl text-left">
+                          <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 font-sans block">Total Faturado</span>
+                          <span className="text-[13px] font-mono font-black text-emerald-800 block mt-0.5">
+                            R$ {activeRentabilidade.totalFaturado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+
+                        <div className="bg-slate-50/50 border border-slate-150/50 p-2.5 rounded-xl text-left">
+                          <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 font-sans block">Margem Média</span>
+                          <span className={`text-[13px] font-mono font-black block mt-0.5 ${
+                            activeRentabilidade.margemPercent > 35 ? 'text-emerald-700' : activeRentabilidade.margemPercent >= 20 ? 'text-amber-700' : 'text-rose-700'
+                          }`}>
+                            {activeRentabilidade.margemPercent.toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-2 border-t border-slate-100 text-[11px] text-slate-600 font-bold leading-relaxed">
+                        <div className="flex justify-between items-center">
+                          <span>Serviços Executados:</span>
+                          <span className="font-mono text-slate-800 font-black">{activeRentabilidade.qtdServicos}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>Retornos Solicitados:</span>
+                          <span className="font-mono text-rose-700 font-black">{activeRentabilidade.qtdRetornos}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>Taxa de Retorno:</span>
+                          <span className={`font-mono font-black ${activeRentabilidade.taxaRetorno > 15 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                            {activeRentabilidade.taxaRetorno.toFixed(2)}%
+                          </span>
+                        </div>
+                        {activeRentabilidade.ultimoServico && (
+                          <div className="flex justify-between items-center pt-1 border-t border-dashed border-slate-200">
+                            <span>Último Atendimento:</span>
+                            <span className="font-mono text-slate-700">{activeRentabilidade.ultimoServico.split('-').reverse().join('/')}</span>
+                          </div>
+                        )}
+                        {activeRentabilidade.proximoVencimento && (
+                          <div className="flex justify-between items-center">
+                            <span>Próximo Vencimento:</span>
+                            <span className="font-mono text-slate-700 font-black">{activeRentabilidade.proximoVencimento.split('-').reverse().join('/')}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {aiOpportunity && (
                     <div className="bg-[#FAF9F6]/80 p-4 border border-[#E8E6E1] rounded-2xl space-y-3.5 text-left flex flex-col justify-between h-full">
                       

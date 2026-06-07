@@ -48,7 +48,7 @@ export function AppShell({ children }: AppShellProps) {
     const foundEvents = agenda.filter(e => 
       e.title.toLowerCase().includes(q) || 
       e.clientName.toLowerCase().includes(q) || 
-      (e.technician && e.technician.toLowerCase().includes(q))
+      ((e as any).technician && (e as any).technician.toLowerCase().includes(q))
     ).slice(0, 3);
 
     // 4. POPs e Procedimentos

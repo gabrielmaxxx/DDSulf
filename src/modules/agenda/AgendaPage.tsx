@@ -37,28 +37,29 @@ import {
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { FileUpload } from '@/components/FileUpload';
+import { formatBRL, formatPercent, formatDate } from '@/utils/format';
 
-// Formatting utilities as per guidelines
+// Formatting utilities unified with @/utils/format
 const formatCurrency = (val: number | string | undefined) => {
   if (val === undefined || val === null) return 'R$ 0,00';
   const num = typeof val === 'number' ? val : parseFloat(val);
   if (isNaN(num)) return 'R$ 0,00';
-  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return formatBRL(num);
 };
 
-const formatPercent = (val: number | undefined) => {
+const formatPercentLocal = (val: number | undefined) => {
   if (val === undefined || val === null) return '0,00%';
-  return `${val.toFixed(2).replace('.', ',')}%`;
+  return formatPercent(val);
 };
 
 const formatBrazilianDate = (dateStr: string) => {
   if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length === 3) {
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  }
-  return dateStr;
+  return formatDate(dateStr);
 };
+
+// Use formatPercentLocal as formatPercent inside AgendaPage
+const formatPercentVal = formatPercentLocal;
+export { formatPercentVal as formatPercent };
 
 // Return the list of days in a week given a date reference
 const getStartAndEndOfWeek = (dateRefStr: string) => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Building2, Settings2, ShieldCheck, Landmark, Compass, PhoneCall, Sliders, Target, DollarSign, Check } from 'lucide-react';
+import { Building2, Settings2, ShieldCheck, Landmark, Compass, PhoneCall, Sliders, Target, DollarSign, Check, RefreshCw } from 'lucide-react';
 import { useSystemStore } from '@/store';
 
 interface SettingsData {
@@ -19,6 +19,7 @@ interface SettingsData {
   targetMarginPercent: number;
   costPerHour: number;
   equipmentAmortization: number;
+  maxReturnRatePercent: number;
 }
 
 const DEFAULT_SETTINGS: SettingsData = {
@@ -34,7 +35,8 @@ const DEFAULT_SETTINGS: SettingsData = {
   minMarginPercent: 20,
   targetMarginPercent: 35,
   costPerHour: 45,
-  equipmentAmortization: 35
+  equipmentAmortization: 35,
+  maxReturnRatePercent: 8
 };
 
 export function SettingsPage() {
@@ -43,35 +45,25 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [showConfirmReset, setShowConfirmReset] = useState(false);
 
-  // Load from localStorage on mount, falling back to global settings
+  // Load from global settings
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('ddsulf_settings');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setSettings({
-          ...DEFAULT_SETTINGS,
-          ...parsed
-        });
-      } else if (globalSettings) {
-        setSettings({
-          companyName: globalSettings.companyName || DEFAULT_SETTINGS.companyName,
-          cnpj: globalSettings.cnpj || DEFAULT_SETTINGS.cnpj,
-          address: globalSettings.headquartersAddress || DEFAULT_SETTINGS.address,
-          cityState: `${globalSettings.city || 'Volta Redonda'} / ${globalSettings.state || 'RJ'}`,
-          phone: globalSettings.phone || DEFAULT_SETTINGS.phone,
-          minMargin: globalSettings.operationalGoals?.minimumMarginPercent ?? DEFAULT_SETTINGS.minMargin,
-          monthlyServiceTarget: globalSettings.operationalGoals?.targetServicesPerMonth ?? DEFAULT_SETTINGS.monthlyServiceTarget,
-          costPerKm: globalSettings.operationalGoals?.costPerKm ?? DEFAULT_SETTINGS.costPerKm,
-          variableExpensesPercent: globalSettings.operationalGoals?.variableExpensesPercent ?? DEFAULT_SETTINGS.variableExpensesPercent,
-          minMarginPercent: globalSettings.operationalGoals?.minMarginPercent ?? DEFAULT_SETTINGS.minMarginPercent,
-          targetMarginPercent: globalSettings.operationalGoals?.targetMarginPercent ?? DEFAULT_SETTINGS.targetMarginPercent,
-          costPerHour: globalSettings.operationalGoals?.costPerHour ?? DEFAULT_SETTINGS.costPerHour,
-          equipmentAmortization: globalSettings.operationalGoals?.equipmentAmortization ?? DEFAULT_SETTINGS.equipmentAmortization
-        });
-      }
-    } catch (e) {
-      console.error('Error loading settings', e);
+    if (globalSettings) {
+      setSettings({
+        companyName: globalSettings.companyName || DEFAULT_SETTINGS.companyName,
+        cnpj: globalSettings.cnpj || DEFAULT_SETTINGS.cnpj,
+        address: globalSettings.headquartersAddress || DEFAULT_SETTINGS.address,
+        cityState: `${globalSettings.city || 'Volta Redonda'} / ${globalSettings.state || 'RJ'}`,
+        phone: globalSettings.phone || DEFAULT_SETTINGS.phone,
+        minMargin: globalSettings.operationalGoals?.minimumMarginPercent ?? DEFAULT_SETTINGS.minMargin,
+        monthlyServiceTarget: globalSettings.operationalGoals?.targetServicesPerMonth ?? DEFAULT_SETTINGS.monthlyServiceTarget,
+        costPerKm: globalSettings.operationalGoals?.costPerKm ?? DEFAULT_SETTINGS.costPerKm,
+        variableExpensesPercent: globalSettings.operationalGoals?.variableExpensesPercent ?? DEFAULT_SETTINGS.variableExpensesPercent,
+        minMarginPercent: globalSettings.operationalGoals?.minMarginPercent ?? DEFAULT_SETTINGS.minMarginPercent,
+        targetMarginPercent: globalSettings.operationalGoals?.targetMarginPercent ?? DEFAULT_SETTINGS.targetMarginPercent,
+        costPerHour: globalSettings.operationalGoals?.costPerHour ?? DEFAULT_SETTINGS.costPerHour,
+        equipmentAmortization: globalSettings.operationalGoals?.equipmentAmortization ?? DEFAULT_SETTINGS.equipmentAmortization,
+        maxReturnRatePercent: globalSettings.maxReturnRatePercent ?? DEFAULT_SETTINGS.maxReturnRatePercent
+      });
     }
   }, [globalSettings]);
 
@@ -96,9 +88,6 @@ export function SettingsPage() {
     
     setTimeout(() => {
       try {
-        // Save to localStorage
-        localStorage.setItem('ddsulf_settings', JSON.stringify(settings));
-
         // Sync with useSystemStore
         const parts = settings.cityState.split('/');
         const city = parts[0]?.trim() || '';
@@ -111,6 +100,7 @@ export function SettingsPage() {
           city,
           state: stateArg,
           phone: settings.phone,
+          maxReturnRatePercent: settings.maxReturnRatePercent,
           operationalGoals: {
             targetServicesPerMonth: settings.monthlyServiceTarget,
             minimumMarginPercent: settings.minMargin,
@@ -310,6 +300,27 @@ export function SettingsPage() {
                   className="w-full h-11 border border-gray-200 rounded-xl px-4 text-xs font-semibold focus:outline-hidden focus:border-black transition-all bg-white"
                 />
                 <span className="text-[9px] text-[#9CA3AF] block font-mono">Calculado automaticamente nas rotas de deslocamentos operacionais</span>
+              </div>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#6B6B5F] flex items-center gap-1.5 font-bold">
+                  <RefreshCw className="size-3" /> Limite Máximo de Retornos (%)
+                </label>
+                <input
+                  type="number"
+                  name="maxReturnRatePercent"
+                  required
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  value={settings.maxReturnRatePercent}
+                  onChange={handleChange}
+                  placeholder="Insira o limite (%)"
+                  className="w-full h-11 border border-gray-200 rounded-xl px-4 text-xs font-semibold focus:outline-hidden focus:border-black transition-all bg-white"
+                />
+                <span className="text-[9px] text-[#9CA3AF] block font-mono">Taxa máxima tolerada de retornos sobre serviços executados no mês (Padrão: 8%)</span>
               </div>
             </div>
           </div>
@@ -539,8 +550,7 @@ export function SettingsPage() {
                     type="button"
                     onClick={() => {
                       resetSystemData();
-                      // Clear settings inside setSettings & localStorage as well
-                      localStorage.removeItem('ddsulf_settings');
+                      // Clear settings inside setSettings as well
                       setSettings(DEFAULT_SETTINGS);
                       setShowConfirmReset(false);
                       toast.success('Todos os dados foram completamente apagados!', {
