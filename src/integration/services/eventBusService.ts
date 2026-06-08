@@ -182,31 +182,12 @@ export class EventBusService {
         const quoteId = payload.quoteId || payload.id;
         if (!quoteId) return;
 
-        const quote = store.quotes.list.find((q: any) => q.id === quoteId);
-        
-        // 1. Atualizar status para aprovado no store se não estiver
-        if (quote && quote.status !== 'aprovado') {
-          store.updateQuoteStatus(quoteId, 'aprovado');
-        }
-
-        // 2. Criar Agendamento / Ordem de Serviço (AgendaEvent)
-        const agendaId = `ev-os-${Math.random().toString(36).substring(2, 11)}`;
-        store.addAgendaEvent({
-          id: agendaId,
-          title: `OS - Controle de Pragas (${quote?.client?.name || payload.clientName || 'Cliente'})`,
-          date: payload.scheduleDate || payload.date || new Date().toISOString().split('T')[0],
-          clientId: payload.clientId || '',
-          clientName: quote?.client?.name || payload.clientName || 'Cliente',
-          type: 'servico',
-          quoteId: quoteId,
-          notes: quote?.service?.pestType || payload.pestType || 'Serviço operacional',
-          status: 'pendente'
-        });
+        store.updateQuoteStatus(quoteId, 'aprovado');
 
         this.logTelemetry(
           'info',
           SystemModuleName.INTEGRATION,
-          `Workflow [ORCAMENTO_APROVADO] disparado com sucesso: OS agendada e Receita lançada.`,
+          `Workflow [ORCAMENTO_APROVADO] processado: Status do orçamento atualizado para aprovado.`,
           event.correlationId
         );
         break;

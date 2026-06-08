@@ -85,7 +85,9 @@ export function AgendaPage() {
     removeAgendaEvent,
     clients,
     pops,
-    inventory
+    inventory,
+    confirmServiceExecuted,
+    quotes
   } = useSystemStore();
 
   const events: (AgendaEvent & any)[] = useMemo(() => agenda || [], [agenda]);
@@ -107,6 +109,8 @@ export function AgendaPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<'todos' | 'hoje' | 'semana' | 'mes' | 'atrasados' | 'garantia' | 'retornos'>('todos');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [confirmingEventId, setConfirmingEventId] = useState<string | null>(null);
+  const [execNotes, setExecNotes] = useState('');
 
   // Focus effect based on URL param deep link (?eventId=...) or client prefilling (?clientId=...)
   useEffect(() => {
@@ -932,7 +936,7 @@ export function AgendaPage() {
                       {/* Cliente & Tipo de Serviço */}
                       <div className="space-y-0.5">
                         <h4 className="font-sans font-bold text-xs text-zinc-900 leading-snug">
-                          {ev.clientName}
+                          {ev.time ? `${ev.time} — ` : ''}{ev.clientName}
                         </h4>
                         <p className="text-[10.5px] font-semibold text-zinc-500 flex items-center gap-1">
                           <span className={`size-1.5 rounded-full ${ev.type === 'retorno' ? 'bg-amber-500' : 'bg-blue-500'}`} />
@@ -945,6 +949,70 @@ export function AgendaPage() {
                         <MapPin className="size-3 text-zinc-400" />
                         <span>{ev.city || 'Volta Redonda - RJ'}</span>
                       </div>
+
+                      {/* Confirmação de Execução Direta no Card */}
+                      {ev.quoteId && ev.status === 'pendente' && (
+                        confirmingEventId === ev.id ? (
+                          <div 
+                            style={{ marginTop: 8, borderTop: '1px solid #EBEBE5', paddingTop: 8 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="space-y-2 text-left"
+                            id={`execution-form-${ev.id}`}
+                          >
+                            <textarea
+                              placeholder="Observações do técnico (opcional)"
+                              value={execNotes}
+                              onChange={e => setExecNotes(e.target.value)}
+                              rows={2}
+                              className="w-full text-xs bg-zinc-50 border border-zinc-200 rounded-lg p-2 font-sans focus:outline-none focus:ring-1 focus:ring-[#1B3A2D] text-zinc-800"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const quote = quotes.list.find(q => q.id === ev.quoteId);
+                                  confirmServiceExecuted(
+                                    ev.quoteId!,
+                                    quote?.scheduledTechnician || 'Técnico',
+                                    execNotes
+                                  );
+                                  updateAgendaEvent(ev.id, { status: 'realizado' });
+                                  setConfirmingEventId(null);
+                                  setExecNotes('');
+                                  toast.success('Serviço confirmado!');
+                                }}
+                                className="flex-1 py-1.5 px-3 bg-[#1B3A2D] text-white text-[11px] font-bold uppercase rounded-lg hover:bg-emerald-850 cursor-pointer transition-colors text-center"
+                              >
+                                Confirmar execução
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmingEventId(null);
+                                }}
+                                className="py-1.5 px-3 bg-zinc-100 hover:bg-zinc-250 border border-zinc-250 text-zinc-700 text-[11px] font-bold uppercase rounded-lg cursor-pointer transition-colors"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div onClick={(e) => e.stopPropagation()} className="pt-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmingEventId(ev.id);
+                              }}
+                              className="w-full flex items-center justify-center gap-1 py-1.5 px-3 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-[11px] font-bold uppercase rounded-lg transition-colors cursor-pointer shadow-xs"
+                            >
+                              ✓ Confirmar execução
+                            </button>
+                          </div>
+                        )
+                      )}
                     </div>
                   );
                 })

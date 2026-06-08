@@ -182,6 +182,9 @@ export interface Quote {
   parentQuoteId?: string;         // ID do orçamento original vinculado ao retorno
   returnCost?: number;            // custo estimado do retorno (deslocamento + MO)
   confirmedBy?: string;           // nome/identificador de quem confirmou
+  scheduledDate?: string;   // YYYY-MM-DD — data combinada com o cliente
+  scheduledTime?: string;   // HH:MM — horário combinado com o cliente
+  scheduledTechnician?: string; // nome do técnico designado
   serviceNotes?: string;          // observações do técnico no ato da confirmação
   hasReturn?: boolean;            // true se possui retorno associado/ativo
   dreBreakdown?: DREBreakdown;
@@ -326,6 +329,12 @@ export interface SystemActions {
   
   addQuote: (quote: Quote) => void;
   updateQuoteStatus: (id: string, status: Quote['status']) => void;
+  scheduleApprovedQuote: (
+    quoteId: string,
+    scheduledDate: string,
+    scheduledTime: string,
+    technician: string
+  ) => void;
   confirmServiceExecuted: (
     id: string,
     confirmedBy?: string,
@@ -946,23 +955,23 @@ export const useSystemStore = create<SystemState & SystemActions>()(
 
               // Create OS in Agenda Event
               const eventExists = updatedAgenda.some(e => e.quoteId === updatedQuote.id);
-              if (!eventExists) {
+              if (!eventExists && updatedQuote.scheduledDate) {
+                // Só cria evento se tiver data agendada
                 updatedAgenda.unshift({
                   id: `ev-${Math.random().toString(36).substring(2, 11)}`,
-                  title: `Ordem de Serviço #${updatedQuote.id} - ${updatedQuote.service.serviceType}`,
-                  date: new Date().toISOString().split('T')[0],
+                  title: `OS - ${updatedQuote.service.serviceType} (${updatedQuote.client.name})`,
+                  date: updatedQuote.scheduledDate,
+                  time: updatedQuote.scheduledTime,
                   clientId,
                   clientName: updatedQuote.client.name,
                   type: 'servico',
                   quoteId: updatedQuote.id,
-                  status: status === 'executado' ? 'realizado' : 'pendente',
-                  notes: `Auto-gerada. Local: ${updatedQuote.client.address}`
+                  notes: `Técnico: ${updatedQuote.scheduledTechnician || 'A definir'} | ${updatedQuote.client.address}`,
+                  status: 'pendente'
                 });
-              } else if (status === 'executado') {
-                updatedAgenda = updatedAgenda.map(item => 
-                  item.quoteId === updatedQuote.id ? { ...item, status: 'realizado' } : item
-                );
               }
+              // Se não tem scheduledDate, o quote fica aprovado mas sem evento na agenda.
+              // O evento só é criado quando o gestor chama scheduleApprovedQuote().
 
               // Check and auto-create contract if recurrent (Fluxo 8 & 9)
               const contractExists = updatedContracts.some(c => c.clientId === clientId);
@@ -1018,6 +1027,45 @@ export const useSystemStore = create<SystemState & SystemActions>()(
           contracts: updatedContracts
         });
       }),
+
+      scheduleApprovedQuote: (quoteId, scheduledDate, scheduledTime, technician) =>
+        set((state) => {
+          const quote = state.quotes.list.find(q => q.id === quoteId);
+          if (!quote) return state;
+
+          const updatedQuote = {
+            ...quote,
+            scheduledDate,
+            scheduledTime,
+            scheduledTechnician: technician
+          };
+
+          // Remover evento antigo com data errada se existir
+          const cleanAgenda = state.agenda.filter(e => e.quoteId !== quoteId);
+
+          const newEvent: AgendaEvent = {
+            id: `ev-${Math.random().toString(36).substring(2, 11)}`,
+            title: `OS - ${quote.service.serviceType} (${quote.client.name})`,
+            date: scheduledDate,
+            time: scheduledTime,
+            clientId: state.clients.find(c =>
+              c.name.toLowerCase() === quote.client.name.toLowerCase()
+            )?.id || '',
+            clientName: quote.client.name,
+            type: 'servico',
+            quoteId: quoteId,
+            notes: `Técnico: ${technician} | ${quote.client.address}`,
+            status: 'pendente'
+          };
+
+          return updateCompanyData(state, {
+            quotes: {
+              ...state.quotes,
+              list: state.quotes.list.map(q => q.id === quoteId ? updatedQuote : q)
+            },
+            agenda: [newEvent, ...cleanAgenda]
+          });
+        }),
 
       confirmServiceExecuted: (id, confirmedBy, serviceNotes) => set((state) => {
         let updatedProducts = [...state.inventory.products];

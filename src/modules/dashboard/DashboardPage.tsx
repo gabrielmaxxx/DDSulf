@@ -23,6 +23,7 @@ import { useSystemStore, selectMargemMesAnterior } from '@/store/systemStore';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatBRL, formatPercent } from '@/utils/format';
+import { DisponibilidadeTecnicos } from './components/DisponibilidadeTecnicos';
 
 export function DashboardPage() {
   const { financial, inventory, quotes, pops, agenda, clients, contracts, settings } = useSystemStore();
@@ -737,6 +738,9 @@ export function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* DISPONIBILIDADE E CARGA DE TRABALHO DE TÉCNICOS */}
+      <DisponibilidadeTecnicos />
 
       {/* SEÇÃO 4: IA OPERACIONAL */}
       <section id="section-ia-operacional" className="space-y-4 pt-1">

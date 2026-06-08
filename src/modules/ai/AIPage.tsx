@@ -26,7 +26,8 @@ import {
   History,
   Menu,
   X,
-  Plus
+  Plus,
+  BarChart2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '@/components/ui/button';
@@ -61,7 +62,8 @@ export function AIPage() {
     agenda = [] 
   } = useSystemStore();
 
-  const [currentMode, setCurrentMode] = useState<'chat' | 'analista' | 'consultor'>('chat');
+  const [mainTab, setMainTab] = useState<'chat' | 'analises'>('chat');
+  const [analysisTab, setAnalysisTab] = useState<'insights' | 'analista' | 'consultor'>('insights');
   
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -693,7 +695,7 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
     <div className="flex flex-col h-full bg-[#F7F6F3] text-[#141410] font-sans">
       
       {/* 1. TOP HEADER SECTION */}
-      <div className="bg-white border-b border-[#E8E6E1]/90 shadow-2xs px-6 py-5 shrink-0">
+      <div className="bg-white border-b border-[#E8E6E1]/90 shadow-2xs px-6 py-4 shrink-0">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="size-12 rounded-2xl bg-[#1B3A2D] flex items-center justify-center shadow-md shadow-emerald-900/10">
@@ -707,13 +709,43 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
             </div>
           </div>
           
-          <div className="flex items-center gap-3 ml-auto md:ml-0">
+          <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
+            {/* MAIN TAB SWITCHER */}
+            <div className="flex items-center p-1 bg-[#FAF9F5] border border-slate-200 rounded-xl gap-1 shadow-3xs mr-2" id="main-tab-switcher">
+              <button
+                onClick={() => setMainTab('chat')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  mainTab === 'chat'
+                    ? 'bg-[#1B3A2D] text-white shadow-3xs'
+                    : 'text-slate-600 hover:text-[#1B3A2D] hover:bg-slate-50'
+                }`}
+              >
+                <MessageSquare className="size-3.5" />
+                <span>IA Chat</span>
+              </button>
+              
+              <button
+                onClick={() => setMainTab('analises')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer relative ${
+                  mainTab === 'analises'
+                    ? 'bg-[#1B3A2D] text-white shadow-3xs'
+                    : 'text-slate-600 hover:text-[#1B3A2D] hover:bg-slate-50'
+                }`}
+              >
+                <BarChart2 className="size-3.5" />
+                <span>Análises</span>
+                <span className="ml-1 px-1.5 py-0.5 text-[9px] rounded-full bg-rose-500 text-white font-black leading-none flex items-center justify-center">
+                  {automaticInsights.length}
+                </span>
+              </button>
+            </div>
+
             {/* Quick stats summarizing store availability */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium text-slate-600">
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium text-slate-600">
               <Package className="size-3.5 text-slate-600" />
               <span>{inventory.products.length} Insumos</span>
             </div>
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium text-slate-600">
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium text-slate-600 border-[#E8E6E1]">
               <DollarSign className="size-3.5 text-slate-600" />
               <span>R$ {totalRevenue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} Receita</span>
             </div>
@@ -721,15 +753,6 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
               <div className="size-1.5 bg-[#2D6A4F] rounded-full animate-pulse" />
               Online
             </div>
-
-            {/* Collapsible drawer toggler on tablet/mobile */}
-            <button 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="lg:hidden p-2 bg-white border border-[#E8E6E1] rounded-xl hover:bg-slate-50 text-[#141410]"
-              title="Alternar painel de atenção"
-            >
-              <Menu className="size-5" />
-            </button>
           </div>
         </div>
       </div>
@@ -738,86 +761,125 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
       <div className="flex-1 overflow-hidden relative">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 p-6 h-full max-w-7xl mx-auto items-stretch">
           
-          {/* LEFT & CENTER AREAS (Span 3 columns) */}
-          <div className="lg:col-span-3 flex flex-col gap-6 overflow-y-auto h-full pr-1 pb-8" id="area-principal-container">
+          {/* LEFT & CENTER AREAS (Span 3 or 4 columns) */}
+          <div className={`${mainTab === 'chat' && isSidebarOpen ? 'lg:col-span-3' : 'lg:col-span-4'} flex flex-col gap-6 overflow-y-auto h-full pr-1 pb-8`} id="area-principal-container">
             
-            {/* SELETOR DE MODO (Large click cards) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="modo-selector-container">
-              
-              {/* Mode 1: Chat Card */}
-              <button 
-                onClick={() => setCurrentMode('chat')}
-                className={`text-left p-5 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between h-[130px] ${
-                  currentMode === 'chat' 
-                    ? 'border-[#1B3A2D] bg-white ring-2 ring-[#1B3A2D]/10 shadow-xs' 
-                    : 'border-[#E8E6E1] bg-white hover:border-slate-300 hover:shadow-2xs'
-                }`}
-                id="modulo-card-chat"
-              >
-                <div className="flex justify-between items-start w-full">
-                  <div className="size-9 rounded-xl flex items-center justify-center bg-[#D8EDE3]">
-                    <MessageSquare className="size-4.5 text-[#1B3A2D]" />
-                  </div>
-                  {currentMode === 'chat' && <span className="size-2 rounded-full bg-[#1B3A2D]" />}
-                </div>
-                <div className="mt-3">
-                  <h3 className="text-sm font-bold text-slate-800 leading-tight">Chat Operacional</h3>
-                  <p className="text-[11px] text-slate-500 leading-tight mt-1">Converse e faça perguntas estruturadas sobre finanças, estoques, clientes e POPs.</p>
-                </div>
-              </button>
+            {/* SUB-TABS SEGMENTED CONTROLLER IN ANÁLISES TAB */}
+            {mainTab === 'analises' && (
+              <div className="flex border border-[#E8E6E1] bg-white p-1 rounded-2xl flex-wrap sm:flex-nowrap gap-1 shadow-3xs mb-1" id="sub-tabs-container">
+                <button
+                  onClick={() => setAnalysisTab('insights')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    analysisTab === 'insights'
+                      ? 'bg-[#1B3A2D] text-white shadow-3xs animate-fade-in'
+                      : 'text-slate-600 hover:text-[#1B3A2D] hover:bg-slate-50'
+                  }`}
+                >
+                  <Sparkles className="size-4" />
+                  <span>Insights Automáticos</span>
+                </button>
+                
+                <button
+                  onClick={() => setAnalysisTab('analista')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 text-[#141410] text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    analysisTab === 'analista'
+                      ? 'bg-[#1B3A2D] text-white shadow-3xs animate-fade-in'
+                      : 'text-slate-500 hover:text-[#1B3A2D] hover:bg-slate-50'
+                  }`}
+                >
+                  <TrendingUp className="size-4" />
+                  <span>Analista por Módulo</span>
+                </button>
+                
+                <button
+                  onClick={() => setAnalysisTab('consultor')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 text-[#141410] text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    analysisTab === 'consultor'
+                      ? 'bg-[#1B3A2D] text-white shadow-3xs animate-fade-in'
+                      : 'text-slate-500 hover:text-[#1B3A2D] hover:bg-slate-50'
+                  }`}
+                >
+                  <Shield className="size-4" />
+                  <span>Consultor Proativo</span>
+                </button>
+              </div>
+            )}
 
-              {/* Mode 2: Analista Card */}
-              <button 
-                onClick={() => setCurrentMode('analista')}
-                className={`text-left p-5 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between h-[130px] ${
-                  currentMode === 'analista' 
-                    ? 'border-[#1B3A2D] bg-white ring-2 ring-[#1B3A2D]/10 shadow-xs' 
-                    : 'border-[#E8E6E1] bg-white hover:border-slate-300 hover:shadow-2xs'
-                }`}
-                id="modulo-card-analista"
-              >
-                <div className="flex justify-between items-start w-full">
-                  <div className="size-9 rounded-xl flex items-center justify-center bg-[#F0EDE8]">
-                    <TrendingUp className="size-4.5 text-slate-700" />
+            {mainTab === 'analises' && (
+              <div id="analises-container-tabs">
+                {analysisTab === 'insights' && (
+                  <div className="space-y-6 animate-fade-in text-left">
+                    <div className="bg-white border border-[#E8E6E1]/90 rounded-3xl p-6 shadow-xs">
+                      <div className="border-b border-slate-100 pb-3 mb-6">
+                        <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                          <Sparkles className="size-5 text-[#D4A017]" />
+                          Insights e Diagnósticos Automáticos
+                        </h2>
+                        <p className="text-[11px] text-[#6B6B5F] font-sans mt-0.5 font-normal">Laudos ativos e análises automáticas de criticidade gerados hoje sob monitoramento.</p>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {automaticInsights.map((insight) => (
+                          <div 
+                            key={insight.id}
+                            className="p-5 bg-[#FAF9F5]/40 border border-[#E8E6E1] rounded-2xl flex flex-col justify-between hover:bg-[#FAF9F5] transition-colors"
+                          >
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${insight.badgeColor}`}>
+                                  {insight.badge}
+                                </span>
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-black text-slate-800 leading-tight">{insight.title}</h4>
+                                <p className="text-[10.5px] text-slate-500 leading-relaxed mt-1 font-sans">{insight.description}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="pt-3 border-t border-slate-100/60 mt-4 flex justify-end">
+                              <button
+                                onClick={() => navigate(insight.path)}
+                                className="text-[10.5px] font-bold text-[#1B3A2D] hover:underline flex items-center gap-0.5 transition-colors cursor-pointer"
+                              >
+                                {insight.actionLabel}
+                                <ArrowUpRight className="size-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  {currentMode === 'analista' && <span className="size-2 rounded-full bg-slate-700" />}
-                </div>
-                <div className="mt-3">
-                  <h3 className="text-sm font-bold text-slate-800 leading-tight">Analista de Dados</h3>
-                  <p className="text-[11px] text-slate-500 leading-tight mt-1 font-sans">Execute inteligências modulares sobre os blocos de sua operação com um clique.</p>
-                </div>
-              </button>
-
-              {/* Mode 3: Consultador Card */}
-              <button 
-                onClick={() => setCurrentMode('consultor')}
-                className={`text-left p-5 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between h-[130px] ${
-                  currentMode === 'consultor' 
-                    ? 'border-[#1B3A2D] bg-white ring-2 ring-[#1B3A2D]/10 shadow-xs' 
-                    : 'border-[#E8E6E1] bg-white hover:border-slate-300 hover:shadow-2xs'
-                }`}
-                id="modulo-card-consultor"
-              >
-                <div className="flex justify-between items-start w-full">
-                  <div className="size-9 rounded-xl flex items-center justify-center bg-blue-50">
-                    <Shield className="size-4.5 text-blue-800" />
-                  </div>
-                  {currentMode === 'consultor' && <span className="size-2 rounded-full bg-blue-800" />}
-                </div>
-                <div className="mt-3">
-                  <h3 className="text-sm font-bold text-slate-800 leading-tight">Consultor Proativo</h3>
-                  <p className="text-[11px] text-slate-500 leading-tight mt-1 font-sans">Simule cenários e visualize recomendações para melhoria de rentabilidade e processos.</p>
-                </div>
-              </button>
-
-            </div>
+                )}
+              </div>
+            )}
 
             {/* DYNAMIC CURRENT WORKSPACE REORGANIZATION BY MODE */}
-            {currentMode === 'chat' && (
-              <div className="bg-white border border-[#E8E6E1] rounded-3xl p-6 min-h-[420px] flex flex-col justify-between shadow-xs flex-shrink-0">
+            {mainTab === 'chat' && (
+              <div className="bg-white border border-[#E8E6E1] rounded-3xl p-6 min-h-[420px] flex flex-col justify-between shadow-xs flex-shrink-0 animate-fade-in">
                 
                 {/* CHAT OPERACIONAL INTERFACE */}
                 <div className="flex flex-col h-full flex-1 justify-between gap-6">
+                  
+                  {/* UPPER ROW CARD ACTION HEADER */}
+                  <div className="flex justify-between items-center pb-3 border-b border-slate-100 flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="size-4.5 text-[#1B3A2D] animate-pulse" />
+                      <h2 className="text-xs font-black uppercase text-slate-800 tracking-wider">Chat DDSulf Inteligente</h2>
+                    </div>
+                    <button
+                      onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                      className={`py-1.5 px-3 rounded-xl border transition-all flex items-center gap-1.5 text-[11px] font-bold cursor-pointer ${
+                        isSidebarOpen 
+                          ? 'bg-[#1B3A2D] text-white border-[#1B3A2D] shadow-3xs' 
+                          : 'bg-white text-slate-600 border-[#E8E6E1] hover:bg-slate-50'
+                      }`}
+                      title="Histórico de Consultas e Favoritos"
+                    >
+                      <History className="size-3.5" />
+                      <span>{isSidebarOpen ? 'Esconder Histórico' : 'Mostrar Histórico'}</span>
+                    </button>
+                  </div>
                   
                   {/* Message stream or Empty State */}
                   {messages.length === 0 ? (
@@ -951,7 +1013,7 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
               </div>
             )}
 
-            {currentMode === 'analista' && (
+            {mainTab === 'analises' && analysisTab === 'analista' && (
               <div className="space-y-6">
                 {/* SPREADSHEET MANAGER CENTER (XLSX SPREADSHEET AUDITOR AS PER RULE[AGENTS_md]) */}
                 <div className="bg-white border border-[#E8E6E1] rounded-3xl p-6 shadow-xs text-left animate-fade-in">
@@ -1510,7 +1572,7 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
               </div>
             )}
 
-            {currentMode === 'consultor' && (
+            {mainTab === 'analises' && analysisTab === 'consultor' && (
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch animate-fade-in">
                 {/* LEFT SIDE: PRIORITIZED RECOMMENDATION ALERT CARDS */}
                 <div className="md:col-span-6 space-y-4">
@@ -1761,11 +1823,11 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
                   </div>
                 </div>
               </div>
-            )}\
-\
-            {/* 3. BASE DE CONHECIMENTO (DEDICATED POP AREA) FOR CHAT CONVERSATIONAL MODE HELPERS */}
-            {currentMode === 'chat' && (
-              <div className="bg-white border border-[#E8E6E1] rounded-3xl p-6 text-left shadow-xs">
+            )}
+
+            {/* 3. BASE DE CONHECIMENTO (DEDICATED POP AREA) IN ANALISTA TAB AS REQUESTED */}
+            {mainTab === 'analises' && analysisTab === 'analista' && (
+              <div className="bg-white border border-[#E8E6E1] rounded-3xl p-6 text-left shadow-xs mt-6">
                 <div className="border-b border-slate-100 pb-3 flex items-center gap-3">
                   <div className="size-8 rounded-xl bg-[#FAF9F5] border border-slate-200 flex items-center justify-center">
                     <BookOpen className="size-4.5 text-[#1B3A2D]" />
@@ -1852,184 +1914,184 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
               </div>
             )}
 
-            {/* 4. HISTÓRICO & FAVORITOS COMBO GRID */}
-            {currentMode === 'chat' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6" id="historico-favoritos-container">
-                
-                {/* HISTÓRICO DE CONSULTAS */}
-                <div className="bg-white border border-[#E8E6E1] rounded-3xl p-5 text-left shadow-xs">
-                  <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2">
-                    <History className="size-4 text-slate-600 animate-pulse" />
-                    <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider font-sans">Últimas consultas realizadas</h3>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-100 text-[9px] font-black uppercase text-slate-400">
-                          <th className="pb-2">Data</th>
-                          <th className="pb-2">Pergunta</th>
-                          <th className="pb-2 text-right font-sans">Resultado</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-[10.5px]">
-                        {history.slice(0, 4).map((h) => (
-                          <tr key={h.id} className="hover:bg-slate-50/40">
-                            <td className="py-2.5 text-slate-400 font-mono font-medium">{h.date}</td>
-                            <td className="py-2.5 text-slate-700 font-medium truncate max-w-[150px]" title={h.query}>{h.title}</td>
-                            <td className="py-2.5 text-right font-medium font-sans">
-                              <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] font-bold">
-                                Resolvido
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* FAVORITOS SALVOS */}
-                <div className="bg-white border border-[#E8E6E1] rounded-3xl p-5 text-left shadow-xs">
-                  <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2">
-                    <Star className="size-4 text-[#D4A017] fill-[#D4A017]/20" />
-                    <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider font-sans">Análises e perguntas favoritas</h3>
-                  </div>
-
-                  <div className="space-y-2">
-                    {favorites.map((fav) => (
-                      <div 
-                        key={fav.id}
-                        className="p-2.5 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 flex items-center justify-between gap-3 text-[11px]"
-                      >
-                        <button 
-                          onClick={() => {
-                            if (fav.mode === 'analista' && fav.block) {
-                              setCurrentMode('analista');
-                              handleAnalyzeBlock(fav.block as any);
-                            } else {
-                              setCurrentMode('chat');
-                              handleSendMessage(fav.query);
-                            }
-                          }}
-                          className="flex-1 text-left font-bold text-slate-700 hover:text-[#1B3A2D] transition-colors leading-tight font-sans"
-                        >
-                          ⭐ {fav.title}
-                        </button>
-                        <button 
-                          onClick={() => setFavorites(prev => prev.filter(f => f.id !== fav.id))}
-                          className="text-slate-300 hover:text-[#C1361A] p-0.5 rounded cursor-pointer"
-                          title="Remover dos favoritos"
-                        >
-                          <X className="size-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            )}
+            {/* 4. SPACE PADDING END */}
+            <div className="h-4 shrink-0" />
 
           </div>
 
-          {/* 5. RIGHT SIDEBAR: AUTOMATED INSIGHTS Panel (O que exige atenção hoje? - fixed layout) */}
-          <div className="lg:col-span-1 bg-white border border-[#E8E6E1] rounded-3xl p-5 shadow-xs text-left shrink-0 h-fit" id="painel-insights-fixo">
-            
-            <div className="space-y-1 mb-4 border-b border-slate-100 pb-3 flex justify-between items-center">
+          {/* RIGHT SIDEBAR: CHAT HISTORY AND FAVORITES PANEL */}
+          {mainTab === 'chat' && isSidebarOpen && (
+            <div className="lg:col-span-1 bg-white border border-[#E8E6E1] rounded-3xl p-5 shadow-xs text-left h-fit flex flex-col gap-6 animate-fade-in" id="painel-insights-fixo">
+              
+              {/* HISTÓRICO DE CONSULTAS */}
               <div>
-                <h3 className="text-sm font-bold text-slate-800 leading-tight">O que exige atenção hoje?</h3>
-                <p className="text-[10px] text-slate-500 font-medium">Painel analítico ativo em tempo real.</p>
-              </div>
-              <span className="text-[10px] font-black px-2 py-0.5 bg-rose-50 text-[#C1361A] border border-rose-200 rounded-full">
-                {criticalProductsList.length + expiringContractsList.length + pendingAgendaCount ? criticalProductsList.length + expiringContractsList.length + pendingAgendaCount : 5} Alertas
-              </span>
-            </div>
-
-            <div className="space-y-3.5 max-h-[640px] overflow-y-auto pr-1">
-              {automaticInsights.map((insight) => (
-                <div 
-                  key={insight.id}
-                  className="p-3 bg-slate-50 border border-[#E8E6E1] rounded-2xl space-y-2 hover:bg-[#FAF9F5]/40 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${insight.badgeColor}`}>
-                      {insight.badge}
-                    </span>
-                  </div>
-                  <div>
-                    <h4 className="text-[11.5px] font-bold text-slate-800 leading-tight">{insight.title}</h4>
-                    <p className="text-[10px] text-slate-500 leading-normal mt-1">{insight.description}</p>
-                  </div>
-                  <div className="pt-1 flex justify-end">
-                    <button
-                      onClick={() => navigate(insight.path)}
-                      className="text-[9.5px] font-bold text-[#1B3A2D] hover:underline flex items-center gap-0.5 transition-colors cursor-pointer"
-                    >
-                      {insight.actionLabel}
-                      <ArrowUpRight className="size-3" />
-                    </button>
-                  </div>
+                <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+                  <History className="size-4 text-slate-600 animate-pulse" />
+                  <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider font-sans">Histórico de Consultas</h3>
                 </div>
-              ))}
-            </div>
+                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                  {history.slice(0, 5).map((h) => (
+                    <div key={h.id} className="p-2 bg-slate-50 border border-slate-100 rounded-xl space-y-1 hover:bg-[#FAF9F5]/40 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-mono font-medium text-slate-400">{h.date}</span>
+                        <span className="px-1.5 py-0.2 rounded bg-slate-200 text-slate-600 text-[8px] font-bold">Resolvido</span>
+                      </div>
+                      <button
+                        onClick={() => handleSendMessage(h.query)}
+                        className="text-left text-[11px] font-bold text-slate-700 hover:text-[#1B3A2D] leading-tight block w-full truncate cursor-pointer font-sans"
+                        title={h.query}
+                      >
+                        {h.title}
+                      </button>
+                    </div>
+                  ))}
+                  {history.length === 0 && (
+                    <p className="text-[10px] text-slate-400 font-sans italic text-center py-2">Nenhuma consulta recente.</p>
+                  )}
+                </div>
+              </div>
 
-          </div>
+              {/* FAVORITOS SALVOS */}
+              <div>
+                <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+                  <Star className="size-4 text-[#D4A017] fill-[#D4A017]/20" />
+                  <h3 className="text-xs font-black uppercase text-[#141410] tracking-wider font-sans">Meus Favoritos</h3>
+                </div>
+                <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                  {favorites.map((fav) => (
+                    <div 
+                      key={fav.id}
+                      className="p-2.5 rounded-xl border border-slate-205/65 hover:border-slate-300 hover:bg-slate-50/50 flex items-center justify-between gap-2 text-[11px]"
+                    >
+                      <button 
+                        onClick={() => {
+                          if (fav.mode === 'analista' && fav.block) {
+                            setMainTab('analises');
+                            setAnalysisTab('analista');
+                            handleAnalyzeBlock(fav.block as any);
+                          } else {
+                            handleSendMessage(fav.query);
+                          }
+                        }}
+                        className="flex-1 text-left font-bold text-slate-700 hover:text-[#1B3A2D] transition-colors leading-tight truncate cursor-pointer font-sans"
+                      >
+                        ⭐ {fav.title}
+                      </button>
+                      <button 
+                        onClick={() => setFavorites(prev => prev.filter(f => f.id !== fav.id))}
+                        className="text-slate-300 hover:text-[#C1361A] p-0.5 rounded cursor-pointer shrink-0"
+                        title="Remover dos favoritos"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {favorites.length === 0 && (
+                    <p className="text-[10px] text-slate-400 font-sans italic text-center py-2">Nenhum favorito salvo.</p>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          )}
 
         </div>
       </div>
 
-      {/* TABLET / MOBILE INTERSTITIAL COLLAPSED SIDEBAR INSIGHTS */}
+      {/* TABLET / MOBILE INTERSTITIAL COLLAPSED SIDEBAR: HISTORY & FAVORITES */}
       <AnimatePresence>
-        {isSidebarOpen && (
+        {isSidebarOpen && mainTab === 'chat' && (
           <div className="fixed inset-0 bg-black/40 z-50 lg:hidden flex justify-end">
             <motion.div 
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'tween', duration: 0.3 }}
-              className="w-full max-w-sm bg-white h-full p-6 overflow-y-auto shadow-2xl relative flex flex-col justify-between"
+              className="w-full max-w-sm bg-white h-full p-6 overflow-y-auto shadow-2xl relative flex flex-col gap-6"
             >
-              <div>
-                <div className="flex justify-between items-center mb-6 pl-1 pr-1 border-b pb-4">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 leading-tight">O que exige atenção hoje?</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Alertas ativos sob monitoramento técnico.</p>
-                  </div>
-                  <button 
-                    onClick={() => setIsSidebarOpen(false)}
-                    className="p-1.5 bg-slate-100 rounded-xl hover:bg-slate-200 text-[#141410]"
-                  >
-                    <X className="size-5" />
-                  </button>
+              <div className="flex justify-between items-center pl-1 pr-1 border-b pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 leading-tight">Histórico & Favoritos</h3>
+                  <p className="text-xs text-slate-500 mt-0.5 font-sans font-normal font-sans">Suas interações e análises preferidas.</p>
                 </div>
+                <button 
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-1.5 bg-slate-100 rounded-xl hover:bg-slate-200 text-[#141410] cursor-pointer"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
 
-                <div className="space-y-4">
-                  {automaticInsights.map((insight) => (
-                    <div 
-                      key={insight.id}
-                      className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-left"
-                    >
-                      <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${insight.badgeColor}`}>
-                        {insight.badge}
-                      </span>
-                      <h4 className="text-xs font-bold text-slate-800 leading-tight">{insight.title}</h4>
-                      <p className="text-[10.5px] text-slate-500 leading-normal mt-1">{insight.description}</p>
-                      
-                      <div className="pt-2 flex justify-end">
-                        <button
-                          onClick={() => {
-                            setIsSidebarOpen(false);
-                            navigate(insight.path);
-                          }}
-                          className="text-xs font-bold text-[#1B3A2D] hover:underline flex items-center gap-0.5"
-                        >
-                          {insight.actionLabel}
-                          <ArrowUpRight className="size-3" />
-                        </button>
+              {/* HISTÓRICO DE CONSULTAS */}
+              <div className="text-left select-none">
+                <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+                  <History className="size-4 text-slate-600 animate-pulse" />
+                  <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider font-sans">Histórico de Consultas</h3>
+                </div>
+                <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                  {history.slice(0, 5).map((h) => (
+                    <div key={h.id} className="p-2 bg-slate-50 border border-slate-100 rounded-xl space-y-1 hover:bg-[#FAF9F5]/40 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-mono font-medium text-slate-400">{h.date}</span>
+                        <span className="px-1.5 py-0.2 rounded bg-slate-200 text-slate-600 text-[8px] font-bold font-sans animate-fade-in">Resolvido</span>
                       </div>
+                      <button
+                        onClick={() => {
+                          setIsSidebarOpen(false);
+                          handleSendMessage(h.query);
+                        }}
+                        className="text-left text-[11px] font-bold text-slate-700 hover:text-[#1B3A2D] leading-tight block w-full truncate cursor-pointer font-sans"
+                        title={h.query}
+                      >
+                        {h.title}
+                      </button>
                     </div>
                   ))}
+                  {history.length === 0 && (
+                    <p className="text-[10px] text-slate-400 font-sans italic text-center py-2">Nenhuma consulta recente.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* FAVORITOS SALVOS */}
+              <div className="text-left select-none">
+                <div className="flex items-center gap-2 mb-3 border-b border-slate-100 pb-2">
+                  <Star className="size-4 text-[#D4A017] fill-[#D4A017]/20" />
+                  <h3 className="text-xs font-black uppercase text-[#141410] tracking-wider font-sans font-sans">Meus Favoritos</h3>
+                </div>
+                <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                  {favorites.map((fav) => (
+                    <div 
+                      key={fav.id}
+                      className="p-2.5 rounded-xl border border-slate-205/65 hover:border-slate-300 hover:bg-slate-50/50 flex items-center justify-between gap-2 text-[11px]"
+                    >
+                      <button 
+                        onClick={() => {
+                          setIsSidebarOpen(false);
+                          if (fav.mode === 'analista' && fav.block) {
+                            setMainTab('analises');
+                            setAnalysisTab('analista');
+                            handleAnalyzeBlock(fav.block as any);
+                          } else {
+                            handleSendMessage(fav.query);
+                          }
+                        }}
+                        className="flex-1 text-left font-bold text-slate-700 hover:text-[#1B3A2D] transition-colors leading-tight truncate cursor-pointer font-sans"
+                      >
+                        ⭐ {fav.title}
+                      </button>
+                      <button 
+                        onClick={() => setFavorites(prev => prev.filter(f => f.id !== fav.id))}
+                        className="text-slate-300 hover:text-[#C1361A] p-0.5 rounded cursor-pointer shrink-0"
+                        title="Remover dos favoritos"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {favorites.length === 0 && (
+                    <p className="text-[10px] text-slate-400 font-sans italic text-center py-2">Nenhum favorito salvo.</p>
+                  )}
                 </div>
               </div>
             </motion.div>

@@ -29,9 +29,10 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { ConfirmacaoServicoModal } from './ConfirmacaoServicoModal';
 import { MarcarRetornoModal } from './MarcarRetornoModal';
+import { AgendarServicoModal } from './AgendarServicoModal';
 
 export function ServicoConfirmacaoPage() {
-  const { quotes, confirmServiceExecuted, markAsRetorno, updateQuoteStatus } = useSystemStore();
+  const { quotes, confirmServiceExecuted, markAsRetorno, updateQuoteStatus, scheduleApprovedQuote } = useSystemStore();
   const quoteList = quotes?.list || [];
 
   // Active tab state in sub-page
@@ -47,6 +48,9 @@ export function ServicoConfirmacaoPage() {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [selectedQuoteForReject, setSelectedQuoteForReject] = useState<Quote | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+
+  const [isAgendarModalOpen, setIsAgendarModalOpen] = useState(false);
+  const [quoteToSchedule, setQuoteToSchedule] = useState<Quote | null>(null);
 
   // Date Filtering Helper
   const now = new Date();
@@ -128,19 +132,29 @@ export function ServicoConfirmacaoPage() {
     setIsReturnModalOpen(true);
   };
 
-  const handleApproveQuote = async (quote: Quote) => {
-    toast.info("Processando aprovação...", { description: "Publicando evento de integração [ORCAMENTO_APROVADO]..." });
-    await eventBusService.publish(
-      OperationalEventType.ORCAMENTO_APROVADO,
-      {
-        quoteId: quote.id,
-        value: quote.pricing?.finalPrice || 0,
-        clientName: quote.client?.name || 'Cliente',
-        pestType: quote.service?.pestType || 'Serviço operacional',
-        date: new Date().toISOString().split('T')[0]
-      },
-      SystemModuleName.SALES
-    );
+  const handleClienteAceitou = (quote: Quote) => {
+    setQuoteToSchedule(quote);
+    setIsAgendarModalOpen(true);
+  };
+
+  const handleConfirmarAgendamento = (
+    scheduledDate: string,
+    scheduledTime: string,
+    technician: string
+  ) => {
+    if (!quoteToSchedule) return;
+    updateQuoteStatus(quoteToSchedule.id, 'aprovado');
+    scheduleApprovedQuote(quoteToSchedule.id, scheduledDate, scheduledTime, technician);
+    setIsAgendarModalOpen(false);
+    setQuoteToSchedule(null);
+    
+    // Format date for the toast to dd/mm/yyyy
+    const parts = scheduledDate.split('-');
+    const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : scheduledDate;
+
+    toast.success('Serviço agendado com sucesso!', {
+      description: `${quoteToSchedule.client.name} — ${formattedDate} às ${scheduledTime}`
+    });
   };
 
   const handleConfirmSubmit = async (techName: string, notes: string) => {
@@ -183,6 +197,143 @@ export function ServicoConfirmacaoPage() {
     setSelectedQuoteForReject(null);
     setRejectReason('');
     toast.success('Orçamento recusado. Estoque revertido automaticamente.');
+  };
+
+  const renderQuoteCard = (q: Quote) => {
+    return (
+      <div 
+        key={q.id}
+        className="bg-white border border-[#EBEBE5] rounded-3xl p-6 shadow-xs flex flex-col justify-between hover:border-[#2D6A4F]/30 hover:shadow-sm transition-all duration-200 text-left"
+        id={`quote-card-pendente-${q.id}`}
+      >
+        <div>
+          {/* Card Head */}
+          <div className="flex justify-between items-start pb-4 border-b border-[#EBEBE5]/60 mb-4">
+            <div>
+              <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider">CÓDIGO: {q.id}</span>
+              <span className="block text-xs font-mono font-semibold text-slate-400 mt-0.5">
+                Criado em {new Date(q.createdAt).toLocaleDateString('pt-BR')}
+              </span>
+              {q.scheduledDate && (
+                <span className="block text-[11px] font-semibold text-[#2D6A4F] mt-1.5 flex items-center gap-1">
+                  <Calendar className="size-3.5 shrink-0" />
+                  Agendado para {q.scheduledDate.split('-').reverse().join('/')} às {q.scheduledTime}
+                </span>
+              )}
+            </div>
+            <div>
+              <span className={`px-2.5 py-1 text-[9px] font-mono font-bold tracking-wider rounded-md uppercase ${
+                q.status === 'aprovado' 
+                  ? 'bg-[#E3EFE5] text-[#2D6A4F]' 
+                  : 'bg-sky-50 text-sky-700 border border-sky-100'
+              }`}>
+                {q.status === 'aprovado' ? 'Aprovado' : 'Enviado'}
+              </span>
+            </div>
+          </div>
+
+          {/* Client Section */}
+          <div className="space-y-1 text-left mb-4">
+            <h3 className="text-[#141410] font-display font-extrabold text-base">{q.client?.name}</h3>
+            <p className="text-xs text-[#706F65] line-clamp-1">{q.client?.address}</p>
+            {q.client?.phone && <p className="text-[10px] font-mono text-slate-400">CONTATO: {q.client.phone}</p>}
+          </div>
+
+          {/* Detail specs of service */}
+          <div className="grid grid-cols-2 gap-3 bg-[#FAF8F5] border border-[#EBEBE5]/60 rounded-2xl p-3 text-xs mb-4">
+            <div className="text-left">
+              <span className="block text-[8px] font-mono font-bold text-slate-400 uppercase">Serviço</span>
+              <span className="font-extrabold text-[#141410]">{getServiceTypeText(q.service?.serviceType)}</span>
+            </div>
+            <div className="text-left">
+              <span className="block text-[8px] font-mono font-bold text-slate-400 uppercase">Praga-Alvo</span>
+              <span className="font-extrabold text-[#141410]">{getPestText(q.service?.pestType)}</span>
+            </div>
+            <div className="text-left pt-2 border-t border-[#EBEBE5]/40">
+              <span className="block text-[8px] font-mono font-bold text-slate-400 uppercase">Área Operativa</span>
+              <span className="font-bold text-[#141410]">{q.service?.areaM2 || 0} m²</span>
+            </div>
+            <div className="text-left pt-2 border-t border-[#EBEBE5]/40">
+              <span className="block text-[8px] font-mono font-bold text-slate-400 uppercase">Distância Deslocada</span>
+              <span className="font-bold text-[#141410]">{q.service?.distanceKm || 0} Km</span>
+            </div>
+          </div>
+
+          {/* Cost and Products components mapped list */}
+          <div className="mb-4">
+            <h4 className="text-[10px] font-mono font-bold text-[#706F65] uppercase tracking-wider mb-2 text-left">Produtos no Plano Técnico</h4>
+            {q.productsUsed && q.productsUsed.length > 0 ? (
+              <div className="bg-white border border-[#EBEBE5]/60 rounded-xl max-h-28 overflow-y-auto p-2 text-xs space-y-1">
+                {q.productsUsed.map((prod, idx) => (
+                  <div key={`${q.id}-prod-${idx}-${prod.productId}`} className="flex justify-between items-center bg-[#FAF8F5]/50 px-2 py-1 rounded-md text-[11px]">
+                    <span className="text-[#141410] font-semibold">{prod.productName}</span>
+                    <span className="font-mono text-[#2D6A4F] font-bold">
+                      {prod.quantity} {prod.unit}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] italic text-[#706F65] text-left">Sem insumos descritos na matriz</p>
+            )}
+          </div>
+
+          {/* Final prices bar */}
+          <div className="flex justify-between items-center py-2.5 border-t border-b border-[#EBEBE5]/40 mb-6 font-sans">
+            <span className="text-xs font-bold text-[#706F65]">Preço Estimado</span>
+            <span className="text-base font-display font-black text-[#2D6A4F]">
+              R$ {(q.pricing?.finalPrice || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2.5 mt-auto pt-2">
+          {q.status === 'enviado' ? (
+            <button
+              type="button"
+              onClick={() => handleClienteAceitou(q)}
+              className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1"
+              id={`btn-approve-${q.id}`}
+            >
+              <Check className="size-3.5" /> Cliente aceitou — agendar
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => triggerConfirmModal(q)}
+              className="flex-1 h-11 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1"
+              id={`btn-confirm-${q.id}`}
+            >
+              <CheckCircle2 className="size-3.5" /> Confirmar Execução
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => { setSelectedQuoteForReject(q); setIsRejectModalOpen(true); }}
+            className="px-3 h-11 border border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-700 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1"
+            title="Recusar orçamento"
+          >
+            <XCircle className="size-4" /> Recusar
+          </button>
+
+          {!q.hasReturn && (
+            <button
+              type="button"
+              onClick={() => triggerReturnModal(q)}
+              className="px-3 h-11 border border-amber-300 bg-amber-50/50 hover:bg-amber-100/70 text-amber-800 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center"
+              id={`btn-return-${q.id}`}
+              title="Gerar atendimento de retorno"
+            >
+              <RotateCcw className="size-4" />
+            </button>
+          )}
+        </div>
+
+      </div>
+    );
   };
 
   return (
@@ -356,137 +507,40 @@ export function ServicoConfirmacaoPage() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {quoteList
-                    .filter(q => q.status === 'enviado' || q.status === 'aprovado')
-                    .map((q) => (
-                      <div 
-                        key={q.id}
-                        className="bg-white border border-[#EBEBE5] rounded-3xl p-6 shadow-xs flex flex-col justify-between hover:border-[#2D6A4F]/30 hover:shadow-sm transition-all duration-200"
-                        id={`quote-card-pendente-${q.id}`}
-                      >
-                        <div>
-                          {/* Card Head */}
-                          <div className="flex justify-between items-start pb-4 border-b border-[#EBEBE5]/60 mb-4">
-                            <div>
-                              <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider">CÓDIGO: {q.id}</span>
-                              <span className="block text-xs font-mono font-semibold text-slate-400 mt-0.5">
-                                Criado em {new Date(q.createdAt).toLocaleDateString('pt-BR')}
-                              </span>
-                            </div>
-                            <div>
-                              <span className={`px-2.5 py-1 text-[9px] font-mono font-bold tracking-wider rounded-md uppercase ${
-                                q.status === 'aprovado' 
-                                  ? 'bg-[#E3EFE5] text-[#2D6A4F]' 
-                                  : 'bg-sky-50 text-sky-700 border border-sky-100'
-                              }`}>
-                                {q.status === 'aprovado' ? 'Aprovado' : 'Enviado'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Client Section */}
-                          <div className="space-y-1 text-left mb-4">
-                            <h3 className="text-[#141410] font-display font-extrabold text-[#141410] text-base">{q.client?.name}</h3>
-                            <p className="text-xs text-[#706F65] line-clamp-1">{q.client?.address}</p>
-                            {q.client?.phone && <p className="text-[10px] font-mono text-slate-400">CONTATO: {q.client.phone}</p>}
-                          </div>
-
-                          {/* Detail specs of service */}
-                          <div className="grid grid-cols-2 gap-3 bg-[#FAF8F5] border border-[#EBEBE5]/60 rounded-2xl p-3 text-xs mb-4">
-                            <div className="text-left">
-                              <span className="block text-[8px] font-mono font-bold text-slate-400 uppercase">Serviço</span>
-                              <span className="font-extrabold text-[#141410]">{getServiceTypeText(q.service?.serviceType)}</span>
-                            </div>
-                            <div className="text-left">
-                              <span className="block text-[8px] font-mono font-bold text-slate-400 uppercase">Praga-Alvo</span>
-                              <span className="font-extrabold text-[#141410]">{getPestText(q.service?.pestType)}</span>
-                            </div>
-                            <div className="text-left pt-2 border-t border-[#EBEBE5]/40">
-                              <span className="block text-[8px] font-mono font-bold text-slate-400 uppercase">Área Operativa</span>
-                              <span className="font-bold text-[#141410]">{q.service?.areaM2 || 0} m²</span>
-                            </div>
-                            <div className="text-left pt-2 border-t border-[#EBEBE5]/40">
-                              <span className="block text-[8px] font-mono font-bold text-slate-400 uppercase">Distância Deslocada</span>
-                              <span className="font-bold text-[#141410]">{q.service?.distanceKm || 0} Km</span>
-                            </div>
-                          </div>
-
-                          {/* Cost and Products components mapped list */}
-                          <div className="mb-4">
-                            <h4 className="text-[10px] font-mono font-bold text-[#706F65] uppercase tracking-wider mb-2 text-left">Produtos no Plano Técnico</h4>
-                            {q.productsUsed && q.productsUsed.length > 0 ? (
-                              <div className="bg-white border border-[#EBEBE5]/60 rounded-xl max-h-28 overflow-y-auto p-2 text-xs space-y-1">
-                                {q.productsUsed.map((prod, idx) => (
-                                  <div key={`${q.id}-prod-${idx}-${prod.productId}`} className="flex justify-between items-center bg-[#FAF8F5]/50 px-2 py-1 rounded-md text-[11px]">
-                                    <span className="text-[#141410] font-semibold">{prod.productName}</span>
-                                    <span className="font-mono text-[#2D6A4F] font-bold">
-                                      {prod.quantity} {prod.unit}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-[10px] italic text-[#706F65] text-left">Sem insumos descritos na matriz</p>
-                            )}
-                          </div>
-
-                          {/* Final prices bar */}
-                          <div className="flex justify-between items-center py-2.5 border-t border-b border-[#EBEBE5]/40 mb-6">
-                            <span className="text-xs font-bold text-[#706F65]">Preço Estimado</span>
-                            <span className="text-base font-display font-black text-[#2D6A4F]">
-                              R$ {(q.pricing?.finalPrice || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                          </div>
-
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-2.5 mt-auto pt-2">
-                          {q.status === 'enviado' ? (
-                            <button
-                              type="button"
-                              onClick={() => handleApproveQuote(q)}
-                              className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1"
-                              id={`btn-approve-${q.id}`}
-                            >
-                              <Check className="size-3.5" /> Aprovar Orçamento
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => triggerConfirmModal(q)}
-                              className="flex-1 h-11 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1"
-                              id={`btn-confirm-${q.id}`}
-                            >
-                              <CheckCircle2 className="size-3.5" /> Confirmar Execução
-                            </button>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={() => { setSelectedQuoteForReject(q); setIsRejectModalOpen(true); }}
-                            className="px-3 h-11 border border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-700 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1"
-                            title="Recusar orçamento"
-                          >
-                            <XCircle className="size-4" /> Recusar
-                          </button>
-
-                          {!q.hasReturn && (
-                            <button
-                              type="button"
-                              onClick={() => triggerReturnModal(q)}
-                              className="px-3 h-11 border border-amber-300 bg-amber-50/50 hover:bg-amber-100/70 text-amber-800 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center"
-                              id={`btn-return-${q.id}`}
-                              title="Gerar atendimento de retorno"
-                            >
-                              <RotateCcw className="size-4" />
-                            </button>
-                          )}
-                        </div>
-
+                <div className="space-y-8 text-left">
+                  {/* Seção 1: Aguardando Aceite */}
+                  {quoteList.filter(q => q.status === 'enviado').length > 0 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 border-b border-[#EBEBE5]/60 pb-2">
+                        <span className="size-2 rounded-full bg-sky-500 animate-pulse" />
+                        <h3 className="text-xs font-black text-slate-500 tracking-wider uppercase font-mono">
+                          Aguardando Aceite ({quoteList.filter(q => q.status === 'enviado').length})
+                        </h3>
                       </div>
-                    ))}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {quoteList
+                          .filter(q => q.status === 'enviado')
+                          .map((q) => renderQuoteCard(q))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Seção 2: Agendados */}
+                  {quoteList.filter(q => q.status === 'aprovado').length > 0 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 border-b border-[#EBEBE5]/60 pb-2 pt-4">
+                        <span className="size-2 rounded-full bg-emerald-500" />
+                        <h3 className="text-xs font-black text-slate-500 tracking-wider uppercase font-mono">
+                          Agendados / Pronto para Execução ({quoteList.filter(q => q.status === 'aprovado').length})
+                        </h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {quoteList
+                          .filter(q => q.status === 'aprovado')
+                          .map((q) => renderQuoteCard(q))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -711,6 +765,14 @@ export function ServicoConfirmacaoPage() {
           />
         )}
       </AnimatePresence>
+
+      {/* SCHEDULING MODAL */}
+      <AgendarServicoModal
+        quote={quoteToSchedule!}
+        isOpen={isAgendarModalOpen}
+        onClose={() => { setIsAgendarModalOpen(false); setQuoteToSchedule(null); }}
+        onConfirm={handleConfirmarAgendamento}
+      />
 
       {/* REJECTION MODAL */}
       <AnimatePresence>
