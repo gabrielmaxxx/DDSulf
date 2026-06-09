@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import {
   FileText,
   Users,
@@ -19,14 +20,15 @@ import {
   ArrowRight,
   Activity
 } from 'lucide-react';
-import { useSystemStore, selectMargemMesAnterior } from '@/store/systemStore';
+import { useSystemStore, selectMargemMesAnterior, selectContratosParaReajuste } from '@/store/systemStore';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatBRL, formatPercent } from '@/utils/format';
 import { DisponibilidadeTecnicos } from './components/DisponibilidadeTecnicos';
 
 export function DashboardPage() {
-  const { financial, inventory, quotes, pops, agenda, clients, contracts, settings } = useSystemStore();
+  const systemState = useSystemStore();
+  const { financial, inventory, quotes, pops, agenda, clients, contracts, settings } = systemState;
   const navigate = useNavigate();
 
   // 2. DATA EXTRACTION AND COMPUTATIONS (REAL VALUES REGULATORY PARSED)
@@ -89,6 +91,52 @@ export function DashboardPage() {
       return diffDays > 0 && diffDays <= 15;
     }).length;
   }, [contracts]);
+
+  const reajusteContrats = useMemo(() => selectContratosParaReajuste(systemState), [systemState]);
+
+  // 2b. REVENUE FORECAST VS REALIZED CHART DATA (COMPILING APPR & CONF QUOTES BY MONTH)
+  const revenueChartData = useMemo(() => {
+    const list = quotes?.list || [];
+    const map = new Map<string, { prevista: number; realizada: number }>();
+
+    list.forEach(q => {
+      if (!q.createdAt) return;
+      const mes = q.createdAt.slice(0, 7); // YYYY-MM
+      if (!/^\d{4}-\d{2}/.test(mes)) return;
+
+      const val = q.pricing?.finalPrice || 0;
+      if (!map.has(mes)) {
+        map.set(mes, { prevista: 0, realizada: 0 });
+      }
+
+      const vals = map.get(mes)!;
+      // Approved (Aprovado) and Executed (Executado) represent prevista
+      if (q.status === 'aprovado' || q.status === 'executado') {
+        vals.prevista += val;
+      }
+      // Executed (Executado) is the actual realized revenue
+      if (q.status === 'executado') {
+        vals.realizada += val;
+      }
+    });
+
+    const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    return Array.from(map.entries())
+      .map(([mes, vals]) => {
+        const [year, month] = mes.split('-');
+        const monthIdx = parseInt(month, 10) - 1;
+        const label = `${mesesNomes[monthIdx] || month}/${year.slice(2)}`;
+        return {
+          key: mes,
+          name: label,
+          'Prevista (Orçado + Agendado)': Number(vals.prevista.toFixed(2)),
+          'Realizada (Executada)': Number(vals.realizada.toFixed(2))
+        };
+      })
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .slice(-6); // last 6 months for a clean UI
+  }, [quotes?.list]);
 
   // 3. SECCIÓN 1: ALERTS COMPILED (MAX 5 ALERTS)
   const alertsList = useMemo(() => {
@@ -187,8 +235,25 @@ export function DashboardPage() {
       });
     }
 
+    // Alerta 🟡 Contratos para reajuste
+    if (reajusteContrats.length > 0) {
+      const potencialReajuste = reajusteContrats.reduce((s, r) => s + (r.suggestedValue - r.currentValue), 0);
+      list.push({
+        id: 'alert-contracts-reajuste',
+        variant: 'warning',
+        colorIconClass: 'text-amber-600 bg-amber-100/80',
+        bgColorClass: 'bg-amber-50/20',
+        borderColorClass: 'border-amber-100/70',
+        title: 'Contratos para reajuste',
+        description: `${reajusteContrats.length} contrato(s) elegíveis para reajuste anual (IPCA). Valor potencial: +R$ ${potencialReajuste.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês`,
+        btnLabel: 'Abrir Clientes',
+        path: '/clientes',
+        icon: FileText,
+      });
+    }
+
     return list;
-  }, [lowStockProducts, expiringContractsCount, pops?.procedures, quotes?.list, currentMonth, settings?.maxReturnRatePercent]);
+  }, [lowStockProducts, expiringContractsCount, pops?.procedures, quotes?.list, currentMonth, settings?.maxReturnRatePercent, reajusteContrats]);
 
   const displayAlertsList = useMemo(() => alertsList.slice(0, 5), [alertsList]);
 
@@ -624,6 +689,83 @@ export function DashboardPage() {
             </div>
           </Card>
         </div>
+      </section>
+
+      {/* SEÇÃO GRÁFICO: FLUXO DE CAIXA PREVISTO VS REALIZADO */}
+      <section id="section-comparativo-receita" className="space-y-4">
+        <div>
+          <h2 className="text-xl font-black text-slate-800 tracking-tight">
+            Fluxo de Caixa Previsto vs. Realizado
+          </h2>
+          <p className="text-xs font-medium text-slate-450 mt-1">
+            Análise histórica comparativa de faturamento orçado (aprovado/agendado) vs. receita efetivamente liquidada.
+          </p>
+        </div>
+
+        <Card className="bg-white border border-[#E8E6E1] p-6 sm:p-8 rounded-3xl shadow-xxs">
+          <div className="h-[320px] w-full" id="revenue-compare-chart-container">
+            {revenueChartData.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-xs text-slate-400 font-bold uppercase tracking-wider py-12">
+                Nenhum dado financeiro para o período.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revenueChartData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EBEBE5" opacity={0.6} />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="#706F65" 
+                    fontSize={10} 
+                    fontWeight="bold" 
+                    tickLine={false} 
+                    axisLine={false} 
+                    dy={8}
+                  />
+                  <YAxis 
+                    stroke="#706F65" 
+                    fontSize={10} 
+                    fontWeight="bold" 
+                    tickLine={false} 
+                    axisLine={false}
+                    tickFormatter={(val) => `R$ ${val}`}
+                    dx={-8}
+                  />
+                  <Tooltip
+                    formatter={(value: any) => [`R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]}
+                    contentStyle={{ 
+                      borderRadius: '16px', 
+                      backgroundColor: '#FFFFFF', 
+                      border: '1px solid #EBEBE5', 
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+                      fontFamily: 'Inter, sans-serif'
+                    }}
+                    itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
+                    labelStyle={{ fontSize: '10px', color: '#706F65', fontWeight: 'black', marginBottom: '4px' }}
+                  />
+                  <Legend 
+                    verticalAlign="top" 
+                    height={36} 
+                    iconType="circle"
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', fontFamily: 'Inter, sans-serif' }}
+                  />
+                  <Bar 
+                    dataKey="Prevista (Orçado + Agendado)" 
+                    fill="#8FAD88" 
+                    radius={[6, 6, 0, 0]} 
+                    maxBarSize={45}
+                  />
+                  <Bar 
+                    dataKey="Realizada (Executada)" 
+                    fill="#1B3A2D" 
+                    radius={[6, 6, 0, 0]} 
+                    maxBarSize={45}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </Card>
       </section>
 
       {/* SEÇÃO 3: AGENDA OPERACIONAL */}

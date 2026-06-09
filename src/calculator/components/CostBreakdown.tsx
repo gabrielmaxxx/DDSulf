@@ -8,7 +8,7 @@ interface CostBreakdownProps {
 }
 
 export function CostBreakdown({ breakdown }: CostBreakdownProps) {
-  const { financial } = useSystemStore();
+  const { settings } = useSystemStore();
   const {
     directLaborCost,
     displacementCost,
@@ -20,8 +20,8 @@ export function CostBreakdown({ breakdown }: CostBreakdownProps) {
     breakEvenPrice
   } = breakdown;
 
-  const dvPercent = financial?.markupDespesasVariaveisPercent ?? 15;
-  const margemMinimaPercent = financial?.markupMargemMinimaPercent ?? 20;
+  const dvPercent = settings?.operationalGoals?.variableExpensesPercent ?? 15;
+  const margemMinimaPercent = settings?.operationalGoals?.minMarginPercent ?? 20;
 
   // CDV calculation
   const cdvTotal = chemicalsCost + directLaborCost + displacementCost + equipmentsCost;

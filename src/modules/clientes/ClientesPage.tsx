@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useSystemStore, Client, Contract, AgendaEvent, Quote, selectClienteRentabilidade, ClienteRentabilidade } from '@/store/systemStore';
+import { useSystemStore, Client, Contract, AgendaEvent, Quote, selectClienteRentabilidade, ClienteRentabilidade, selectContratosParaReajuste } from '@/store/systemStore';
 import { 
   Users, 
   FileText, 
@@ -79,6 +79,7 @@ const INITIAL_DOCS: Record<string, ClientDoc[]> = {
 export function ClientesPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const systemState = useSystemStore();
   const {
     clients,
     contracts,
@@ -93,7 +94,7 @@ export function ClientesPage() {
     addQuote,
     quotes,
     financial
-  } = useSystemStore();
+  } = systemState;
 
   // Listen for clientId and activeTab in URL parameters and automatically select the client and tab on mount or change
   useEffect(() => {
@@ -1287,36 +1288,46 @@ export function ClientesPage() {
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            {(contracts || []).filter(c => c.clientId === activeClient.id).map(c => (
-                              <div key={c.id} className="p-3 bg-white border border-[#E8E6E1]/80 rounded-xl flex flex-col md:flex-row justify-between md:items-center gap-3 text-left">
-                                <div className="space-y-1">
-                                  <h4 className="font-bold text-[#141410]">{c.title}</h4>
-                                  <div className="flex items-center gap-2 flex-wrap text-[10px] text-slate-500">
-                                    <span>Vigência: {c.startDate} até {c.endDate}</span>
-                                    <span>•</span>
-                                    <span>Fatura a cada {c.recurrencyMonths} m</span>
+                            {(contracts || []).filter(c => c.clientId === activeClient.id).map(c => {
+                              const reajustes = selectContratosParaReajuste(systemState);
+                              const reajusteDoCliente = reajustes.find(r => r.contractId === c.id);
+                              return (
+                                <div key={c.id} className="p-3 bg-white border border-[#E8E6E1]/80 rounded-xl flex flex-col md:flex-row justify-between md:items-center gap-3 text-left">
+                                  <div className="space-y-1">
+                                    <h4 className="font-bold text-[#141410]">{c.title}</h4>
+                                    <div className="flex items-center gap-2 flex-wrap text-[10px] text-slate-500">
+                                      <span>Vigência: {c.startDate} até {c.endDate}</span>
+                                      <span>•</span>
+                                      <span>Fatura a cada {c.recurrencyMonths} m</span>
+                                    </div>
+                                    {reajusteDoCliente && (
+                                      <div className="mt-1 inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-lg text-[9.5px] font-black">
+                                        <AlertTriangle className="size-3 shrink-0 text-amber-600 animate-pulse" />
+                                        Reajuste sugerido: R$ {reajusteDoCliente.suggestedValue.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/mês (+{reajusteDoCliente.adjustment.toFixed(1)}%)
+                                      </div>
+                                    )}
                                   </div>
-                                </div>
 
-                                <div className="flex items-center gap-3 justify-between">
-                                  <div>
-                                    <p className="text-[8px] font-bold text-slate-400 uppercase text-right">Mensalidade</p>
-                                    <p className="font-mono font-black text-emerald-800 text-xs">
-                                      R$ {c.recurrentValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                                    </p>
-                                  </div>
-                                  <div className="flex gap-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => openEditContract(c)}
-                                      className="p-1 px-1.5 bg-slate-50 border border-[#E8E6E1] hover:border-slate-300 rounded hover:bg-slate-100 cursor-pointer text-slate-600 font-bold"
-                                    >
-                                      Edit
-                                    </button>
+                                  <div className="flex items-center gap-3 justify-between">
+                                    <div>
+                                      <p className="text-[8px] font-bold text-slate-400 uppercase text-right">Mensalidade</p>
+                                      <p className="font-mono font-black text-emerald-800 text-xs">
+                                        R$ {c.recurrentValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                      </p>
+                                    </div>
+                                    <div className="flex gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => openEditContract(c)}
+                                        className="p-1 px-1.5 bg-slate-50 border border-[#E8E6E1] hover:border-slate-300 rounded hover:bg-slate-100 cursor-pointer text-slate-600 font-bold"
+                                      >
+                                        Edit
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>

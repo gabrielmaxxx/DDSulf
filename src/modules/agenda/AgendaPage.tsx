@@ -39,27 +39,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { FileUpload } from '@/components/FileUpload';
 import { formatBRL, formatPercent, formatDate } from '@/utils/format';
 
-// Formatting utilities unified with @/utils/format
-const formatCurrency = (val: number | string | undefined) => {
-  if (val === undefined || val === null) return 'R$ 0,00';
-  const num = typeof val === 'number' ? val : parseFloat(val);
-  if (isNaN(num)) return 'R$ 0,00';
-  return formatBRL(num);
-};
 
-const formatPercentLocal = (val: number | undefined) => {
-  if (val === undefined || val === null) return '0,00%';
-  return formatPercent(val);
-};
-
-const formatBrazilianDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  return formatDate(dateStr);
-};
-
-// Use formatPercentLocal as formatPercent inside AgendaPage
-const formatPercentVal = formatPercentLocal;
-export { formatPercentVal as formatPercent };
 
 // Return the list of days in a week given a date reference
 const getStartAndEndOfWeek = (dateRefStr: string) => {
@@ -855,7 +835,7 @@ export function AgendaPage() {
                   Serviços Programados
                 </h3>
                 <p className="text-[10px] text-zinc-400 font-semibold mt-0.5">
-                  {selectedDate ? `Filtro: ${formatBrazilianDate(selectedDate)}` : `Filtro: ${activeFilter}`}
+                  {selectedDate ? `Filtro: ${formatDate(selectedDate)}` : `Filtro: ${activeFilter}`}
                 </p>
               </div>
               <span className="text-[10px] font-bold text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-md">
@@ -1157,7 +1137,7 @@ export function AgendaPage() {
                     <div className="space-y-1.5">
                       <p id="detail-client-date" className="flex items-center gap-2">
                         <CalendarDays className="size-3.5 text-zinc-400 shrink-0" />
-                        <span>{formatBrazilianDate(selectedEvent.date)} às {selectedEvent.time || '--:--'}</span>
+                        <span>{formatDate(selectedEvent.date)} às {selectedEvent.time || '--:--'}</span>
                       </p>
                       <p id="detail-client-technician" className="flex items-center gap-2">
                         <User className="size-3.5 text-zinc-400 shrink-0" />
@@ -1199,7 +1179,7 @@ export function AgendaPage() {
                       <div>
                         <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">Valor do Contrato</span>
                         <span className="text-sm font-bold text-[#1B3A2D] mt-0.5 block">
-                          {selectedEvent.type === 'retorno' ? 'R$ 0,00 (Retorno de Garantia)' : formatCurrency(selectedEvent.value || 450)}
+                          {selectedEvent.type === 'retorno' ? 'R$ 0,00 (Retorno de Garantia)' : formatBRL(Number(selectedEvent.value || 450))}
                         </span>
                       </div>
                       
@@ -1378,7 +1358,7 @@ export function AgendaPage() {
                   Registrar Retorno de Garantia
                 </h3>
                 <p className="text-[10px] text-zinc-400 font-semibold mt-0.5">
-                  Original: {selectedEvent.clientName} ({formatBrazilianDate(selectedEvent.date)})
+                  Original: {selectedEvent.clientName} ({formatDate(selectedEvent.date)})
                 </p>
               </div>
               <button 

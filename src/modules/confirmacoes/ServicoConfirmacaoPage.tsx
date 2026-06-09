@@ -143,8 +143,8 @@ export function ServicoConfirmacaoPage() {
     technician: string
   ) => {
     if (!quoteToSchedule) return;
-    updateQuoteStatus(quoteToSchedule.id, 'aprovado');
     scheduleApprovedQuote(quoteToSchedule.id, scheduledDate, scheduledTime, technician);
+    updateQuoteStatus(quoteToSchedule.id, 'aprovado');
     setIsAgendarModalOpen(false);
     setQuoteToSchedule(null);
     

@@ -20,6 +20,7 @@ interface SettingsData {
   costPerHour: number;
   equipmentAmortization: number;
   maxReturnRatePercent: number;
+  ipcaReferencePercent: number;
 }
 
 const DEFAULT_SETTINGS: SettingsData = {
@@ -36,7 +37,8 @@ const DEFAULT_SETTINGS: SettingsData = {
   targetMarginPercent: 35,
   costPerHour: 45,
   equipmentAmortization: 35,
-  maxReturnRatePercent: 8
+  maxReturnRatePercent: 8,
+  ipcaReferencePercent: 4.6
 };
 
 export function SettingsPage() {
@@ -62,7 +64,8 @@ export function SettingsPage() {
         targetMarginPercent: globalSettings.operationalGoals?.targetMarginPercent ?? DEFAULT_SETTINGS.targetMarginPercent,
         costPerHour: globalSettings.operationalGoals?.costPerHour ?? DEFAULT_SETTINGS.costPerHour,
         equipmentAmortization: globalSettings.operationalGoals?.equipmentAmortization ?? DEFAULT_SETTINGS.equipmentAmortization,
-        maxReturnRatePercent: globalSettings.maxReturnRatePercent ?? DEFAULT_SETTINGS.maxReturnRatePercent
+        maxReturnRatePercent: globalSettings.maxReturnRatePercent ?? DEFAULT_SETTINGS.maxReturnRatePercent,
+        ipcaReferencePercent: globalSettings.ipcaReferencePercent ?? DEFAULT_SETTINGS.ipcaReferencePercent
       });
     }
   }, [globalSettings]);
@@ -101,6 +104,7 @@ export function SettingsPage() {
           state: stateArg,
           phone: settings.phone,
           maxReturnRatePercent: settings.maxReturnRatePercent,
+          ipcaReferencePercent: settings.ipcaReferencePercent,
           operationalGoals: {
             targetServicesPerMonth: settings.monthlyServiceTarget,
             minimumMarginPercent: settings.minMargin,
@@ -321,6 +325,25 @@ export function SettingsPage() {
                   className="w-full h-11 border border-gray-200 rounded-xl px-4 text-xs font-semibold focus:outline-hidden focus:border-black transition-all bg-white"
                 />
                 <span className="text-[9px] text-[#9CA3AF] block font-mono">Taxa máxima tolerada de retornos sobre serviços executados no mês (Padrão: 8%)</span>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#6B6B5F] flex items-center gap-1.5 font-bold">
+                  <Landmark className="size-3" /> IPCA de Referência para Reajuste (%)
+                </label>
+                <input
+                  type="number"
+                  name="ipcaReferencePercent"
+                  required
+                  step="0.1"
+                  min="0"
+                  max="30"
+                  value={settings.ipcaReferencePercent}
+                  onChange={handleChange}
+                  placeholder="Ex: 4.6"
+                  className="w-full h-11 border border-gray-200 rounded-xl px-4 text-xs font-semibold focus:outline-hidden focus:border-black transition-all bg-white"
+                />
+                <span className="text-[9px] text-[#9CA3AF] block font-mono">Usado para calcular o reajuste sugerido em contratos com mais de 11 meses. (Média: 4,6%)</span>
               </div>
             </div>
           </div>

@@ -48,7 +48,7 @@ export default function App() {
           <Route path="/financial" element={<ProtectedLayout><FinancialPage /></ProtectedLayout>} />
           <Route path="/pops" element={<ProtectedLayout><POPsPage /></ProtectedLayout>} />
           <Route path="/inventory" element={<ProtectedLayout><InventoryPage /></ProtectedLayout>} />
-          <Route path="/confirmacoes" element={<ProtectedLayout><ServicoConfirmacaoPage /></ProtectedLayout>} />
+          <Route path="/confirmacoes" element={<Navigate to="/agenda" replace />} />
           <Route path="/agenda" element={<ProtectedLayout><AgendaPage /></ProtectedLayout>} />
           <Route path="/clientes" element={<ProtectedLayout><ClientesPage /></ProtectedLayout>} />
           <Route path="/ai" element={<ProtectedLayout><AIPage /></ProtectedLayout>} />

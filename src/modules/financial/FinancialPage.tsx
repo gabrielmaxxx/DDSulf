@@ -691,7 +691,7 @@ export function FinancialPage() {
   };
 
   const handleResetForDemo = () => {
-    if (window.confirm("🔴 APAGAR ABSOLUTAMENTE TUDO?\n\nEsta ação apagará todos os lançamentos financeiros, custos de frota, salários, precificadores e insumos de estoque para iniciar uma demonstração do absoluto zero.\n\nEsta operação é definitiva e ideal para apresentações de vendas.")) {
+    if (window.confirm("🔴 APAGAR ABSOLUTAMENTE TUDO?\n\nEsta ação apagará todos os lançamentos financeiros, custos de frota, salários e insumos de estoque para iniciar uma demonstração do absoluto zero.\n\nEsta operação é definitiva e ideal para apresentações de vendas.")) {
       resetSystemData();
       toast.success("Sistema resetado com sucesso!", {
         description: "Todos os custos e movimentações foram reduzidos a zero para sua demonstração técnica."

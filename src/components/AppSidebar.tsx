@@ -53,7 +53,6 @@ export function AppSidebar() {
   const operationGroup = [
     { title: 'Calculadora', icon: Calculator, path: '/calculator' },
     { title: 'Agenda e Serviços', icon: CalendarDays, path: '/agenda' },
-    { title: 'Confirmação de Serviços', icon: ClipboardCheck, path: '/confirmacoes' },
     { title: 'Clientes', icon: Users, path: '/clientes' },
     { title: 'POPs e Procedimentos', icon: CheckSquare, path: '/pops' },
     { title: 'Estoque', icon: Package, path: '/inventory' },
@@ -82,7 +81,7 @@ export function AppSidebar() {
         >
           <Icon className={cn("size-5 shrink-0 transition-colors", isActive ? "text-[#1B3A2D]" : "text-white/80")} />
           <span className="ml-3 text-sm truncate">{item.title}</span>
-          {item.path === '/confirmacoes' && pendingCount > 0 && (
+          {item.path === '/agenda' && pendingCount > 0 && (
             <span className={cn(
               "ml-auto text-[10px] font-black px-2 py-0.5 rounded-full transition-all shrink-0",
               isActive ? "bg-[#1B3A2D] text-white" : "bg-rose-500 text-white"

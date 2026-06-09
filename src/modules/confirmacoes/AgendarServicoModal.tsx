@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Quote } from '@/store/systemStore';
 import { 
   Dialog, 
@@ -23,6 +23,15 @@ export function AgendarServicoModal({ quote, isOpen, onClose, onConfirm }: Agend
   const [scheduledTime, setScheduledTime] = useState('08:00');
   const [scheduledTechnician, setScheduledTechnician] = useState('');
   const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setScheduledDate('');
+      setScheduledTime('08:00');
+      setScheduledTechnician('');
+      setNotes('');
+    }
+  }, [isOpen]);
 
   // Sugestões rápidas de horário
   const quickTimes = ['08:00', '09:00', '10:00', '14:00'];

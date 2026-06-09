@@ -58,9 +58,6 @@ export interface FinancialCostConfig {
     value: number;
     quoteRef: string;
   }>;
-  markupDespesasVariaveisPercent?: number;  // %DV — default 15
-  markupMargemAlvoPercent?: number;          // %ML alvo — default 35
-  markupMargemMinimaPercent?: number;        // %ML mínima — default 20
   movements?: FinancialMovement[];           // Plano de Contas / Movimentações
 }
 
@@ -252,6 +249,7 @@ export interface SystemSettings {
   state: string;
   phone: string;
   maxReturnRatePercent?: number;
+  ipcaReferencePercent?: number; // default 4.6
   operationalGoals: {
     targetServicesPerMonth: number;
     minimumMarginPercent: number;
@@ -466,9 +464,6 @@ const INITIAL_STATE: SystemState = {
     },
     revenueHistory: [],
     costHistory: [],
-    markupDespesasVariaveisPercent: 15,
-    markupMargemAlvoPercent: 35,
-    markupMargemMinimaPercent: 20,
     movements: DEFAULT_MOVEMENTS,
   },
   inventory: {
@@ -603,6 +598,7 @@ const INITIAL_STATE: SystemState = {
     state: 'RJ',
     phone: '(24) 3344-5566',
     maxReturnRatePercent: 8,
+    ipcaReferencePercent: 4.6,
     operationalGoals: {
       targetServicesPerMonth: 120,
       minimumMarginPercent: 35,
@@ -1603,15 +1599,7 @@ export const useSystemStore = create<SystemState & SystemActions>()(
             laborPerHour: settings.operationalGoals.costPerHour
           };
         }
-        if (settings.operationalGoals?.variableExpensesPercent !== undefined) {
-          nextFinancial.markupDespesasVariaveisPercent = settings.operationalGoals.variableExpensesPercent;
-        }
-        if (settings.operationalGoals?.targetMarginPercent !== undefined) {
-          nextFinancial.markupMargemAlvoPercent = settings.operationalGoals.targetMarginPercent;
-        }
-        if (settings.operationalGoals?.minMarginPercent !== undefined) {
-          nextFinancial.markupMargemMinimaPercent = settings.operationalGoals.minMarginPercent;
-        }
+
 
         return updateCompanyData(state, {
           settings: nextSettings,
@@ -1636,9 +1624,6 @@ export const useSystemStore = create<SystemState & SystemActions>()(
             operational: { servicesPerMonth: 0, avgServiceDurationHours: 0, minimumMarginPercent: 35 },
             revenueHistory: [],
             costHistory: [],
-            markupDespesasVariaveisPercent: 15,
-            markupMargemAlvoPercent: 35,
-            markupMargemMinimaPercent: 20,
           },
           inventory: { products: [], movements: [] },
           pops: { procedures: [] },
@@ -2322,6 +2307,34 @@ export function selectMargemMesAnterior(state: SystemState): number {
   const sumMargin = prevMonthQuotes.reduce((sum, q) => sum + (q.pricing?.marginPercent || 0), 0);
   return sumMargin / prevMonthQuotes.length;
 }
+
+export interface ContratoReajuste {
+  contractId: string;
+  clientName: string;
+  currentValue: number;
+  suggestedValue: number;
+  monthsOld: number;
+  adjustment: number; // percentual
+}
+
+export function selectContratosParaReajuste(state: SystemState): ContratoReajuste[] {
+  const ipcaPercent = state.settings?.ipcaReferencePercent ?? 4.6;
+  const today = new Date();
+  return (state.contracts || [])
+    .filter(c => c.status === 'ativo')
+    .map(c => {
+      const start = new Date(c.startDate);
+      const months = (today.getFullYear() - start.getFullYear()) * 12
+        + (today.getMonth() - start.getMonth());
+      const yearsOld = months / 12;
+      const adjustment = Math.pow(1 + ipcaPercent / 100, yearsOld) - 1;
+      const suggestedValue = c.recurrentValue * (1 + adjustment);
+      return { contractId: c.id, clientName: c.clientName, currentValue: c.recurrentValue,
+        suggestedValue, monthsOld: months, adjustment: adjustment * 100 };
+    })
+    .filter(r => r.monthsOld >= 11);
+}
+
 
 
 
