@@ -8,7 +8,8 @@ import {
   FileSpreadsheet, Trash2, Edit2, Filter, ArrowRightLeft, FileUp,
   ChevronRight, Sparkles, Info, Calendar, Layers, CheckCircle2,
   ArrowUpRight, ArrowDownLeft, SearchX, Eye, ShieldAlert, Loader2,
-  TrendingUp, MapPin, Calculator, FileText, Bot, DollarSign
+  TrendingUp, MapPin, Calculator, FileText, Bot, DollarSign,
+  ShoppingCart, Bell
 } from 'lucide-react';
 import { useSystemStore } from '@/store';
 import { motion, AnimatePresence } from 'motion/react';
@@ -49,7 +50,8 @@ interface UploadParsedItem {
 export function InventoryPage() {
   const {
     inventory, addInventoryProduct, updateInventoryProduct, removeInventoryProduct,
-    addInventoryMovement, purchases, updatePurchaseStatus, quotes, agenda, pops
+    addInventoryMovement, purchases, updatePurchaseStatus, quotes, agenda, pops,
+    addPurchaseRequisition
   } = useSystemStore();
 
   const [searchParams] = useSearchParams();
@@ -563,6 +565,27 @@ export function InventoryPage() {
     setIsClassifyingWithAI(false);
   };
 
+  // Quick reorder dispatcher
+  const handleQuickReorder = (p: any) => {
+    const idealQty = p.minQuantity * 2;
+    const qtyToBuy = Math.max(p.minQuantity, idealQty - p.quantity);
+
+    addPurchaseRequisition({
+      id: `purch-${Math.random().toString(36).substring(2, 11)}`,
+      productId: p.id,
+      productName: p.name,
+      currentStock: p.quantity,
+      minStock: p.minQuantity,
+      idealStock: idealQty,
+      quantityToBuy: Math.ceil(qtyToBuy),
+      status: 'Pendente',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+
+    toast.success(`Solicitação de reabastecimento enviada para cotação: +${Math.ceil(qtyToBuy)} ${p.unit} de ${p.name}!`);
+  };
+
   // Filter items in the table
   const getFilteredProducts = () => {
     let list = [...products];
@@ -787,6 +810,135 @@ export function InventoryPage() {
                   <p className="text-xl font-bold text-slate-900 mt-0.5">{recentOutputsCount ? `${recentOutputsCount.toLocaleString('pt-BR')} un` : '142 un'}</p>
                 </div>
               </Card>
+            </div>
+
+            {/* REAL-TIME MINIMUM THRESHOLDS MONITORING & AUTO-REORDER SYSTEM */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-4 shadow-xs" id="realtime-threshold-monitor-panel">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-rose-50 rounded-xl text-rose-700 border border-rose-100 shrink-0">
+                    <Bell className="size-4.5 animate-bounce" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 font-sans tracking-tight flex items-center gap-2">
+                      Monitoramento Ativo de Limites & Reposição de Estoque
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-medium">
+                      Dados sincronizados em tempo real. Identifique gargalos e envie solicitações de cotação para o almoxarifado em um clique.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 self-start sm:self-center bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-full shrink-0">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 font-mono">Live Sync Ativo</span>
+                </div>
+              </div>
+
+              {products.filter(p => p.minQuantity > 0 && p.quantity <= p.minQuantity * 1.5).length === 0 ? (
+                <div className="py-8 text-center bg-emerald-50/40 border border-emerald-100 rounded-2xl flex flex-col items-center justify-center gap-2">
+                  <CheckCircle2 className="size-8 text-[#1B3A2D] stroke-[1.5]" />
+                  <p className="text-xs font-bold text-slate-800">Cadeia de Suprimentos Segura</p>
+                  <p className="text-[10px] text-slate-500 max-w-md px-4">
+                    Todos os insumos operacionais estão acima de 150,00% do limite mínimo de segurança estabelecido. Nenhuma ação de recompra imediata é necessária hoje.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {products
+                    .filter(p => p.minQuantity > 0 && p.quantity <= p.minQuantity * 1.5)
+                    .map(p => {
+                      const isCritical = p.quantity <= p.minQuantity;
+                      const ratio = Math.min(100, Math.max(0, (p.quantity / (p.minQuantity * 1.5 || 1)) * 100));
+                      
+                      // Check if there is already a pending/solicitado purchase requisition for this product
+                      const isReorderPending = (purchases || []).some(
+                        req => req.productId === p.id && (req.status === 'Pendente' || req.status === 'Solicitado')
+                      );
+
+                      const deficit = Math.max(0, p.minQuantity * 2 - p.quantity);
+
+                      return (
+                        <div 
+                          key={p.id} 
+                          className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 shadow-2xs hover:shadow-xs hover:border-slate-300
+                            ${isCritical 
+                              ? 'bg-rose-50/20 border-rose-100 hover:bg-rose-50/30' 
+                              : 'bg-amber-50/10 border-amber-100 hover:bg-amber-50/20'}`}
+                        >
+                          <div className="space-y-2.5 text-left">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded border border-slate-200">
+                                {CATEGORY_LABELS[p.category] || p.category}
+                              </span>
+                              <div className="flex items-center gap-1 text-[8.5px] font-bold">
+                                <span className={`size-2 rounded-full animate-pulse ${isCritical ? 'bg-rose-600' : 'bg-amber-500'}`}></span>
+                                <span className={isCritical ? 'text-rose-700 font-extrabold' : 'text-amber-700'}>
+                                  {isCritical ? 'ESTOQUE CRÍTICO' : 'ESTOQUE BAIXO'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div>
+                              <h4 className="font-extrabold text-xs text-slate-900 leading-snug line-clamp-1">{p.name}</h4>
+                              <p className="text-[10px] text-slate-400 font-semibold mt-0.5" title="Fabricante / Fornecedor original">
+                                Fab: {p.supplier || 'Não especificado'}
+                              </p>
+                            </div>
+
+                            {/* Stock Metrics and safety progress bars */}
+                            <div className="bg-white/85 border border-slate-100 rounded-xl p-2.5 space-y-2">
+                              <div className="grid grid-cols-2 gap-2 text-center text-[10px]">
+                                <div className="border-r border-slate-105">
+                                  <span className="text-slate-405 font-semibold block uppercase text-[8px] tracking-wider">Estoque Atual</span>
+                                  <span className="text-xs font-black text-slate-800">{p.quantity.toLocaleString('pt-BR')} {p.unit}</span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-405 font-semibold block uppercase text-[8px] tracking-wider">Limite Mínimo</span>
+                                  <span className="text-xs font-black text-rose-700">{p.minQuantity.toLocaleString('pt-BR')} {p.unit}</span>
+                                </div>
+                              </div>
+
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[8px] font-black uppercase text-slate-400 tracking-wider">
+                                  <span>Limite Seguro</span>
+                                  <span>{ratio.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</span>
+                                </div>
+                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full transition-all duration-500 rounded-full ${isCritical ? 'bg-rose-600' : 'bg-amber-500'}`} 
+                                    style={{ width: `${ratio}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <p className="text-[9.5px] leading-relaxed text-slate-500 font-medium">
+                              O nível atual representa apenas <strong className="text-slate-700">{ratio.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</strong> da segurança de campo. Déficit para o nível ideal: <strong className="text-slate-700">{deficit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {p.unit}</strong>.
+                            </p>
+                          </div>
+
+                          <div>
+                            {isReorderPending ? (
+                              <button 
+                                disabled 
+                                className="w-full flex items-center justify-center gap-1.5 h-9 rounded-xl border border-emerald-200 bg-emerald-50 text-[#1D9E75] text-[10px] font-black uppercase tracking-wider"
+                              >
+                                <Check className="size-3.5" /> Recompra em Cotação (Pendente)
+                              </button>
+                            ) : (
+                              <button 
+                                onClick={() => handleQuickReorder(p)} 
+                                className="w-full flex items-center justify-center gap-1.5 h-9 rounded-xl bg-[#1B3A2D] hover:bg-[#1B3A2D]/90 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-2xs transition-all hover:scale-[1.01]"
+                              >
+                                <ShoppingCart className="size-3.5" /> Disparar Reposição
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
 
             {/* BUSCA E FILTROS */}
