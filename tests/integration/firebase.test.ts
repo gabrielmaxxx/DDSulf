@@ -2,6 +2,7 @@
  * Test: Integration - Firebase emulator security audits & multi-tenant isolation rules
  */
 
+import { describe, test, expect } from 'vitest';
 import { FirebaseEmulatorMock } from '../mocks/firebaseEmulator';
 
 describe('Integration Testing - Firebase Security Rules Assurance', () => {
@@ -50,29 +51,3 @@ describe('Integration Testing - Firebase Security Rules Assurance', () => {
     expect(result.allowed).toBe(false);
   });
 });
-
-// Polyfills for Vitest runners in isolated scripts
-function describe(title: string, fn: () => void) {
-  console.log(`[SUITE] Executing ${title}`);
-  fn();
-}
-
-function test(name: string, fn: () => void) {
-  try {
-    fn();
-    console.log(`  [PASS] ${name}`);
-  } catch (err: any) {
-    console.error(`  [FAIL] ${name}: ${err?.message}`);
-    throw err;
-  }
-}
-
-function expect(actual: any) {
-  return {
-    toBe(expected: any) {
-      if (actual !== expected) {
-        throw new Error(`Expected ${actual} to be ${expected}`);
-      }
-    }
-  };
-}

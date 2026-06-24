@@ -4,8 +4,69 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import { PromptOrchestrator } from "./src/ai/prompts";
+import { initializeApp, cert } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { rateLimit } from "express-rate-limit";
 
 dotenv.config();
+
+let isFirebaseAdminInitialized = false;
+
+function ensureFirebaseAdmin() {
+  if (isFirebaseAdminInitialized) return;
+  
+  try {
+    const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (serviceAccountVar) {
+      const serviceAccount = JSON.parse(serviceAccountVar);
+      initializeApp({
+        credential: cert(serviceAccount)
+      });
+      console.log("Firebase Admin SDK inicializado com sucesso via Service Account.");
+    } else {
+      // Fallback: tenta inicializar com padrão (por exemplo, se já configurado no ambiente do Cloud Run)
+      initializeApp();
+      console.log("Firebase Admin SDK inicializado com as credenciais padrão.");
+    }
+    isFirebaseAdminInitialized = true;
+  } catch (error: any) {
+    console.error("Erro ao inicializar Firebase Admin SDK:", error);
+    throw new Error("Firebase Admin SDK não pôde ser inicializado. Configure a variável de ambiente FIREBASE_SERVICE_ACCOUNT.");
+  }
+}
+
+async function authMiddleware(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Cabeçalho de autorização inválido ou ausente. Use Bearer <token>." });
+  }
+
+  const idToken = authHeader.split("Bearer ")[1];
+  try {
+    ensureFirebaseAdmin();
+    const decodedToken = await getAuth().verifyIdToken(idToken);
+    (req as any).user = decodedToken;
+    next();
+  } catch (error: any) {
+    console.error("Erro na validação do Token Firebase:", error);
+    return res.status(401).json({ error: `Falha na autenticação do Firebase: ${error.message}` });
+  }
+}
+
+const aiRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 20, // limite de 20 requisições por usuário (UID) a cada 15 minutos
+  standardHeaders: true, // Retorna informações nos cabeçalhos RateLimit-*
+  legacyHeaders: false, // Desativa cabeçalhos X-RateLimit-* antigos
+  keyGenerator: (req: any) => {
+    return req.user?.uid || req.ip || "anonymous";
+  },
+  handler: (req, res) => {
+    res.status(429).json({
+      error: "Limite de requisições excedido. Você pode fazer no máximo 20 consultas de IA a cada 15 minutos. Por favor, tente novamente mais tarde."
+    });
+  }
+});
 
 async function startServer() {
   const app = express();
@@ -61,7 +122,7 @@ async function startServer() {
   };
 
   // AI Chat Endpoint
-  app.post("/api/ai/chat", async (req, res) => {
+  app.post("/api/ai/chat", authMiddleware, aiRateLimiter, async (req, res) => {
     try {
       const { message, context, history } = req.body;
       const ai = getAi();
@@ -114,7 +175,7 @@ async function startServer() {
   });
 
   // Dedicated DDSulf Operational Client/Server Gemini API proxy
-  app.post("/api/ai/ddsulf-chat", async (req, res) => {
+  app.post("/api/ai/ddsulf-chat", authMiddleware, aiRateLimiter, async (req, res) => {
     try {
       const { message, systemContext, history } = req.body;
       const ai = getAi();
@@ -153,7 +214,7 @@ async function startServer() {
   });
 
   // AI Notification Intelligence (Summarization, Priority Assessment, Actionable Suggestions)
-  app.post("/api/ai/analyze-notification", async (req, res) => {
+  app.post("/api/ai/analyze-notification", authMiddleware, aiRateLimiter, async (req, res) => {
     try {
       const { title, message, category, severity } = req.body;
       const ai = getAi();
@@ -189,7 +250,7 @@ Responda APENAS com o JSON puro sem qualquer formatação markdown, livre de \`\
   });
 
   // AI Document / POP Generative Assistant Endpoint
-  app.post("/api/ai/generate-procedure", async (req, res) => {
+  app.post("/api/ai/generate-procedure", authMiddleware, aiRateLimiter, async (req, res) => {
     try {
       const { title, description, allowedChemicalIds, targetPests } = req.body;
       const ai = getAi();
@@ -232,7 +293,7 @@ Responda APENAS com o JSON de dados puro, sem blocos de código markdown ou text
   });
 
   // Executive Decision Intelligence & Strategic Copilot Endpoint
-  app.post("/api/executive-ai/query", async (req, res) => {
+  app.post("/api/executive-ai/query", authMiddleware, aiRateLimiter, async (req, res) => {
     try {
       const { prompt, history, tenantId, context } = req.body;
       const ai = getAi();

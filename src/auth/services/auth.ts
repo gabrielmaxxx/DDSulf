@@ -11,6 +11,8 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/firebase/config';
 import { UserProfile, UserRole } from '@/types/database';
 import { logOperationalEvent } from '@/firebase/analytics';
+import { handleFirestoreError } from '@/firebase/utils/errorHandler';
+import { OperationType } from '@/firebase/types';
 
 export const googleProvider = new GoogleAuthProvider();
 
@@ -72,13 +74,12 @@ export class AuthService {
         lastLogin: new Date().toISOString()
       };
     } else {
-      // Determine default role: first user ever can be Admin; default is Technician
-      const defaultRole: UserRole = firebaseUser.email?.includes('admin') ? 'admin' : 'technician';
+      // Every new user created via login must be technician and active by default, without exceptions
       const newProfile: UserProfile = {
         uid: firebaseUser.uid,
         email: firebaseUser.email || '',
         name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Colaborador DDSulf',
-        role: defaultRole,
+        role: 'technician',
         status: 'active',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -87,6 +88,50 @@ export class AuthService {
       
       await setDoc(userRef, newProfile);
       return newProfile;
+    }
+  }
+
+  /**
+   * Separate and explicit flow for role promotion.
+   * Only an already authenticated user with role === 'admin' can alter the role field of another user.
+   */
+  static async promoteUserRole(targetUid: string, newRole: UserRole): Promise<void> {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Usuário não autenticado.');
+    }
+
+    const currentUid = currentUser.uid;
+    const adminRef = doc(db, 'users', currentUid);
+
+    try {
+      // Verify admin permissions
+      const adminSnap = await getDoc(adminRef);
+      if (!adminSnap.exists() || (adminSnap.data() as UserProfile).role !== 'admin') {
+        throw new Error('Apenas usuários com papel de administrador podem alterar o papel de outros colaboradores.');
+      }
+    } catch (error: any) {
+      if (error.message && error.message.includes('Apenas usuários com papel')) {
+        throw error;
+      }
+      handleFirestoreError(error, OperationType.GET, `users/${currentUid}`);
+    }
+
+    const targetRef = doc(db, 'users', targetUid);
+    try {
+      // Update target user's role
+      await setDoc(targetRef, {
+        role: newRole,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      logOperationalEvent('auth_promote_role_success', { 
+        adminUid: currentUid, 
+        targetUid, 
+        newRole 
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${targetUid}`);
     }
   }
 

@@ -338,9 +338,17 @@ class DDSulfNotificationService {
     actionSuggestion?: string;
   } | null> {
     try {
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const resp = await fetch('/api/ai/analyze-notification', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           title: notification.title,
           message: notification.message,

@@ -179,8 +179,8 @@ service cloud.firestore {
     // ==========================================
 
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow get: if isSignedIn() && (userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
       allow create: if isVerified() && isValidId(userId) && userId == request.auth.uid && isValidUser(incoming()) && incoming().role == 'technician';
       allow update: if isVerified() && isValidId(userId) && (
         (userId == request.auth.uid && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'updatedAt']))

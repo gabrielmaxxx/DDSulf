@@ -35,7 +35,7 @@ import { toast } from 'sonner';
 export function SecurityAuditDashboard() {
   const { tenant } = useTenant();
   const { role, permissions, isSuperUser } = useAuthorization();
-  const { logs, logEvent } = useAuditTrail();
+  const { logs, loading, logEvent } = useAuditTrail();
   const { runWorkflow } = useSecureWorkflow();
   const { incidents, openThreatsCount, escalateSafetyIncident, resolveIncident, grantConsent, hasConsented } = useComplianceMonitoring();
   const { auditChemicalUse, verifyCertification } = useOperationalSecurity();
@@ -364,7 +364,11 @@ export function SecurityAuditDashboard() {
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <h4 className="text-xs font-black uppercase tracking-widest text-[#0E172C]">DDSulf Forensic Log Stream</h4>
-                  <span className="size-2 bg-emerald-500 rounded-full animate-ping" />
+                  {loading ? (
+                    <RefreshCw className="size-3 animate-spin text-indigo-500" />
+                  ) : (
+                    <span className="size-2 bg-emerald-500 rounded-full animate-ping" />
+                  )}
                 </div>
                 <p className="text-[10px] text-gray-400">Rastreabilidade offline de eventos críticos de controle sanitário e corporativo.</p>
               </div>
@@ -378,7 +382,12 @@ export function SecurityAuditDashboard() {
             <div className="grid gap-3 md:grid-cols-12">
               
               <div className="md:col-span-12 space-y-2 max-h-96 overflow-y-auto pr-1">
-                {logs.length === 0 ? (
+                {loading && logs.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-3xl flex flex-col items-center justify-center gap-2">
+                    <RefreshCw className="size-5 animate-spin text-indigo-500" />
+                    <span>Carregando logs de auditoria do Firestore...</span>
+                  </div>
+                ) : logs.length === 0 ? (
                   <div className="p-8 text-center text-xs text-gray-400 border border-dashed border-gray-200 rounded-3xl">
                     Nenhum log extraído para o escopo desta simulação. Redirecione ações de teste para gerar históricos de telemetria.
                   </div>

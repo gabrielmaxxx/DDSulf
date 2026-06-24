@@ -3,6 +3,8 @@
  * Handles equivalences, classification, and metadata filling according to DDSulf specifications.
  */
 
+import { auth } from '@/firebase/config';
+
 export interface DDSulfOfficialProduct {
   name: string;
   productGroup: 'Inseticidas' | 'Raticidas' | 'Formicidas' | 'Gel Baraticida' | 'Iscas' | 'Equipamentos' | 'EPIs' | 'Consumíveis';
@@ -539,9 +541,17 @@ export async function queryAIForProducts(productsToRefine: Array<{ name: string;
   categoryCode: string;
 }>> {
   try {
+    const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch('/api/ai/ddsulf-chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         message: `Por favor, classifique os seguintes produtos recebidos para o estoque da DDSulf. Retorne um array JSON com dados estruturados.
 Produtos recebidos: ${JSON.stringify(productsToRefine)}

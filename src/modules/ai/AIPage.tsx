@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/button';
 import { useSystemStore } from '@/store';
 import { useNavigate } from 'react-router-dom';
 import Markdown from 'react-markdown';
+import { auth } from '@/firebase/config';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -452,9 +453,17 @@ INSTRUÇÕES DE TOM DE VOZ E COMPORTAMENTO DA IA:
 
     // Fallback to real Gemini API endpoint proxy
     try {
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch('/api/ai/ddsulf-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           message: textToSend,
           systemContext,

@@ -2,6 +2,8 @@
  * Test: Accessibility - ARIA standards, keyboard indexing, and contrast audits
  */
 
+import { describe, test, expect } from 'vitest';
+
 describe('Accessibility Testing - WCAG Contrast & Keyboard Audits', () => {
 
   test('Interactive cards and buttons should have positive keyboard tabIndex tags', () => {
@@ -22,29 +24,3 @@ describe('Accessibility Testing - WCAG Contrast & Keyboard Audits', () => {
   });
 
 });
-
-// Standard polyfills for Vitest runners in isolated scripts
-function describe(title: string, fn: () => void) {
-  console.log(`[SUITE] Executing ${title}`);
-  fn();
-}
-
-function test(name: string, fn: () => void) {
-  try {
-    fn();
-    console.log(`  [PASS] ${name}`);
-  } catch (err: any) {
-    console.error(`  [FAIL] ${name}: ${err?.message}`);
-    throw err;
-  }
-}
-
-function expect(actual: any) {
-  return {
-    toBe(expected: any) {
-      if (actual !== expected) {
-        throw new Error(`Expected ${actual} to be ${expected}`);
-      }
-    }
-  };
-}

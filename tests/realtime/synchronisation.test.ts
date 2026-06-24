@@ -2,6 +2,7 @@
  * Test: Realtime - WebSocket message streams and synchronization tests
  */
 
+import { describe, test, expect } from 'vitest';
 import { TestHelpers } from '../utils/testHelpers';
 
 describe('Real-time Channel Testing - DDSulf Stream Watchdog', () => {
@@ -32,29 +33,3 @@ describe('Real-time Channel Testing - DDSulf Stream Watchdog', () => {
   });
 
 });
-
-// Standard polyfills for Vitest runners in isolated scripts
-function describe(title: string, fn: () => void) {
-  console.log(`[SUITE] Executing ${title}`);
-  fn();
-}
-
-function test(name: string, fn: () => void) {
-  try {
-    fn();
-    console.log(`  [PASS] ${name}`);
-  } catch (err: any) {
-    console.error(`  [FAIL] ${name}: ${err?.message}`);
-    throw err;
-  }
-}
-
-function expect(actual: any) {
-  return {
-    toBe(expected: any) {
-      if (actual !== expected) {
-        throw new Error(`Expected ${actual} to be ${expected}`);
-      }
-    }
-  };
-}

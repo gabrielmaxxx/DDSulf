@@ -3,6 +3,8 @@
  * Validates whole operational sequence: CRM prospect to calendar scheduler conversion.
  */
 
+import { describe, test, expect } from 'vitest';
+
 // Simulation of Playwright core methods
 const mockPlaywrightPage = {
   goto: async (url: string) => console.log(`  [E2E] Navigating to ${url}`),
@@ -38,28 +40,3 @@ describe('E2E Testing - Commercial-to-Operational Core Sequence', () => {
   });
 
 });
-
-// Standard polyfills for Vitest runners in isolated scripts
-function describe(title: string, fn: () => void) {
-  console.log(`[SUITE] Executing ${title}`);
-  fn();
-}
-
-function test(name: string, fn: (page: any) => Promise<void>) {
-  fn(mockPlaywrightPage)
-    .then(() => console.log(`  [PASS] ${name}`))
-    .catch((err) => {
-      console.error(`  [FAIL] ${name}: ${err?.message}`);
-      throw err;
-    });
-}
-
-function expect(actual: any) {
-  return {
-    toBe(expected: any) {
-      if (actual !== expected) {
-        throw new Error(`Expected "${actual}" to be "${expected}"`);
-      }
-    }
-  };
-}

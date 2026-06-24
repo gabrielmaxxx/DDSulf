@@ -13,10 +13,19 @@ export function useAuditTrail() {
   const { user, role } = useAuth();
   const { tenant } = useTenant();
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const reloadTrail = () => {
+  const reloadTrail = async () => {
     if (tenant) {
-      setLogs(auditService.getTenantAuditTrail(tenant.id));
+      setLoading(true);
+      try {
+        const result = await auditService.getTenantAuditTrail(tenant.id);
+        setLogs(result);
+      } catch (err) {
+        console.error('Error reloading audit trail:', err);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -26,7 +35,7 @@ export function useAuditTrail() {
     // Setup interval to simulate real-time enterprise log streaming
     const interval = setInterval(() => {
       reloadTrail();
-    }, 4000);
+    }, 8000); // 8 seconds interval to keep it performant with Firestore
 
     return () => clearInterval(interval);
   }, [tenant]);
@@ -34,10 +43,10 @@ export function useAuditTrail() {
   /**
    * Safe contextual audit logging method
    */
-  const logEvent = (action: string, resourceType: AuditLogEntry['resourceType'], resourceId?: string, payload?: Record<string, any>) => {
+  const logEvent = async (action: string, resourceType: AuditLogEntry['resourceType'], resourceId?: string, payload?: Record<string, any>) => {
     if (!tenant) return;
 
-    auditService.log({
+    await auditService.log({
       tenantId: tenant.id,
       userId: user?.name || 'anonymous_user',
       userName: user?.name || user?.email || 'Desconhecido',
@@ -49,16 +58,16 @@ export function useAuditTrail() {
       payload
     });
 
-    reloadTrail();
+    await reloadTrail();
   };
 
   /**
    * Suspicious or failed logins logging
    */
-  const logSecurityIncident = (action: string, reason: string, payload?: Record<string, any>) => {
+  const logSecurityIncident = async (action: string, reason: string, payload?: Record<string, any>) => {
     if (!tenant) return;
 
-    auditService.log({
+    await auditService.log({
       tenantId: tenant.id,
       userId: user?.name || 'anonymous_user',
       userName: user?.name || user?.email || 'Desconhecido',
@@ -69,11 +78,12 @@ export function useAuditTrail() {
       payload: { ...payload, reason }
     });
 
-    reloadTrail();
+    await reloadTrail();
   };
 
   return {
     logs,
+    loading,
     logEvent,
     logSecurityIncident,
     refreshTrail: reloadTrail

@@ -2,6 +2,7 @@
  * Test: Security - Tenant Boundary Segregation & Access Control Boundaries
  */
 
+import { describe, test, expect } from 'vitest';
 import { validationService } from '../../src/services/qa/validationService';
 
 describe('Security Testing - Cloud-Sec Tenant Segregations', () => {
@@ -26,29 +27,3 @@ describe('Security Testing - Cloud-Sec Tenant Segregations', () => {
   });
 
 });
-
-// Standard polyfills for Vitest runners in isolated scripts
-function describe(title: string, fn: () => void) {
-  console.log(`[SUITE] Executing ${title}`);
-  fn();
-}
-
-function test(name: string, fn: () => void) {
-  try {
-    fn();
-    console.log(`  [PASS] ${name}`);
-  } catch (err: any) {
-    console.error(`  [FAIL] ${name}: ${err?.message}`);
-    throw err;
-  }
-}
-
-function expect(actual: any) {
-  return {
-    toBe(expected: any) {
-      if (actual !== expected) {
-        throw new Error(`Expected ${actual} to be ${expected}`);
-      }
-    }
-  };
-}

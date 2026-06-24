@@ -1,5 +1,12 @@
-import { EnvironmentType, OperationalComplexity, Recurrence } from '@/types/database';
+import { EnvironmentType, OperationalComplexity, Recurrence, InfestationLevel } from '@/types/database';
 import { MarginIntelligenceConfig, DetailedOperationalMargin } from '../types';
+
+export interface MarginMatrix {
+  minimumMarginPercent: number;
+  targetMarginPercent: number;
+  optimisticMarginPercent: number;
+  riskPremiumPercent: number;
+}
 
 export const DEFAULT_MARGIN_CONFIG: MarginIntelligenceConfig = {
   id: 'standard_margin_v1',
@@ -103,4 +110,77 @@ export function calculateDetailedOperationalMargins(inputs: {
     actualNetProfitAmount: Number(netProfit.toFixed(2)),
     breakEvenThresholdPrice: Number(breakEvenThresholdPrice.toFixed(2))
   };
+}
+
+/**
+ * Computes the recommended target and floor margins for a deal based on structural traits.
+ * Uses the parameters of risk per environment and complexity already existing in DEFAULT_MARGIN_CONFIG.
+ */
+export function calculateRecommendedMargins(
+  environment: EnvironmentType,
+  complexity: OperationalComplexity,
+  infestation: InfestationLevel,
+  config: MarginIntelligenceConfig = DEFAULT_MARGIN_CONFIG
+): MarginMatrix {
+  const envMod = config.riskPremiumModifiers.environment[environment] || 0;
+  const compMod = config.riskPremiumModifiers.complexity[complexity] || 0;
+
+  // Baseline benchmarks (using values from DEFAULT_MARGIN_CONFIG)
+  let floor = config.minAcceptableMargin + envMod + compMod;
+  let target = config.targetMargin + envMod + compMod;
+  let peak = config.eliteMargin + (envMod > 0 ? envMod * 0.5 : envMod) + (compMod > 0 ? compMod * 0.5 : compMod);
+
+  let extraRiskBuffer = 0.0;
+  if (environment === 'Hospital') {
+    extraRiskBuffer = 8.0;
+  } else if (environment === 'Indústria') {
+    extraRiskBuffer = 5.0;
+  } else if (complexity === 'Complexo') {
+    extraRiskBuffer = 5.0;
+  }
+
+  // Infestation stress variables
+  if (infestation === 'Crítico') {
+    floor += 5;
+    target += 6;
+    extraRiskBuffer += 4;
+  } else if (infestation === 'Alto') {
+    target += 3;
+  }
+
+  // Prevent edge-case margin structures (Cap at reasonable parameters)
+  const minimumMarginPercent = Math.min(Math.max(floor, 25.0), 55.0);
+  const targetMarginPercent = Math.min(Math.max(target, 45.0), 75.0);
+  const optimisticMarginPercent = Math.min(Math.max(peak, 65.0), 85.0);
+
+  return {
+    minimumMarginPercent,
+    targetMarginPercent,
+    optimisticMarginPercent,
+    riskPremiumPercent: extraRiskBuffer
+  };
+}
+
+/**
+ * Calculates a deal's real-time risk coefficient base for warning alerts
+ */
+export function evaluateDealProfitabilityRisk(
+  estimatedCost: number,
+  suggestedSellingPrice: number,
+  actualMarginObtained: number,
+  marginMatrix: MarginMatrix
+): 'CRÍTICO' | 'ALERTA_BAIXO' | 'OTIMIZADO' | 'EXCELENTE' {
+  if (actualMarginObtained < marginMatrix.minimumMarginPercent) {
+    return 'CRÍTICO';
+  }
+  
+  if (actualMarginObtained < marginMatrix.targetMarginPercent) {
+    return 'ALERTA_BAIXO';
+  }
+
+  if (actualMarginObtained > marginMatrix.optimisticMarginPercent) {
+    return 'EXCELENTE';
+  }
+
+  return 'OTIMIZADO';
 }

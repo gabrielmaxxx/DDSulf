@@ -5,6 +5,7 @@
 
 import { AIChatMessage, SystemCoreContext } from '../types';
 import { AIContextEngine } from '../context';
+import { auth } from '@/firebase/config';
 
 export class AIProviderService {
   /**
@@ -22,9 +23,17 @@ export class AIProviderService {
     }
 
     try {
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ message, context, history }),
       });
 

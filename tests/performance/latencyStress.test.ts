@@ -2,6 +2,7 @@
  * Test: Performance - Latency Stress and Page Rendering Budgets
  */
 
+import { describe, test, expect } from 'vitest';
 import { StagingTestEnvironment } from '../environments/staging';
 
 describe('Performance Auditing - High Density Latency Stress Testing', () => {
@@ -21,29 +22,3 @@ describe('Performance Auditing - High Density Latency Stress Testing', () => {
   });
 
 });
-
-// Standard polyfills for Vitest runners in isolated scripts
-function describe(title: string, fn: () => void) {
-  console.log(`[SUITE] Executing ${title}`);
-  fn();
-}
-
-function test(name: string, fn: () => void) {
-  try {
-    fn();
-    console.log(`  [PASS] ${name}`);
-  } catch (err: any) {
-    console.error(`  [FAIL] ${name}: ${err?.message}`);
-    throw err;
-  }
-}
-
-function expect(actual: any) {
-  return {
-    toBe(expected: any) {
-      if (actual !== expected) {
-        throw new Error(`Expected ${actual} to be ${expected}`);
-      }
-    }
-  };
-}
