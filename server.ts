@@ -6,7 +6,7 @@ import dotenv from "dotenv";
 import { PromptOrchestrator } from "./src/ai/prompts";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 
 dotenv.config();
 
@@ -59,7 +59,7 @@ const aiRateLimiter = rateLimit({
   standardHeaders: true, // Retorna informações nos cabeçalhos RateLimit-*
   legacyHeaders: false, // Desativa cabeçalhos X-RateLimit-* antigos
   keyGenerator: (req: any) => {
-    return req.user?.uid || req.ip || "anonymous";
+    return req.user?.uid || ipKeyGenerator(req.ip || "anonymous");
   },
   handler: (req, res) => {
     res.status(429).json({
@@ -188,12 +188,18 @@ async function startServer() {
             parts: [{ text: h.content || h.text || "" }]
           });
         }
-      } else if (message) {
+      }
+
+      if (message) {
+        // A mensagem atual do usuário precisa sempre ser anexada ao final da
+        // conversa, mesmo quando já existe histórico. Sem isso, a partir da
+        // 2ª pergunta o modelo só recebia o histórico antigo e nunca via a
+        // pergunta nova, respondendo de forma genérica/desconexa.
         contentsList.push({
           role: "user",
           parts: [{ text: message }]
         });
-      } else {
+      } else if (contentsList.length === 0) {
         return res.status(400).json({ error: "message or history is required" });
       }
 
