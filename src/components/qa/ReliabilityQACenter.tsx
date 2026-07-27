@@ -137,7 +137,7 @@ export function ReliabilityQACenter() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="space-y-1">
           <span className="text-[10px] font-black uppercase tracking-widest text-[#4F46E5] flex items-center gap-1.5">
-            <ShieldCheck className="size-3.5" /> DDSulf Quality Assurance Matrix (SaaS Reliability Maturity)
+            <ShieldCheck className="size-3.5" /> PestFlow Quality Assurance Matrix (SaaS Reliability Maturity)
           </span>
           <h2 className="text-4xl font-black text-black tracking-tight">QA, Confiabilidade & Engenharia de Qualidade</h2>
           <p className="text-gray-500 text-sm max-w-4xl">Fundo operacional projetado sob tolerância zero a falhas. Garanta integridade matemática de dosagens, isolamento de bancos multi-empresas, simule perdas em sockets, filas offline de contingência e mitigação contra catástrofes em nuvem.</p>

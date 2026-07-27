@@ -45,10 +45,10 @@ export function LoginPage() {
       <div className="hidden md:flex flex-1 bg-black p-12 flex-col justify-between relative overflow-hidden">
         <div className="relative z-10">
            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 border-2 border-white rotate-45 flex items-center justify-center">
-                 <div className="w-4 h-4 bg-white" />
+              <div className="size-11 rounded-2xl bg-emerald-950/80 border border-emerald-500/30 p-1.5 flex items-center justify-center shadow-lg shadow-emerald-950/50">
+                 <img src="/brand/logo-icon.svg" alt="PestFlow" className="size-full object-contain" />
               </div>
-              <span className="text-2xl font-black text-white tracking-tighter">DDSulf</span>
+              <span className="text-2xl font-black text-white tracking-tighter">PestFlow</span>
            </div>
         </div>
 
@@ -89,15 +89,15 @@ export function LoginPage() {
           className="w-full max-w-sm space-y-12"
         >
           <div className="space-y-4">
-             <div className="md:hidden flex items-center gap-2 mb-8">
-                <div className="w-6 h-6 border-2 border-black rotate-45 flex items-center justify-center">
-                   <div className="w-2 h-2 bg-black" />
+             <div className="md:hidden flex items-center gap-3 mb-8">
+                <div className="size-9 rounded-xl bg-emerald-950 p-1 flex items-center justify-center">
+                   <img src="/brand/logo-icon.svg" alt="PestFlow" className="size-full object-contain" />
                 </div>
-                <span className="text-xl font-bold tracking-tight">DDSulf</span>
+                <span className="text-xl font-black text-slate-900 tracking-tight">PestFlow</span>
              </div>
              <h2 className="text-4xl font-black text-black tracking-tightest">Acesso Restrito</h2>
              <p className="text-[#6B7280] font-medium text-lg leading-snug">
-                Bem-vindo ao centro operacional inteligente do DDSulf.
+                Bem-vindo ao centro operacional inteligente do PestFlow.
              </p>
           </div>
 
@@ -120,7 +120,7 @@ export function LoginPage() {
           <div className="pt-12">
              <p className="text-[10px] font-medium text-[#9CA3AF] leading-relaxed uppercase tracking-wider">
                 Exclusivo para parceiros e colaboradores autorizados.<br/>
-                DDSulf Group © 2026
+                PestFlow Group © 2026
              </p>
           </div>
         </motion.div>

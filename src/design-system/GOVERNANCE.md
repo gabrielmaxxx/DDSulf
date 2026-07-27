@@ -1,6 +1,6 @@
-# DDSulf Premium Enterprise Design System & UX Governance
+# PestFlow Premium Enterprise Design System & UX Governance
 
-This document describes components, layouts, mobile responsive strategies, and transitions rules securing visual unity in DDSulf.
+This document describes components, layouts, mobile responsive strategies, and transitions rules securing visual unity in PestFlow.
 
 ---
 

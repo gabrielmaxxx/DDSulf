@@ -1,4 +1,4 @@
-// Consolidated Design System Components for DDSulf
+// Consolidated Design System Components for PestFlow
 
 // Charts
 export * from './charts/CustomCharts';

@@ -1,6 +1,6 @@
-# Diretrizes de Governança e Comunicação Operacional — DDSulf
+# Diretrizes de Governança e Comunicação Operacional — PestFlow
 
-Este documento estabelece as regras oficiais e padrões de engenharia para o sistema de notificações, alertas críticos e engajamento móvel inteligência do DDSulf, garantindo relevância, timing e mitigando a fadiga de alertas dos operadores e técnicos de saneamento.
+Este documento estabelece as regras oficiais e padrões de engenharia para o sistema de notificações, alertas críticos e engajamento móvel inteligência do PestFlow, garantindo relevância, timing e mitigando a fadiga de alertas dos operadores e técnicos de saneamento.
 
 ---
 
@@ -20,7 +20,7 @@ Para manter a clareza operacional e evitar sobrecarga de alertas secundários, d
 
 ## 2. Governança contra "Fadiga de Alertas" (Anti-Spam Controls)
 
-Para evitar que o DDSulf se torne uma fonte de ruído ou ansiedade para o técnico em campo, aplicamos as seguintes políticas de governança:
+Para evitar que o PestFlow se torne uma fonte de ruído ou ansiedade para o técnico em campo, aplicamos as seguintes políticas de governança:
 
 1. **Deduplicação Proativa (`dedupKey`):** Alertas recorrentes do mesmo tipo (como falhas sucessivas de GPS ou oscilações de conexão) são agregados em uma única notificação com contador incremental, em vez de disparar dezenas de pop-ups.
 2. **Priorização Dinâmica por IA:** Notificações passam por compressão do modelo **Gemini 3.5-Flash** que avalia a relevância contextual em termos de horário de trabalho do operador, escopo da tarefa e região metropolitana onde está localizado o técnico.

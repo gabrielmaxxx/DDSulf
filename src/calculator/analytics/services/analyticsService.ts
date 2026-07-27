@@ -19,8 +19,8 @@ import {
 } from '../types';
 
 // Constants for Local Storage keys
-const SNAPSHOTS_KEY = 'ddsulf_analytics_snapshots';
-const WORKFLOW_ANALYTICS_KEY = 'ddsulf_workflow_analytics';
+const SNAPSHOTS_KEY = 'pestflow_analytics_snapshots';
+const WORKFLOW_ANALYTICS_KEY = 'pestflow_workflow_analytics';
 
 // Initial realistic seed data representing history of 12 previous quotes to populate the premium charts instantly
 const SEED_SNAPSHOTS: OperationalSnapshot[] = [

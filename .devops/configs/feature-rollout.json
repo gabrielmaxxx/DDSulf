@@ -1,11 +1,11 @@
 {
-  "comment": "DDSulf Progressive Feature Rollout & High-Density Tenant Segment Flags",
+  "comment": "PestFlow Progressive Feature Rollout & High-Density Tenant Segment Flags",
   "features": {
     "use_ai_active_pest_dosages": {
       "defaultEnabled": true,
       "rolloutPercentage": 100,
       "exceptionsByTenant": {
-        "ddsulf_erechim_franquia": false
+        "pestflow_erechim_franquia": false
       },
       "requiredRoleLevel": "tecnico"
     },
@@ -19,11 +19,11 @@
       "defaultEnabled": false,
       "rolloutPercentage": 25,
       "betaTestersList": [
-        "gabriel.max@ddsulf.com.br",
-        "thiago.devops@ddsulf.com.br"
+        "gabriel.max@pestflow.com.br",
+        "thiago.devops@pestflow.com.br"
       ],
       "exceptionsByTenant": {
-        "ddsulf_matriz": true
+        "pestflow_matriz": true
       }
     }
   }

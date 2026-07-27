@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<AuthSession>({
     user: {
       uid: 'root',
-      email: 'admin@ddsulf.com',
+      email: 'admin@pestflow.com',
       name: 'Administrador',
       role: 'admin',
       status: 'active',
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const defaultProfile: UserProfile = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',
-                name: firebaseUser.displayName || 'Colaborador DDSulf',
+                name: firebaseUser.displayName || 'Colaborador PestFlow',
                 role: 'technician',
                 status: 'active',
                 createdAt: new Date().toISOString(),
@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }));
             }
           }, (err) => {
-            console.warn('[DDSulf AuthProvider] Profile state listener failed, falling back to static fetch:', err.message);
+            console.warn('[PestFlow AuthProvider] Profile state listener failed, falling back to static fetch:', err.message);
             // Fallback to single static fetch
             getDoc(userRef).then(docSnap => {
               if (docSnap.exists()) {
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession({
             user: {
               uid: 'root',
-              email: 'admin@ddsulf.com',
+              email: 'admin@pestflow.com',
               name: 'Administrador',
               role: 'admin',
               status: 'active',
@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         }
       } catch (error: any) {
-        console.error('[DDSulf AuthProvider] Session initialization incident:', error);
+        console.error('[PestFlow AuthProvider] Session initialization incident:', error);
         setSession(prev => ({ ...prev, isLoading: false, isHydrated: true }));
       }
     });

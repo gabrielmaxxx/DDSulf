@@ -1,5 +1,5 @@
 /**
- * DDSulf Granular Preferences & Delivery Routing Configuration Service
+ * PestFlow Granular Preferences & Delivery Routing Configuration Service
  */
 
 import { UserPreferences, AlertCategory, AlertSeverity } from '../types';
@@ -8,7 +8,7 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   userId: 'user_default_technician',
-  tenantId: 'tenant_ddsulf_enterprise',
+  tenantId: 'tenant_pestflow_enterprise',
   channelsEnabled: {
     in_app: true,
     push: true,
@@ -51,7 +51,7 @@ export class UserPreferencesService {
   }
 
   private loadLocal() {
-    const saved = localStorage.getItem('ddsulf_communication_preferences');
+    const saved = localStorage.getItem('pestflow_communication_preferences');
     if (saved) {
       try {
         this.currentPrefs = { ...DEFAULT_PREFERENCES, ...JSON.parse(saved) };
@@ -62,7 +62,7 @@ export class UserPreferencesService {
   }
 
   private saveLocal() {
-    localStorage.setItem('ddsulf_communication_preferences', JSON.stringify(this.currentPrefs));
+    localStorage.setItem('pestflow_communication_preferences', JSON.stringify(this.currentPrefs));
     this.broadcast();
   }
 
@@ -78,7 +78,7 @@ export class UserPreferencesService {
         this.saveLocal();
       }
     } catch (e) {
-      console.warn('[DDSulf preferences Service] Local storage mode active for user preferences sync.', e);
+      console.warn('[PestFlow preferences Service] Local storage mode active for user preferences sync.', e);
     }
   }
 
@@ -111,7 +111,7 @@ export class UserPreferencesService {
       const docRef = doc(db, 'users', userId, 'communication', 'preferences');
       await setDoc(docRef, this.currentPrefs);
     } catch (e) {
-      console.warn('[DDSulf preferences Service] Local save succeeded. Firestore sync bypassed.', e);
+      console.warn('[PestFlow preferences Service] Local save succeeded. Firestore sync bypassed.', e);
     }
 
     return this.currentPrefs;

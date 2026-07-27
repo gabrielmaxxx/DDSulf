@@ -25,7 +25,7 @@ export function useOperationalIntelligence() {
     updateIntelligence();
 
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'ddsulf_analytics_snapshots') {
+      if (e.key === 'pestflow_analytics_snapshots') {
         updateIntelligence();
       }
     };

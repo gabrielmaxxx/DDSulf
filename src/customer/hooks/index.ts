@@ -1,5 +1,5 @@
 /**
- * Consolidated exports for DDSulf React Customer Experience and Retention Hooks
+ * Consolidated exports for PestFlow React Customer Experience and Retention Hooks
  */
 
 export * from './useCustomerPortal';

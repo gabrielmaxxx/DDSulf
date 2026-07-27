@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useRole } from '../hooks/useRole';
-import { Shield, Key, AlertCircle, Sparkles, LogIn, ChevronRight } from 'lucide-react';
+import { Key, AlertCircle, Sparkles, LogIn, ChevronRight } from 'lucide-react';
 
 export function LoginScreen() {
   const { loginWithGoogle, loginWithEmail } = useAuth();
@@ -14,10 +14,10 @@ export function LoginScreen() {
 
   // Quick credentials for test workflows or operations testing
   const quickTestCredentials = [
-    { label: 'Administrador (Admin)', email: 'admin@ddsulf.com', role: 'admin' },
-    { label: 'Gerência (Manager)', email: 'manager@ddsulf.com', role: 'manager' },
-    { label: 'Comercial (Commercial)', email: 'commercial@ddsulf.com', role: 'commercial' },
-    { label: 'Técnico de Campo (Technician)', email: 'tech@ddsulf.com', role: 'technician' }
+    { label: 'Administrador (Admin)', email: 'admin@pestflow.com', role: 'admin' },
+    { label: 'Gerência (Manager)', email: 'manager@pestflow.com', role: 'manager' },
+    { label: 'Comercial (Commercial)', email: 'commercial@pestflow.com', role: 'commercial' },
+    { label: 'Técnico de Campo (Technician)', email: 'tech@pestflow.com', role: 'technician' }
   ];
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -37,7 +37,7 @@ export function LoginScreen() {
       const matchedProfile = quickTestCredentials.find(c => c.email.toLowerCase() === email.toLowerCase());
       if (matchedProfile) {
         simulateRole(matchedProfile.role as any);
-        console.log('[DDSulf LoginScreen] Simulated success path for development credentials:', email);
+        console.log('[PestFlow LoginScreen] Simulated success path for development credentials:', email);
       } else {
         setErrorMsg('Usuário ou senha incorretos para o canal local. Use os atalhos abaixo.');
       }
@@ -61,7 +61,7 @@ export function LoginScreen() {
 
   const handleShortcutSelect = (shortcutEmail: string, role: string) => {
     setEmail(shortcutEmail);
-    setPassword('ddsulf_bypass_pass_123');
+    setPassword('pestflow_bypass_pass_123');
     simulateRole(role as any);
   };
 
@@ -75,11 +75,11 @@ export function LoginScreen() {
       >
         <div className="p-8 pb-6 border-b border-slate-100 flex flex-col items-center text-center">
           {/* Top Logo Badge */}
-          <div className="size-14 rounded-2xl bg-slate-900 shadow-md shadow-slate-950/20 flex items-center justify-center mb-4">
-            <Shield className="size-7 text-white animate-pulse" />
+          <div className="size-14 rounded-2xl bg-slate-900 shadow-md shadow-slate-950/20 flex items-center justify-center mb-4 overflow-hidden">
+            <img src="/brand/icon-192.png" alt="PestFlow" className="size-10 object-contain" />
           </div>
           
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">DDSulf Operações</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">PestFlow Operações</h1>
           <p className="text-slate-500 text-xs mt-1.5 font-medium">Controle de Pragas Inteligente & Gerenciamento de Campo</p>
         </div>
 
@@ -108,7 +108,7 @@ export function LoginScreen() {
                   type="email" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ex: admin@ddsulf.com" 
+                  placeholder="ex: admin@pestflow.com" 
                   className="w-full h-11 px-4 text-xs bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:border-slate-900 focus:bg-white transition-all font-medium text-slate-800"
                 />
               </div>

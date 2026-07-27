@@ -13,7 +13,7 @@ export function AuthLoading() {
 
         {/* Title and details */}
         <div className="space-y-2">
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">DDSulf Operational Platform</h2>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">PestFlow Operational Platform</h2>
           <p className="text-xs text-slate-500 font-medium font-mono">Verificando chaves de segurança e sessão ativa...</p>
         </div>
 

@@ -1,5 +1,5 @@
 /**
- * DDSulf Advanced Customer operational Relationship Engine
+ * PestFlow Advanced Customer operational Relationship Engine
  * Resolves recurring service timelines, computes loyalty value (LTV), and evaluates active churn probabilities.
  */
 
@@ -12,8 +12,8 @@ import {
 } from '../types';
 
 export class CustomerRelationshipService {
-  private static CUSTOMER_STORAGE_KEY = 'ddsulf_relationship_customer_profiles';
-  private static HISTORY_STORAGE_KEY = 'ddsulf_relationship_service_history';
+  private static CUSTOMER_STORAGE_KEY = 'pestflow_relationship_customer_profiles';
+  private static HISTORY_STORAGE_KEY = 'pestflow_relationship_service_history';
 
   private static listeners: Set<() => void> = new Set();
 

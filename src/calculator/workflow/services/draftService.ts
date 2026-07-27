@@ -2,8 +2,8 @@ import { db } from '@/services/firebase';
 import { collection, addDoc, getDocs, doc, setDoc, query, orderBy, limit } from 'firebase/firestore';
 import { QuoteWorkflowState, WorkflowDraft } from '../types';
 
-const COMPONENT_STORAGE_KEY = 'ddsulf_pricing_workflows_draft';
-const RECOVERY_STORAGE_KEY = 'ddsulf_draft_recovery_list';
+const COMPONENT_STORAGE_KEY = 'pestflow_pricing_workflows_draft';
+const RECOVERY_STORAGE_KEY = 'pestflow_draft_recovery_list';
 
 export const draftService = {
   /**

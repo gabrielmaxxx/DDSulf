@@ -164,7 +164,7 @@ export function OperationalAnalyticsDashboard() {
               {/* Stat 1: Total Profitability */}
               <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-xs flex flex-col justify-between h-32">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">DDSulf Gross Margin</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">PestFlow Gross Margin</span>
                   <div className="bg-emerald-500/10 p-1 rounded-lg text-emerald-600">
                     <Coins className="size-4" />
                   </div>

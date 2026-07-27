@@ -1,5 +1,5 @@
 /**
- * DDSulf Advanced Workflow Automation & Process Orchestration Types
+ * PestFlow Advanced Workflow Automation & Process Orchestration Types
  */
 
 export type WorkflowStatus = 'idle' | 'running' | 'completed' | 'failed' | 'retrying';

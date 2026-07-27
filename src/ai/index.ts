@@ -1,5 +1,5 @@
 /**
- * DDSulf Embedded AI Operational Layer & Contextual Intelligence Module
+ * PestFlow Embedded AI Operational Layer & Contextual Intelligence Module
  */
 
 export * from './types';

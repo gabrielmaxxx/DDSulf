@@ -59,7 +59,7 @@ import { motion } from 'motion/react';
 export function BusinessIntelligenceDashboard() {
   const { activeTenantId, changeTenantContext } = useAnalyticsContext();
 
-  // Fetch state engines from custom DDSulf hooks
+  // Fetch state engines from custom PestFlow hooks
   const { kpis, adjustKPIValue } = useOperationalKPIs();
   const { servicesProfitability, applyFinancialDelta, getDilutionCostStructure } = useFinancialAnalytics();
   const { pulse } = useRealtimeMetrics();
@@ -174,7 +174,7 @@ export function BusinessIntelligenceDashboard() {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 border-b border-gray-100 pb-6">
         <div className="space-y-1">
           <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-[#4F46E5] flex items-center gap-1.5 leading-none">
-            <Activity className="size-3 text-indigo-500 animate-pulse" /> DDSulf Enterprise BI Network
+            <Activity className="size-3 text-indigo-500 animate-pulse" /> PestFlow Enterprise BI Network
           </span>
           <h1 className="text-4xl font-extrabold text-black tracking-tight" id="bi-dashboard-title">
             Business Intelligence & Operational Engine
@@ -198,9 +198,9 @@ export function BusinessIntelligenceDashboard() {
               }}
               className="text-xs font-bold text-zinc-800 bg-transparent border-none p-0 focus:outline-none focus:ring-0 cursor-pointer pr-5"
             >
-              <option value="tenant_erechim_premium">DDSulf Erechim S/A (HQ)</option>
-              <option value="tenant_passofundo_rural">DDSulf Passo Fundo (Silos & Grãos)</option>
-              <option value="tenant_santamaria_agro">DDSulf Santa Maria (Culturas Mistas)</option>
+              <option value="tenant_erechim_premium">PestFlow Erechim S/A (HQ)</option>
+              <option value="tenant_passofundo_rural">PestFlow Passo Fundo (Silos & Grãos)</option>
+              <option value="tenant_santamaria_agro">PestFlow Santa Maria (Culturas Mistas)</option>
             </select>
           </div>
         </div>
@@ -409,7 +409,7 @@ export function BusinessIntelligenceDashboard() {
                   <Tooltip formatter={(value) => [`R$ ${Number(value).toLocaleString()}`, 'Valor']} />
                   <Legend iconType="circle" />
                   <Area type="monotone" dataKey="actualValue" name="Lucro Real Executado" stroke="#4F46E5" strokeWidth={3} fillOpacity={1} fill="url(#gradientActual)" />
-                  <Area type="monotone" dataKey="forecastedValue" name="Projeção Preditiva DDSulf" stroke="#818CF8" strokeDasharray="5 5" fillOpacity={1} fill="url(#gradientForecast)" />
+                  <Area type="monotone" dataKey="forecastedValue" name="Projeção Preditiva PestFlow" stroke="#818CF8" strokeDasharray="5 5" fillOpacity={1} fill="url(#gradientForecast)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -468,7 +468,7 @@ export function BusinessIntelligenceDashboard() {
           {/* DILUTION EFFECT MODEL (Interactive math sandbox) */}
           <div className="lg:col-span-4 p-6 bg-zinc-50 border border-zinc-150 rounded-3xl space-y-6">
             <div className="border-b border-gray-200 pb-3">
-              <span className="text-[10px] text-[#4F46E5] font-black uppercase tracking-widest block leading-none mb-1">DDSulf Lab Simulator</span>
+              <span className="text-[10px] text-[#4F46E5] font-black uppercase tracking-widest block leading-none mb-1">PestFlow Lab Simulator</span>
               <h3 className="text-lg font-black text-black">Simulador de Custos de Diluição</h3>
               <p className="text-xs text-zinc-500 leading-relaxed font-semibold">Regule a proporção dos ativos químicos versus veículo aquoso para calcular os coeficientes de precificação sugeridos.</p>
             </div>
@@ -871,7 +871,7 @@ export function BusinessIntelligenceDashboard() {
 
           <div className="lg:col-span-4 p-6 bg-zinc-50 border border-zinc-150 rounded-3xl space-y-4">
             <div className="border-b border-gray-200 pb-2">
-              <span className="text-[10px] text-[#4F46E5] font-black uppercase tracking-wider block mb-1">DDSulf Snapshot Builder</span>
+              <span className="text-[10px] text-[#4F46E5] font-black uppercase tracking-wider block mb-1">PestFlow Snapshot Builder</span>
               <h4 className="text-xs font-black uppercase tracking-widest text-black">Compilar Novo Snapshot</h4>
             </div>
 

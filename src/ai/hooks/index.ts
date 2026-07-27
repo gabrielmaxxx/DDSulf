@@ -1,5 +1,5 @@
 /**
- * Consolidated exports for DDSulf React AI Hooks
+ * Consolidated exports for PestFlow React AI Hooks
  */
 
 export * from './useOperationalAI';

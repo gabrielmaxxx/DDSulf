@@ -127,7 +127,7 @@ export function QuoteWorkflowSystem() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white border border-gray-200 rounded-[28px] p-6 shadow-xs">
         <div className="space-y-1">
           <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block leading-none">
-            DDSulf Premium Operations
+            PestFlow Premium Operations
           </span>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none md:text-3xl">
             Calculadora de Orçamentos de Precisão
@@ -468,7 +468,7 @@ export function QuoteWorkflowSystem() {
                   {state.currentStep === 6 && (
                     <div className="space-y-4">
                       <div className="flex justify-between items-center text-xs font-black text-gray-400 uppercase tracking-wider leading-none">
-                        <span>Produtos Recomendados DDSulf</span>
+                        <span>Produtos Recomendados PestFlow</span>
                         <span className="text-gray-500 font-bold">{state.selectedProducts.length} selecionados</span>
                       </div>
 
@@ -711,7 +711,7 @@ export function QuoteWorkflowSystem() {
                       <div className="space-y-2">
                         <h3 className="text-xl font-black text-gray-950">Pronto para Consolidar?</h3>
                         <p className="text-xs text-gray-400 font-semibold max-w-sm mx-auto leading-relaxed">
-                          DDSulf revisou as composições técnicas e não detectou distorções no piso de custos. Pressione o botão para registrar o faturamento no log do cliente.
+                          PestFlow revisou as composições técnicas e não detectou distorções no piso de custos. Pressione o botão para registrar o faturamento no log do cliente.
                         </p>
                       </div>
 

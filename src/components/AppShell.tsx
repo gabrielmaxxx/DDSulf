@@ -23,7 +23,7 @@ export function AppShell({ children }: AppShellProps) {
 
   const currentCompanyName = currentCompany && companies?.[currentCompany]
     ? companies[currentCompany].displayName
-    : (user?.name || 'DDSulf');
+    : (user?.name || 'PestFlow');
 
   // Dynamic search results computation grouped by domain entity
   const searchResults = useMemo(() => {
@@ -104,10 +104,15 @@ export function AppShell({ children }: AppShellProps) {
         <SidebarInset className="flex flex-col bg-[#F8FAFC] pb-20 md:pb-0 min-w-0">
           {/* HEADER GLOBAL - Altura: 72px */}
           <header className="sticky top-0 z-40 flex h-[72px] shrink-0 items-center justify-between border-b border-slate-200/40 bg-white/85 backdrop-blur-md px-10">
-            {/* Esquerda: Breadcrumb */}
+            {/* Esquerda: Breadcrumb + Logo Mobile */}
             <div className="flex items-center gap-3">
               {/* SidebarTrigger para mobile */}
               <SidebarTrigger className="text-slate-500 hover:text-black hover:bg-slate-100 transition-all rounded-lg size-10 flex md:hidden items-center justify-center shrink-0" />
+              
+              {/* Brand logo no header mobile */}
+              <div className="flex md:hidden items-center gap-2">
+                <img src="/brand/logo-icon.svg" alt="PestFlow" className="size-7 object-contain" />
+              </div>
               
               <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-slate-500 font-medium">
                 <Link to="/" className="text-slate-400 hover:text-slate-900 transition-colors font-semibold">

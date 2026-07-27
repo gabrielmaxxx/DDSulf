@@ -6,7 +6,7 @@ import dotenv from "dotenv";
 import { PromptOrchestrator } from "./src/ai/prompts";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { rateLimit, ipKeyGenerator } from "express-rate-limit";
+import { rateLimit } from "express-rate-limit";
 
 dotenv.config();
 
@@ -59,7 +59,7 @@ const aiRateLimiter = rateLimit({
   standardHeaders: true, // Retorna informações nos cabeçalhos RateLimit-*
   legacyHeaders: false, // Desativa cabeçalhos X-RateLimit-* antigos
   keyGenerator: (req: any) => {
-    return req.user?.uid || ipKeyGenerator(req.ip || "anonymous");
+    return req.user?.uid || req.ip || "anonymous";
   },
   handler: (req, res) => {
     res.status(429).json({
@@ -174,8 +174,8 @@ async function startServer() {
     }
   });
 
-  // Dedicated DDSulf Operational Client/Server Gemini API proxy
-  app.post("/api/ai/ddsulf-chat", authMiddleware, aiRateLimiter, async (req, res) => {
+  // Dedicated PestFlow Operational Client/Server Gemini API proxy
+  app.post("/api/ai/pestflow-chat", authMiddleware, aiRateLimiter, async (req, res) => {
     try {
       const { message, systemContext, history } = req.body;
       const ai = getAi();
@@ -214,7 +214,7 @@ async function startServer() {
 
       res.json({ text: response.text });
     } catch (error: any) {
-      console.error("DDSulf Dedicated AI Error:", error);
+      console.error("PestFlow Dedicated AI Error:", error);
       res.status(500).json({ error: error.message || "Failed to generate AI response" });
     }
   });
@@ -225,7 +225,7 @@ async function startServer() {
       const { title, message, category, severity } = req.body;
       const ai = getAi();
       
-      const prompt = `Como um analista de operações seniores do DDSulf (plataforma de controle de pragas), analise esta notificação operacional e retorne um objeto JSON contendo exatamente as chaves:
+      const prompt = `Como um analista de operações seniores do PestFlow (plataforma de controle de pragas), analise esta notificação operacional e retorne um objeto JSON contendo exatamente as chaves:
 "aiSummary": Uma string resumindo de forma ultra-precisa e acionável em apenas 1 frase curta no estilo Slack (ex: "Necessário reabastecimento imediato de fipronil para evitar paralisação.").
 "aiPriorityIndex": Um inteiro de 0 a 100 indicando a real criticidade desta ocorrência baseada no contexto operacional, gravidade e segurança técnica.
 "actionSuggestion": Uma frase curta indicando o próximo passo prático que o gestor ou técnico deve tomar primeiro.
@@ -261,7 +261,7 @@ Responda APENAS com o JSON puro sem qualquer formatação markdown, livre de \`\
       const { title, description, allowedChemicalIds, targetPests } = req.body;
       const ai = getAi();
 
-      const prompt = `Como um engenheiro agrônomo sênior e supervisor regulatório da Anvisa para a DDSulf, formule um POP (Procedimento Operacional Padrão) completo e ultra-polido.
+      const prompt = `Como um engenheiro agrônomo sênior e supervisor regulatório da Anvisa para a PestFlow, formule um POP (Procedimento Operacional Padrão) completo e ultra-polido.
 Retorne um objeto JSON contendo exatamente:
 - "recommendedChemicalVolume": Uma recomendação de dosagem precisa em volume de calda por metro quadrado.
 - "requiredEPIs": Objeto contendo booleanos: "hasMask", "hasGloves", "hasGoggles", "hasBoots", "hasApron" e uma string "extraArmorText".
@@ -270,7 +270,7 @@ Retorne um objeto JSON contendo exatamente:
   - "title": Nome curto da etapa (Ex: "Isolamento de Área")
   - "description": Frase detalhando rigorosamente como executar a etapa e riscos de intoxicação sanitária e compliance da Anvisa.
   - "isRequired": Booleano (sempre true exceto se opcional)
-  - "requiresPhotoProof": Booleano (indique se o operador precisa subir foto no ddsulf para fins de inspeção)
+  - "requiresPhotoProof": Booleano (indique se o operador precisa subir foto no pestflow para fins de inspeção)
   - "estimatedDurationSeconds": Tempo sugerido de execução em segundos
 
 DADOS OPERACIONAIS:
@@ -307,7 +307,7 @@ Responda APENAS com o JSON de dados puro, sem blocos de código markdown ou text
       const tenant = tenantId || "tenant_001_poa";
       const board = context?.board || { mrrTotal: 96000, activeContractsRatio: 92, operationalEfficiencyCoefficient: 0.84, monthlySafetyIndexPercent: 98.7 };
 
-      const systemInstruction = `Você é o Principal Executive AI Architect e Strategic Operational Intelligence Engineer do DDSulf.
+      const systemInstruction = `Você é o Principal Executive AI Architect e Strategic Operational Intelligence Engineer do PestFlow.
 Você é encarregado de prover relatórios e direcionamentos estratégicos de nível de Conselho / Board (Board-Level Reporting) e decisões operacionais rigorosas.
 Nunca aja como assistente genérico ou chatbot raso. Suas respostas devem ser precisas, com terminologia executiva qualificada em português.
 
@@ -371,7 +371,7 @@ Instruções importantes:
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 

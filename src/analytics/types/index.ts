@@ -1,5 +1,5 @@
 /**
- * DDSulf Business Intelligence & Operational Analytics TypeScript Foundation
+ * PestFlow Business Intelligence & Operational Analytics TypeScript Foundation
  */
 
 export type AnalyticalPeriod = '7d' | '30d' | '90d';

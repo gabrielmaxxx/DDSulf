@@ -35,6 +35,7 @@ import {
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatBRL, formatPercent, formatDate } from '@/utils/format';
+import { GoogleMapsViewer } from '@/components/GoogleMapsViewer';
 
 // Extended client and document types
 type ExtendedClient = Client & {
@@ -1580,6 +1581,31 @@ export function ClientesPage() {
 
                 {/* 4️⃣ AI OPPORTUNITY CARD & DESEMPENHO FINANCEIRO */}
                 <div className="xl:col-span-4 w-full space-y-4">
+                  {/* Google Maps Location Card */}
+                  <div className="bg-white p-5 border border-[#E8E6E1] rounded-2xl shadow-xxs space-y-4 text-left">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-display font-black text-[#141410] uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                        <MapPin className="size-4 text-[#1D9E75]" />
+                        Localização & Rota
+                      </h4>
+                      <span className="text-[9px] font-black uppercase text-[#1D9E75] bg-emerald-50 px-2 py-0.5 rounded-md">
+                        Google Maps
+                      </span>
+                    </div>
+
+                    <GoogleMapsViewer 
+                      address={activeClient.address}
+                      title={activeClient.name}
+                      showRouteFromHq={true}
+                      height="220px"
+                    />
+
+                    <div className="text-[10px] text-slate-500 font-semibold leading-normal font-sans">
+                      <p className="font-bold text-slate-700">Endereço do Cliente:</p>
+                      <p className="mt-0.5 text-slate-600">{activeClient.address}</p>
+                    </div>
+                  </div>
+
                   {activeRentabilidade && (
                     <div id="desempenho-financeiro-card" className="bg-white p-5 border border-[#E8E6E1] rounded-2xl shadow-xxs space-y-4 text-left">
                       <div className="flex flex-col gap-2">

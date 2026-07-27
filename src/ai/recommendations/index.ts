@@ -1,5 +1,5 @@
 /**
- * DDSulf AI Recommendation Engine
+ * PestFlow AI Recommendation Engine
  * Generates highly contextual operational tips and financial restructuring plans.
  */
 

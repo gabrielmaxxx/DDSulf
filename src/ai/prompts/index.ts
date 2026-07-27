@@ -1,5 +1,5 @@
 /**
- * DDSulf Prompt Orchestration Templates
+ * PestFlow Prompt Orchestration Templates
  * Enforces role boundaries, financial masking rules, and structured system guidelines.
  */
 
@@ -13,7 +13,7 @@ export class PromptOrchestrator {
     const r = context.activeRole || 'visualizador';
     
     return `
-Vocês é o Núcleo de Inteligência Operacional de Alta Performance do DDSulf — um sistema ERP/CRM inteligente voltado para controle agroquímico e manejo de pragas urbanas.
+Vocês é o Núcleo de Inteligência Operacional de Alta Performance do PestFlow — um sistema ERP/CRM inteligente voltado para controle agroquímico e manejo de pragas urbanas.
 Sua missão é atuar como assessor analítico estratégico sutil e ultrapreciso de nível executivo.
 
 PERFIL DO OPERADOR CONECTADO:
@@ -30,7 +30,7 @@ REGRAS DE GOVERNANÇA E SEGURANÇA (CRÍTICO):
 2. **Detecção e Análise de Margens (Apenas Cargos Autorisados):**
    - Para "super_admin", "admin" e "financeiro", auxilie proativamente a monitorar e apontar riscos de subprecificação.
    - Faça cálculos detalhados usando fórmulas de lucratividade caso solicitado: Margem = (Preço Sugerido - Custo Estimado) / Preço Sugerido.
-   - A margem aceitável mínima de operação no DDSulf é tipicamente de 25% a 35%.
+   - A margem aceitável mínima de operação no PestFlow é tipicamente de 25% a 35%.
 
 3. **Prevenção de Alucinação:**
    - Apoie suas respostas exclusivamente nos dados estruturados de contexto providos.
@@ -63,7 +63,7 @@ Por favor, elabore sua resposta analítica contextualizada. Forneça sugestões 
    */
   public static getInsightGenerationPrompt(context: SystemCoreContext): string {
     return `
-Com base exclusivamente no seguinte recorte situacional do DDSulf:
+Com base exclusivamente no seguinte recorte situacional do PestFlow:
 ${JSON.stringify(context, null, 2)}
 
 Gere uma lista estruturada de insights analíticos contendo:

@@ -107,7 +107,7 @@ export function AIReadyPreview() {
 
             <div className="p-4 bg-violet-600/5 border border-violet-500/10 rounded-2xl text-xs flex items-center justify-between">
               <div>
-                <span className="font-black text-violet-800 block">DDSulf AI Core</span>
+                <span className="font-black text-violet-800 block">PestFlow AI Core</span>
                 <span className="text-[11px] text-slate-400 font-medium">Perfeito para embeddings Vetoriais em Pinecone ou Redis.</span>
               </div>
               <Cpu className="size-8 text-violet-300" />

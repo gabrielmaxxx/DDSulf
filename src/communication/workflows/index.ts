@@ -2,7 +2,7 @@
  * Automation and Workflow communication triggers
  */
 
-import DDSulfNotificationService from '../services/notificationService';
+import PestFlowNotificationService from '../services/notificationService';
 
 export class CommunicationWorkflows {
   /**
@@ -10,7 +10,7 @@ export class CommunicationWorkflows {
    */
   public static triggerFinancialMarginCheck(proposalId: string, clientName: string, actualMargin: number) {
     if (actualMargin < 18) {
-      DDSulfNotificationService.getInstance().createNotification({
+      PestFlowNotificationService.getInstance().createNotification({
         category: 'financial',
         templateKey: 'financial.margin_breached',
         variables: {
@@ -30,7 +30,7 @@ export class CommunicationWorkflows {
    */
   public static triggerStockCheck(itemName: string, currentVolume: number, minRequired: number) {
     if (currentVolume < minRequired) {
-      DDSulfNotificationService.getInstance().createNotification({
+      PestFlowNotificationService.getInstance().createNotification({
         category: 'operations',
         templateKey: 'operations.inventory_starved',
         variables: {

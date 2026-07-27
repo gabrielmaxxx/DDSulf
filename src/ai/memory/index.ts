@@ -1,12 +1,12 @@
 /**
- * DDSulf Operational AI Memory Structure
+ * PestFlow Operational AI Memory Structure
  * Manages, truncates, and retrieves historical dialogues securely.
  */
 
 import { AIChatMessage, AISessionMemory } from '../types';
 
 export class AIMemoryService {
-  private static STORAGE_KEY_PREFIX = 'ddsulf_ai_mem_';
+  private static STORAGE_KEY_PREFIX = 'pestflow_ai_mem_';
   private static MAX_HISTORY_NODES = 20; // Bound history arrays to avoid token overflow problems
 
   /**

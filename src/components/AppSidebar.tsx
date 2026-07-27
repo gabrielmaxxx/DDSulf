@@ -42,7 +42,7 @@ export function AppSidebar() {
 
   const currentCompanyName = currentCompany && companies?.[currentCompany]
     ? companies[currentCompany].displayName
-    : (user?.name || 'DDSulf');
+    : (user?.name || 'PestFlow');
 
   const mainGroup = [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/' },
@@ -114,13 +114,12 @@ export function AppSidebar() {
     <Sidebar variant="sidebar" collapsible="icon" className="bg-gradient-to-b from-[#1B3A2D] to-[#12271E] border-r border-[#2D6A4F]/20 text-[#E8F4EE]">
       {/* Top Sidebar: Padding 32px top (pt-8), 24px horizontal (px-6) */}
       <SidebarHeader className="px-6 pt-8 pb-6 bg-transparent">
-        <div className="flex items-center gap-4 overflow-hidden">
-          <div className="relative size-12 shrink-0 flex items-center justify-center bg-white/10 border border-[#D4A017]/40 rounded-xl text-[#D4A017] shadow-md shadow-emerald-950/15">
-            <Shield className="size-6 shrink-0 fill-[#D4A017]/5" />
-            <span className="absolute text-[11px] font-black tracking-tighter text-[#D4A017] select-none">DD</span>
+        <div className="flex items-center gap-3.5 overflow-hidden">
+          <div className="relative size-11 shrink-0 rounded-xl overflow-hidden bg-emerald-950/60 border border-emerald-500/30 p-1.5 shadow-md shadow-emerald-950/30 flex items-center justify-center">
+            <img src="/brand/logo-icon.svg" alt="PestFlow" className="size-full object-contain" />
           </div>
           <div className="flex flex-col truncate text-left">
-            <span className="font-sans font-black text-xl text-white tracking-wide leading-tight">DDSulf</span>
+            <span className="font-sans font-black text-xl text-white tracking-wide leading-tight">PestFlow</span>
             <span className="text-[10px] font-bold text-[#82B29D] tracking-wide uppercase font-mono mt-0.5">
               Sistema Operacional Inteligente
             </span>

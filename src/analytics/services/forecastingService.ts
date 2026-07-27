@@ -1,5 +1,5 @@
 /**
- * DDSulf Predictive Forecasting & Demand Estimation Service
+ * PestFlow Predictive Forecasting & Demand Estimation Service
  * Extrapolates chemical application volume, pest seasonality curves, and financial outcomes.
  */
 

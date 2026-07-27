@@ -1,16 +1,16 @@
 /**
- * DDSulf Critical Operational Incident Escalation & Response Log Engine
+ * PestFlow Critical Operational Incident Escalation & Response Log Engine
  */
 
 import { IncidentLog, AlertCategory, AlertSeverity } from '../types';
-import DDSulfNotificationService from '../services/notificationService';
+import PestFlowNotificationService from '../services/notificationService';
 import { db } from '../../firebase';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
 
 const MILISECONDS_ESC_INTERVAL = 30000; // Fast 30s escalation intervals for live simulation
 
-export class DDSulfIncidentService {
-  private static instance: DDSulfIncidentService;
+export class PestFlowIncidentService {
+  private static instance: PestFlowIncidentService;
   private incidents: IncidentLog[] = [];
   private listeners: Set<(incidents: IncidentLog[]) => void> = new Set();
   private checkerInterval: any = null;
@@ -20,15 +20,15 @@ export class DDSulfIncidentService {
     this.startEscalationChecker();
   }
 
-  public static getInstance(): DDSulfIncidentService {
-    if (!DDSulfIncidentService.instance) {
-      DDSulfIncidentService.instance = new DDSulfIncidentService();
+  public static getInstance(): PestFlowIncidentService {
+    if (!PestFlowIncidentService.instance) {
+      PestFlowIncidentService.instance = new PestFlowIncidentService();
     }
-    return DDSulfIncidentService.instance;
+    return PestFlowIncidentService.instance;
   }
 
   private loadLocal() {
-    const saved = localStorage.getItem('ddsulf_incident_logs');
+    const saved = localStorage.getItem('pestflow_incident_logs');
     if (saved) {
       try {
         this.incidents = JSON.parse(saved);
@@ -39,7 +39,7 @@ export class DDSulfIncidentService {
   }
 
   private saveLocal() {
-    localStorage.setItem('ddsulf_incident_logs', JSON.stringify(this.incidents));
+    localStorage.setItem('pestflow_incident_logs', JSON.stringify(this.incidents));
     this.broadcast();
   }
 
@@ -66,7 +66,7 @@ export class DDSulfIncidentService {
     severity: 'critical' | 'high';
     escalationPath: string[];
   }): Promise<IncidentLog> {
-    const notifService = DDSulfNotificationService.getInstance();
+    const notifService = PestFlowNotificationService.getInstance();
     
     // Create corresponding notification first
     const notif = await notifService.createNotification({
@@ -88,7 +88,7 @@ export class DDSulfIncidentService {
     const incidentId = `incident_${Math.random().toString(36).substring(2, 12)}`;
     const newIncident: IncidentLog = {
       id: incidentId,
-      tenantId: 'tenant_ddsulf_enterprise',
+      tenantId: 'tenant_pestflow_enterprise',
       notificationId: notif.id,
       severity: params.severity,
       status: 'active',
@@ -105,9 +105,9 @@ export class DDSulfIncidentService {
 
     // Sync backup
     try {
-      await setDoc(doc(db, 'tenants', 'tenant_ddsulf_enterprise', 'incidents', incidentId), newIncident);
+      await setDoc(doc(db, 'tenants', 'tenant_pestflow_enterprise', 'incidents', incidentId), newIncident);
     } catch (e) {
-      console.warn('[DDSulf Incident Service] Bypassed Firestore incident creation syncing.', e);
+      console.warn('[PestFlow Incident Service] Bypassed Firestore incident creation syncing.', e);
     }
 
     return newIncident;
@@ -128,13 +128,13 @@ export class DDSulfIncidentService {
         };
 
         // Suppress alarms on matching notifications
-        DDSulfNotificationService.getInstance().updateNotificationProperties(inc.notificationId, {
+        PestFlowNotificationService.getInstance().updateNotificationProperties(inc.notificationId, {
           title: `[Em Atendimento] ${inc.carrierName || 'Ocorrência'}`,
           status: 'read'
         });
 
         // Sync backup
-        updateDoc(doc(db, 'tenants', 'tenant_ddsulf_enterprise', 'incidents', incidentId), {
+        updateDoc(doc(db, 'tenants', 'tenant_pestflow_enterprise', 'incidents', incidentId), {
           status: 'acknowledged',
           acknowledgedAt: updated.acknowledgedAt,
           acknowledgedBy: updated.acknowledgedBy,
@@ -160,12 +160,12 @@ export class DDSulfIncidentService {
           resolvedAt: Date.now()
         };
 
-        DDSulfNotificationService.getInstance().updateNotificationProperties(inc.notificationId, {
+        PestFlowNotificationService.getInstance().updateNotificationProperties(inc.notificationId, {
           title: `[RESOLVIDO] ${inc.carrierName || 'Ocorrência'}`,
           status: 'read'
         });
 
-        updateDoc(doc(db, 'tenants', 'tenant_ddsulf_enterprise', 'incidents', incidentId), {
+        updateDoc(doc(db, 'tenants', 'tenant_pestflow_enterprise', 'incidents', incidentId), {
           status: 'resolved',
           resolvedAt: updated.resolvedAt
         }).catch(e => console.warn('Incident resolve sync bypassed.', e));
@@ -205,7 +205,7 @@ export class DDSulfIncidentService {
     const currentPath = [...inc.escalationPath];
     const nextResponsibleGroup = currentPath.shift(); // Remove first item as current target
 
-    const notifService = DDSulfNotificationService.getInstance();
+    const notifService = PestFlowNotificationService.getInstance();
     
     // Broadcast urgent high-impact notice to the next tier of managers
     notifService.createNotification({
@@ -246,4 +246,4 @@ export class DDSulfIncidentService {
   }
 }
 
-export default DDSulfIncidentService;
+export default PestFlowIncidentService;

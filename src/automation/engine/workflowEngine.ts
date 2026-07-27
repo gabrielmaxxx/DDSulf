@@ -1,5 +1,5 @@
 /**
- * DDSulf Core Transactional Workflow Execution Engine
+ * PestFlow Core Transactional Workflow Execution Engine
  * Evaluates triggers, handles operational state steps, executes dynamic workflows, and handles auto-retries.
  */
 
@@ -9,9 +9,9 @@ import { EventBusService } from '../../notifications/events/eventBus';
 import { NotificationService } from '../../notifications/services/notificationService';
 
 export class WorkflowEngineService {
-  private static STORAGE_KEY = 'ddsulf_active_workflow_instances';
-  private static RULES_KEY = 'ddsulf_workflow_rules';
-  private static METRICS_KEY = 'ddsulf_workflow_metrics';
+  private static STORAGE_KEY = 'pestflow_active_workflow_instances';
+  private static RULES_KEY = 'pestflow_workflow_rules';
+  private static METRICS_KEY = 'pestflow_workflow_metrics';
 
   private static listeners: Set<() => void> = new Set();
 
@@ -273,7 +273,7 @@ export class WorkflowEngineService {
       case 'lock_pricing_model':
         // Safeguard locks financial edits
         if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('ddsulf_financial_model_governed_lock', 'true');
+          localStorage.setItem('pestflow_financial_model_governed_lock', 'true');
         }
         break;
 

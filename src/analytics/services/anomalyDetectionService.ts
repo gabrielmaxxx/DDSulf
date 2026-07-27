@@ -1,5 +1,5 @@
 /**
- * DDSulf Realtime Anomaly & Outlier Detection Engine
+ * PestFlow Realtime Anomaly & Outlier Detection Engine
  * Scans metrics streams for technical variations, hazardous weather peaks, or margin drops and outputs critical states.
  */
 
@@ -64,7 +64,7 @@ class AnomalyDetectionService {
         const anomaly: OperationalAnomaly = {
           anomalyId: `an_${Math.random().toString(36).substr(2, 9)}`,
           metricKey: 'margin_total',
-          source: 'Finanças Consolidadas DDSulf',
+          source: 'Finanças Consolidadas PestFlow',
           recordedValue: marginKpi.value,
           expectedLimit: 65,
           severity: 'critical',

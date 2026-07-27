@@ -32,7 +32,7 @@ export function UserMenu() {
         <DropdownMenuLabel className="p-2 pb-1 font-sans">
           <div className="flex flex-col space-y-0.5">
             <span className="font-semibold text-sm text-slate-900 leading-tight">{user?.name || 'Coordenador Operacional'}</span>
-            <span className="text-xs text-slate-500 font-mono truncate leading-none">{user?.email || 'operador@ddsulf.com'}</span>
+            <span className="text-xs text-slate-500 font-mono truncate leading-none">{user?.email || 'operador@pestflow.com'}</span>
           </div>
         </DropdownMenuLabel>
         

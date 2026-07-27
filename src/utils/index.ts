@@ -1,5 +1,5 @@
 /**
- * DDSulf — Global Utility helper functions
+ * PestFlow — Global Utility helper functions
  */
 
 /**
@@ -72,4 +72,4 @@ export function formatPhone(phone: string): string {
   return phone;
 }
 
-export * from './ddsulfClassifier';
+export * from './productClassifier';

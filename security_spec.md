@@ -1,6 +1,6 @@
-# DDSulf Security Specification & TDD Test Harness
+# PestFlow Security Specification & TDD Test Harness
 
-This specification details the Attribute-Based Access Control (ABAC) invariants and the strict testing strategy used to harden the DDSulf Firestore database.
+This specification details the Attribute-Based Access Control (ABAC) invariants and the strict testing strategy used to harden the PestFlow Firestore database.
 
 ---
 
@@ -74,7 +74,7 @@ import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 
 let testEnv: RulesTestEnvironment;
 
-describe('DDSulf Firestore Rules Red-Team Attack Harness', () => {
+describe('PestFlow Firestore Rules Red-Team Attack Harness', () => {
   beforeAll(async () => {
     testEnv = await initializeTestEnvironment({
       projectId: 'esoteric-physics-88gvj',
@@ -94,7 +94,7 @@ describe('DDSulf Firestore Rules Red-Team Attack Harness', () => {
     
     await expect(setDoc(userRef, {
       uid: 'hacker_uid',
-      email: 'hacker@ddsulf.com',
+      email: 'hacker@pestflow.com',
       name: 'Hacker',
       role: 'admin', // Self-assigned
       status: 'active'

@@ -103,7 +103,7 @@ export function WorkflowSidebar({ state, lastSavedTime }: WorkflowSidebarProps) 
           <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block leading-none">Perfil de Risco Operacional</span>
           <div className={cn("px-4 py-2.5 rounded-xl border font-bold text-xs flex justify-between items-center transition-all", getRiskColor(risk.overallRiskLevel))}>
             <span>Grau: {risk.overallRiskLevel}</span>
-            <span className="text-[10px] font-medium leading-none">Padrão DDSulf</span>
+            <span className="text-[10px] font-medium leading-none">Padrão PestFlow</span>
           </div>
           {risk.marginDeteriorationProbabilityPercent > 30 && (
             <span className="text-[10px] text-rose-500 font-bold block text-right mt-1 leading-none">

@@ -19,7 +19,7 @@ export function LoadingState({ message, fullscreen = false }: LoadingStateProps)
             </div>
           </div>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center pt-2">
-            {message || "PREPARANDO SISTEMA DDSULF..."}
+            {message || "PREPARANDO SISTEMA PESTFLOW..."}
           </p>
         </div>
       </div>

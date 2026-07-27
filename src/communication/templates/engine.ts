@@ -1,5 +1,5 @@
 /**
- * DDSulf Dynamics Template Engine & Communication Renderer
+ * PestFlow Dynamics Template Engine & Communication Renderer
  */
 
 import { AlertCategory, AlertSeverity, CommunicationTemplate, DeliveryChannel } from '../types';
@@ -78,7 +78,7 @@ export class CommunicationTemplateEngine {
     const tmpl = this.templates[templateKey];
     if (!tmpl) {
       return {
-        title: 'Operação DDSulf Evento',
+        title: 'Operação PestFlow Evento',
         body: `Mensagem de controle gerada automaticamente com os dados: ${JSON.stringify(variables)}`,
         severity: 'informational',
         channels: ['in_app']

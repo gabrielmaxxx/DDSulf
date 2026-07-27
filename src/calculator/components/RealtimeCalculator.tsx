@@ -87,7 +87,7 @@ export function RealtimeCalculator() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white border border-[#E5E7EB] rounded-[32px] p-6.5 shadow-xs">
         <div className="space-y-1">
           <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-[0.2em] block leading-none">
-            DDSulf Pricing Engine v4
+            PestFlow Pricing Engine v4
           </span>
           <h2 className="text-3xl font-black text-black tracking-tight leading-tight">
             Calculadora Operacional e Analítica
@@ -500,7 +500,7 @@ export function RealtimeCalculator() {
 
             <input
               type="text"
-              placeholder="Ex: Gabriel Max Pest Control S/A"
+              placeholder="Ex: Nome da Sua Empresa Ltda"
               value={state.clientName}
               onChange={(e) => state.setClientName(e.target.value)}
               className="w-full bg-[#F9FAFB] border border-[#E5E7EB] rounded-2xl px-4 py-3.5 text-xs font-bold text-black placeholder:text-[#9CA3AF] focus:ring-1 focus:ring-black outline-none"

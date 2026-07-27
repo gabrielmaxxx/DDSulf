@@ -1,6 +1,6 @@
-# DDSulf Analytics, Business Intelligence & KPI Governance
+# PestFlow Analytics, Business Intelligence & KPI Governance
 
-This document describes the design standards, aggregations, security constraints, and predictive regression metrics implemented in the DDSulf Business Intelligence (BI) layer.
+This document describes the design standards, aggregations, security constraints, and predictive regression metrics implemented in the PestFlow Business Intelligence (BI) layer.
 
 ---
 

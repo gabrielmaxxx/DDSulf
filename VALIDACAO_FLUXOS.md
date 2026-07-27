@@ -1,4 +1,4 @@
-# 📋 Protocolo de Validação Manual dos Fluxos Operacionais (DDSulf Dedetização)
+# 📋 Protocolo de Validação Manual dos Fluxos Operacionais (PestFlow Dedetização)
 
 Este é um script de testes manual (checklist) para validação integral da conectividade das regras de negócio entre os módulos de **Orçamentos**, **Confirmações**, **Agenda semanal**, **Financeiro** e **Estoque**.
 

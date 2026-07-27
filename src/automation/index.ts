@@ -1,5 +1,5 @@
 /**
- * DDSulf Resilient Process Orchestration & Workflow Intelligence System Module
+ * PestFlow Resilient Process Orchestration & Workflow Intelligence System Module
  */
 
 export * from './types';

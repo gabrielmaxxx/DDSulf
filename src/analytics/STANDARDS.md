@@ -1,17 +1,17 @@
-# DDSulf Business Intelligence & Operational Analytics Governance Standard
+# PestFlow Business Intelligence & Operational Analytics Governance Standard
 > Diretrizes e Políticas de Consistência Métrica, Rastreabilidade de Tenant e Regras de Forecast
 
 ---
 
 ## 📡 1. BI Architecture & Tenant Segregation
-Toda a infraestrutura de Business Intelligence do DDSulf opera sob as rígidas diretrizes do paradigma *Multi-Tenant Isolador*:
+Toda a infraestrutura de Business Intelligence do PestFlow opera sob as rígidas diretrizes do paradigma *Multi-Tenant Isolador*:
 - **Filtro de Contexto em Nível de Linha (RLS):** É expressamente proibido consolidar faturamento ou volumes químicos entre as filiais Erechim HQ, Passo Fundo e Santa Maria sem anexar a chave `tenantId` correspondente.
 - **Cache Local Protetor:** Para garantir desempenho offline-first no campo, agregações de faturamento e taxas de atividade são cacheadas e atualizadas incrementalmente, reduzindo leituras redundantes no Google Cloud Firestore.
 
 ---
 
 ## 🔬 2. KPI Governance Matrix
-Os indicadores chaves do DDSulf seguem regras matemáticas unificadas para evitar inconsistências contábeis rurais.
+Os indicadores chaves do PestFlow seguem regras matemáticas unificadas para evitar inconsistências contábeis rurais.
 
 | Chave KPI | Nome Oficial | Escopo Técnico | Fórmula de Cálculo |
 | :--- | :--- | :--- | :--- |

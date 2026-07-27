@@ -1,6 +1,6 @@
 {
-  "name": "DDSulf — Inteligência em Controle de Pragas",
-  "short_name": "DDSulf",
+  "name": "PestFlow — Inteligência em Controle de Pragas",
+  "short_name": "PestFlow",
   "description": "Plataforma operacional e analítica inteligente de controle de pragas",
   "theme_color": "#000000",
   "background_color": "#ffffffff",
@@ -9,15 +9,15 @@
   "start_url": "/",
   "icons": [
     {
-      "src": "https://api.dicebear.com/7.x/shapes/svg?seed=DDSulf&backgroundColor=000000",
+      "src": "/brand/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://api.dicebear.com/7.x/shapes/svg?seed=DDSulf&backgroundColor=000000",
+      "src": "/brand/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

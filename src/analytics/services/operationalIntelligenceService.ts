@@ -1,5 +1,5 @@
 /**
- * DDSulf Operational Intelligence & Technician Capacity Service
+ * PestFlow Operational Intelligence & Technician Capacity Service
  * Manages technician work ratios, chemical consumption metrics, and service recurrence.
  */
 

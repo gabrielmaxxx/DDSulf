@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DDSulf DevOps High-Availability Emergency Recovery Rollback Strategy Script
+# PestFlow DevOps High-Availability Emergency Recovery Rollback Strategy Script
 # Safe execution triggered by GitHub Actions failures or manual escalation.
 
 set -euo pipefail
@@ -30,7 +30,7 @@ if [[ -z "$TARGET_VERSION" ]]; then
   exit 1
 fi
 
-log_info "Iniciando plano de mitigacao de fallbacks em producao DDSulf..."
+log_info "Iniciando plano de mitigacao de fallbacks em producao PestFlow..."
 log_info "Ambiente: ${ENVIRONMENT}"
 log_info "Versao Alvo para Restauracao: ${TARGET_VERSION}"
 
@@ -39,11 +39,11 @@ if ! command -v firebase &> /dev/null; then
   log_info "Ferramenta firebase-cli nao localizada nativamente. Simulando desvio de trafego DNS de borda em Cloud Run..."
 else
   log_info "Roteando comandos nativos para painel..."
-  # firebase hosting:clone ddsulf-prod-aed10:v2.4.1 ddsulf-prod-aed10:live
+  # firebase hosting:clone pestflow-prod-aed10:v2.4.1 pestflow-prod-aed10:live
 fi
 
 log_info "Invalidando barreira de cache do ServiceWorker PWA..."
 # Emits PWA invalidation ref signal
-# curl -H "Authorization: Bearer $ACTIONS_TOKEN" -X POST https://api.prod.ddsulf.com.br/v2/pwa/invalidate
+# curl -H "Authorization: Bearer $ACTIONS_TOKEN" -X POST https://api.prod.pestflow.com.br/v2/pwa/invalidate
 
 log_success "Desvio realizado com absoluto exito! Rota ativa direcionada para a build saudavel: ${TARGET_VERSION}"

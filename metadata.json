@@ -1,5 +1,5 @@
 {
-  "name": "DDSulf - Sistema Operacional Inteligente",
+  "name": "PestFlow - Sistema Operacional Inteligente",
   "description": "Sistema operacional inteligente para controle de pragas focado em precificação, custos e inteligência financeira.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

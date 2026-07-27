@@ -1,6 +1,6 @@
-# DDSulf Operational AI, Safety & Contextual Governance
+# PestFlow Operational AI, Safety & Contextual Governance
 
-This document outlines the security rules, contextual limits, and prompt engineering strategies securing the DDSulf Operational Assistant.
+This document outlines the security rules, contextual limits, and prompt engineering strategies securing the PestFlow Operational Assistant.
 
 ---
 

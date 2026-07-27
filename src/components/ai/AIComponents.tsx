@@ -39,7 +39,7 @@ export function AIRecommendationCard({
           </div>
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 font-mono block">Análise Concluída</span>
-            <span className="text-xs font-bold text-slate-200">Recomendações IA DDSulf</span>
+            <span className="text-xs font-bold text-slate-200">Recomendações IA PestFlow</span>
           </div>
         </div>
 
@@ -90,7 +90,7 @@ interface Message {
 
 export function AIChat() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', text: 'Olá Operador. Sou o Copiloto IA DDSulf. Insira detalhes da aplicação do orçamento ou estoques para diagnóstico operacional imediato.' }
+    { role: 'assistant', text: 'Olá Operador. Sou o Copiloto IA PestFlow. Insira detalhes da aplicação do orçamento ou estoques para diagnóstico operacional imediato.' }
   ]);
   const [inputVal, setInputVal] = useState('');
   const [loading, setLoading] = useState(false);
@@ -121,7 +121,7 @@ export function AIChat() {
 
       setMessages(prev => [...prev, { role: 'assistant', text: responseText }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', text: 'Falha ao sincronizar com motores cognitivos DDSulf. Tente novamente.' }]);
+      setMessages(prev => [...prev, { role: 'assistant', text: 'Falha ao sincronizar com motores cognitivos PestFlow. Tente novamente.' }]);
     } finally {
       setLoading(false);
     }
@@ -133,7 +133,7 @@ export function AIChat() {
       <div className="bg-slate-900 text-white p-3.5 flex items-center gap-2 border-b border-slate-850 justify-between shrink-0">
         <div className="flex items-center gap-2">
           <Cpu className="size-4 text-amber-500 animate-pulse" />
-          <span className="text-xs font-bold font-sans">DDSulf AI Engine v2.4</span>
+          <span className="text-xs font-bold font-sans">PestFlow AI Engine v2.4</span>
         </div>
         <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-slate-400">
           <span className="size-2 rounded-full bg-emerald-500 inline-block animate-ping" />

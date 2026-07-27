@@ -1,6 +1,6 @@
-# DDSulf Customer Relationship & Operational Experience Governance
+# PestFlow Customer Relationship & Operational Experience Governance
 
-This document describes the customer portal safeguards, LTV computations, and retention structures securing CRM interactions in DDSulf.
+This document describes the customer portal safeguards, LTV computations, and retention structures securing CRM interactions in PestFlow.
 
 ---
 

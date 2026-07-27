@@ -119,7 +119,7 @@ export function computeChemicalCosts(
     'Outros': 'Inseticida Clorpirifós'
   };
 
-  const name = defaults[pestType] || 'Inseticida Padrão DDSulf';
+  const name = defaults[pestType] || 'Inseticida Padrão PestFlow';
   const pestIntensity = PEST_FACTORS[pestType]?.chemicalIntensity ?? 1.0;
   const infestDosage = INFESTATION_POWER[infestation]?.dosage ?? 1.0;
   

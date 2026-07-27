@@ -3,11 +3,11 @@
  */
 
 import { useState, useEffect } from 'react';
-import DDSulfNotificationService from '../services/notificationService';
+import PestFlowNotificationService from '../services/notificationService';
 import { CommunicationMetrics } from '../types';
 
 export function useEngagementContext() {
-  const service = DDSulfNotificationService.getInstance();
+  const service = PestFlowNotificationService.getInstance();
   const [metrics, setMetrics] = useState<CommunicationMetrics>(service.getLiveMetrics());
 
   useEffect(() => {

@@ -144,7 +144,7 @@ export const pricingService = {
    */
   saveDraft(inputs: PricingInputs): void {
     try {
-      localStorage.setItem('ddsulf_pricing_draft', JSON.stringify({
+      localStorage.setItem('pestflow_pricing_draft', JSON.stringify({
         inputs,
         timestamp: new Date().toISOString()
       }));
@@ -155,7 +155,7 @@ export const pricingService = {
 
   getDraft(): PricingInputs | null {
     try {
-      const saved = localStorage.getItem('ddsulf_pricing_draft');
+      const saved = localStorage.getItem('pestflow_pricing_draft');
       if (saved) {
         const parsed = JSON.parse(saved);
         return parsed.inputs as PricingInputs;
@@ -168,7 +168,7 @@ export const pricingService = {
 
   clearDraft(): void {
     try {
-      localStorage.removeItem('ddsulf_pricing_draft');
+      localStorage.removeItem('pestflow_pricing_draft');
     } catch (e) {
       console.error('[clearDraft error]:', e);
     }

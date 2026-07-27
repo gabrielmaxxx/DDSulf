@@ -1,5 +1,5 @@
 /**
- * DDSulf Customer Intelligence & Retention Analytics Service
+ * PestFlow Customer Intelligence & Retention Analytics Service
  * Calculates Lifetime Value (LTV), Annual Contract Value (ACV), Churn Risk, and customer health scorecards.
  */
 

@@ -1,10 +1,10 @@
 import { LayoutDashboard, Calculator, Receipt, ClipboardCheck, Package, History, BrainCircuit } from 'lucide-react';
 
 export const APP_METADATA = {
-  name: "DDSulf",
-  fullName: "DDSulf — Sistema Operacional de Controle de Pragas",
+  name: "PestFlow",
+  fullName: "PestFlow — Sistema Operacional de Controle de Pragas",
   description: "Plataforma operacional inteligente e analítica para gestão avançada de imunização e controle de pragas",
-  email: "contato@ddsulf.com.br",
+  email: "contato@pestflow.com.br",
   version: "1.0.0-foundation"
 };
 

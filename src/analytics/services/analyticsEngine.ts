@@ -1,5 +1,5 @@
 /**
- * DDSulf Advanced Analytics and Aggregation Engine
+ * PestFlow Advanced Analytics and Aggregation Engine
  * Calculates business indicators, runs historic trends regressions, and formats aggregates securely.
  */
 
@@ -12,7 +12,7 @@ import {
 } from '../types';
 
 export class AnalyticsEngineService {
-  private static CACHE_METRICS_KEY = 'ddsulf_analytics_cached_metrics';
+  private static CACHE_METRICS_KEY = 'pestflow_analytics_cached_metrics';
 
   /**
    * Generates localized operational dashboard metrics filtered by role

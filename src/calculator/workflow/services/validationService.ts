@@ -46,7 +46,7 @@ export const validationService = {
 
       case 6: // Produtos
         if (state.selectedProducts.length === 0) {
-          warnings.selectedProducts = 'DDSulf necessita de formulação de ingrediente químico ativo. Nenhum selecionado.';
+          warnings.selectedProducts = 'PestFlow necessita de formulação de ingrediente químico ativo. Nenhum selecionado.';
         }
         break;
 

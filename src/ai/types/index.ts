@@ -1,5 +1,5 @@
 /**
- * DDSulf Operational AI & Contextual Intelligence Unified Types
+ * PestFlow Operational AI & Contextual Intelligence Unified Types
  */
 
 export interface SystemCoreContext {

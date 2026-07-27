@@ -1,12 +1,12 @@
 /**
- * DDSulf Realtime Contextual Intelligence Engine
+ * PestFlow Realtime Contextual Intelligence Engine
  * Captures, compiles, and filters the business runtime environment based on active role permissions.
  */
 
 import { SystemCoreContext } from '../types';
 
 export class AIContextEngine {
-  private static STORAGE_KEY = 'ddsulf_ai_live_context';
+  private static STORAGE_KEY = 'pestflow_ai_live_context';
 
   /**
    * Assembles a permission-aware core context

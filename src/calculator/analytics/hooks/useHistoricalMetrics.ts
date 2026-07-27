@@ -23,7 +23,7 @@ export function useHistoricalMetrics() {
 
     // Listen to local storage writes to auto-refresh whenever a new pricing is quote-finalized
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'ddsulf_analytics_snapshots') {
+      if (e.key === 'pestflow_analytics_snapshots') {
         refreshMetrics();
       }
     };

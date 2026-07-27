@@ -4,13 +4,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useOperationalNotifications } from './useOperationalNotifications';
-import DDSulfIncidentService from '../alerts/incidentService';
+import PestFlowIncidentService from '../alerts/incidentService';
 import { IncidentLog, AlertCategory } from '../types';
 
 export function useRealtimeAlerts() {
   const { notifications } = useOperationalNotifications();
   const [incidents, setIncidents] = useState<IncidentLog[]>([]);
-  const incidentService = DDSulfIncidentService.getInstance();
+  const incidentService = PestFlowIncidentService.getInstance();
 
   useEffect(() => {
     const unsub = incidentService.subscribe((list) => {

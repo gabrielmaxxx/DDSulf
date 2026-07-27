@@ -15,7 +15,7 @@ import { useSystemStore } from '@/store';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 import { SpreadsheetImportTab } from '../financial/components/SpreadsheetImportTab';
-import { scanProductSmartly, queryAIForProducts, DDSULF_OFFICIAL_PRODUCTS, normalizeString, getSimilarityScore } from '@/utils/ddsulfClassifier';
+import { scanProductSmartly, queryAIForProducts, PESTFLOW_OFFICIAL_PRODUCTS, normalizeString, getSimilarityScore } from '@/utils/productClassifier';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -497,7 +497,7 @@ export function InventoryPage() {
       setFileTypeDetected('pdf');
       setRawTextPreview('[LEITURA OPERACIONAL PDF]\nFicha cadastral / Catálogo PDF carregado.\nExtraindo similaridades...');
       setTimeout(() => {
-        const item = DDSULF_OFFICIAL_PRODUCTS[0];
+        const item = PESTFLOW_OFFICIAL_PRODUCTS[0];
         setUploadParsedItems([{
           id: 'pdf-item-1', name: item.name, quantity: 10, unit: item.unit, costPerUnit: 65,
           category: item.categoryCode, supplier: item.supplier, confirmed: true, productGroup: item.productGroup,
@@ -1152,7 +1152,7 @@ export function InventoryPage() {
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900 font-display"> Scanner de XML, PDF e Planilhas</h3>
                   <p className="text-slate-400 font-medium leading-relaxed mt-1">
-                    Arraste sua planilha, XML de nota fiscal ou PDF. O motor DDSulf identifica o grupo químico e preenche as equivalências recomendadas.
+                    Arraste sua planilha, XML de nota fiscal ou PDF. O motor PestFlow identifica o grupo químico e preenche as equivalências recomendadas.
                   </p>
                 </div>
 
@@ -1214,7 +1214,7 @@ export function InventoryPage() {
                 </div>
 
                 <div className="p-3.5 bg-slate-50 border border-slate-250/60 rounded-xl space-y-1.5 text-[11px] text-slate-500">
-                  <span className="font-black uppercase text-slate-800 tracking-wider text-[9px] block">💡 Enlace Semântico DDSulf</span>
+                  <span className="font-black uppercase text-slate-800 tracking-wider text-[9px] block">💡 Enlace Semântico PestFlow</span>
                   <p className="leading-relaxed">Se o item importado bater com K-Othrine ou Demand, o princípio ativo correspondente é autocompletado.</p>
                 </div>
               </div>
@@ -1643,7 +1643,7 @@ export function InventoryPage() {
                         {/* CROSS-MODULE SYSTEM INTEGRATION SUMMARY PANEL */}
                         <div className="col-span-1 md:col-span-2 p-4 bg-emerald-50/70 border border-emerald-150 rounded-2xl text-xs space-y-3 font-semibold">
                           <span className="text-[10px] font-bold uppercase tracking-widest text-[#1B3A2D] flex items-center gap-1.5 border-b border-emerald-100 pb-1.5">
-                            <Sparkles className="size-3.5 text-emerald-700" /> VÍNCULOS INTEGRADOS DE FLUXO (DDSULF)
+                            <Sparkles className="size-3.5 text-emerald-700" /> VÍNCULOS INTEGRADOS DE FLUXO (PESTFLOW)
                           </span>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                             <div className="p-2.5 bg-white rounded-xl border border-emerald-100 space-y-1.5 flex flex-col justify-between">
@@ -1725,7 +1725,7 @@ export function InventoryPage() {
                     <div className="space-y-4">
                       <div>
                         <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Monitoramento Mensal de Quantidade Aplicada</h4>
-                        <p className="text-slate-400 text-[11px]">Saídas operacionais em serviços DDSulf nos últimos meses.</p>
+                        <p className="text-slate-400 text-[11px]">Saídas operacionais em serviços PestFlow nos últimos meses.</p>
                       </div>
 
                       <div className="h-[180px] w-full pt-2">
@@ -1784,7 +1784,7 @@ export function InventoryPage() {
                             <CheckCircle2 className="size-7 text-emerald-700 shrink-0" />
                             <div>
                               <p className="font-extrabold text-slate-800">Ficha Técnica Regulatória</p>
-                              <p className="text-[9px] text-slate-400 mt-0.5">DDSulf Controle Toxicológico</p>
+                              <p className="text-[9px] text-slate-400 mt-0.5">PestFlow Controle Toxicológico</p>
                             </div>
                           </div>
                           <span className="text-[8px] bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-black uppercase">PADRAO</span>
@@ -1870,7 +1870,7 @@ export function InventoryPage() {
 
                       {/* Transfer between vehicles control */}
                       <form onSubmit={(e) => handleTransferSubmit(e, selectedProduct)} className="bg-slate-50 p-4 rounded-2xl border border-slate-205 space-y-3 font-semibold text-xs">
-                        <span className="text-[10px] uppercase font-black text-slate-400 block tracking-wider">Transferir saldo de canais DDSulf</span>
+                        <span className="text-[10px] uppercase font-black text-slate-400 block tracking-wider">Transferir saldo de canais PestFlow</span>
                         <div className="grid grid-cols-3 gap-2">
                           <div>
                             <span className="text-[9px] text-[#6B6B5F] block mb-1">Origem</span>
@@ -1965,7 +1965,7 @@ export function InventoryPage() {
                   <div className="bg-gradient-to-r from-violet-600/10 to-indigo-600/10 border border-violet-200/50 p-4 rounded-2xl flex items-start gap-3 text-left animate-pulse">
                     <Bot className="size-6 text-violet-700 shrink-0 mt-0.5" />
                     <div className="space-y-1 text-xs">
-                      <span className="text-[10px] font-black uppercase text-violet-800 tracking-wider">DDSulf IA - Análises Automáticas</span>
+                      <span className="text-[10px] font-black uppercase text-violet-800 tracking-wider">PestFlow IA - Análises Automáticas</span>
                       <ul className="list-disc list-inside text-slate-600 space-y-1 mt-1 text-[11px] font-medium leading-relaxed">
                         <li>Consumo estimado de {selectedProduct.name} aumentou 12% nos últimos 15 dias de rodadas.</li>
                         <li>Estoque remanescente suficiente para 22 dias operacionais de campo.</li>

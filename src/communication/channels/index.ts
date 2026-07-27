@@ -24,7 +24,7 @@ export class ChannelOrchestrationBroker {
       return { status: 'failed', latencyMs };
     }
 
-    console.log(`[DDSulf Multi-Channel Broker] Dispatched via [${channel}] to [${recipient}]: "${content.title}"`);
+    console.log(`[PestFlow Multi-Channel Broker] Dispatched via [${channel}] to [${recipient}]: "${content.title}"`);
     return { status: 'delivered', latencyMs };
   }
 }

@@ -1,14 +1,14 @@
 /**
- * Hook to interface directly with DDSulf Realtime Notification Services
+ * Hook to interface directly with PestFlow Realtime Notification Services
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import DDSulfNotificationService from '../services/notificationService';
+import PestFlowNotificationService from '../services/notificationService';
 import { OperationalNotification, AlertCategory, AlertSeverity, QuickAction } from '../types';
 
 export function useOperationalNotifications() {
   const [notifications, setNotifications] = useState<OperationalNotification[]>([]);
-  const service = DDSulfNotificationService.getInstance();
+  const service = PestFlowNotificationService.getInstance();
 
   useEffect(() => {
     const unsub = service.subscribe((latest) => {

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
-import { classifyFinancialMovement } from '@/utils/ddsulfClassifier';
+import { classifyFinancialMovement } from '@/utils/productClassifier';
 
 const GROUPS_STRUCTURE = {
   'RECEITAS': [
@@ -412,7 +412,7 @@ export function SpreadsheetImportTab() {
           updatedCount++;
         }
       } else {
-        // Create new chemical product (DDSulf matching principle: Principle Active + Manufacturer)
+        // Create new chemical product (PestFlow matching principle: Principle Active + Manufacturer)
         const newId = `prod-gen-${Math.random().toString(36).substring(2, 11)}`;
         const newProd: InventoryProduct = {
           id: newId,
@@ -565,7 +565,7 @@ export function SpreadsheetImportTab() {
         <div className="bg-white border border-[#E8E6E1] rounded-3xl p-6 md:col-span-7 text-left space-y-4">
           <div className="space-y-1">
             <h3 className="text-sm font-bold uppercase tracking-wider text-[#141410]">Mapeamento de Colunas</h3>
-            <p className="text-xs text-[#6B6B5F]">Associe as colunas identificadas na sua planilha com os campos oficiais de Auditoria DDSulf.</p>
+            <p className="text-xs text-[#6B6B5F]">Associe as colunas identificadas na sua planilha com os campos oficiais de Auditoria PestFlow.</p>
           </div>
 
           {headers.length === 0 ? (
@@ -750,7 +750,7 @@ export function SpreadsheetImportTab() {
                 <Check className="size-5 text-[#2D6A4F]" />
                 Auditar Lançamentos Pré-Importação (IA Audit)
               </h4>
-              <p className="text-xs text-[#6B6B5F] font-medium">Reconcilie as categorias geradas pela inteligência preditiva DDSulf antes de migrar ao Plano de Contas.</p>
+              <p className="text-xs text-[#6B6B5F] font-medium">Reconcilie as categorias geradas pela inteligência preditiva PestFlow antes de migrar ao Plano de Contas.</p>
             </div>
             
             <Button

@@ -98,13 +98,13 @@ export const workflowService = {
    */
   trackAnalytics(eventAction: string, metadata: any): void {
     try {
-      const history = JSON.parse(localStorage.getItem('ddsulf_workflow_analytics') || '[]');
+      const history = JSON.parse(localStorage.getItem('pestflow_workflow_analytics') || '[]');
       history.push({
         event: eventAction,
         metadata,
         timestamp: new Date().toISOString()
       });
-      localStorage.setItem('ddsulf_workflow_analytics', JSON.stringify(history.slice(-100))); // Cap at 100
+      localStorage.setItem('pestflow_workflow_analytics', JSON.stringify(history.slice(-100))); // Cap at 100
     } catch {}
   }
 };

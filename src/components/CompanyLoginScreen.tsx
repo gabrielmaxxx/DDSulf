@@ -96,11 +96,11 @@ export function CompanyLoginScreen() {
         <div className="h-1.5 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500" />
 
         <div className="p-8 pb-5 border-b border-slate-100 flex flex-col items-center text-center">
-          <div className="size-14 rounded-2xl bg-slate-900 shadow-lg shadow-slate-950/20 flex items-center justify-center mb-4 transition-transform hover:scale-105 duration-200">
-            <Building2 className="size-7 text-white" />
+          <div className="size-14 rounded-2xl bg-emerald-950 p-2 shadow-lg shadow-emerald-950/20 flex items-center justify-center mb-4 transition-transform hover:scale-105 duration-200 border border-emerald-800/40">
+            <img src="/brand/logo-icon.svg" alt="PestFlow" className="size-full object-contain" />
           </div>
           
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">DDSulf Inteligência</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">PestFlow Inteligência</h1>
           <p className="text-slate-500 text-xs mt-1.5 font-medium">Controle Multicontas & Isolamento de Ambientes Corporativos</p>
 
           {/* Tab Selection */}
@@ -181,7 +181,7 @@ export function CompanyLoginScreen() {
                     type="text" 
                     value={loginName}
                     onChange={(e) => setLoginName(e.target.value)}
-                    placeholder="Ex: DDSulf Dedetizadora" 
+                    placeholder="Ex: PestFlow Dedetizadora" 
                     className="w-full h-11 pl-10 pr-4 text-xs bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:border-slate-900 focus:bg-white transition-all font-medium text-slate-800"
                     disabled={loading}
                   />
@@ -225,7 +225,7 @@ export function CompanyLoginScreen() {
                     type="text" 
                     value={registerName}
                     onChange={(e) => setRegisterName(e.target.value)}
-                    placeholder="Ex: DDSulf Filial Norte Ltda" 
+                    placeholder="Ex: PestFlow Filial Norte Ltda" 
                     className="w-full h-11 pl-10 pr-4 text-xs bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:border-slate-900 focus:bg-white transition-all font-medium text-slate-800"
                     minLength={2}
                     disabled={loading}

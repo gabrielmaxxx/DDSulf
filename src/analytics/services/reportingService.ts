@@ -1,5 +1,5 @@
 /**
- * DDSulf Analytical Reporting & Snapshot Export Engine
+ * PestFlow Analytical Reporting & Snapshot Export Engine
  * Generates audit trails, simulates Excel/CSV binary layout exports, and keeps chronological records.
  */
 
@@ -38,7 +38,7 @@ class ReportingService {
         code: 'REP-2026-05B',
         title: 'Auditoria de Lucratividade Multidirecional por Rota de Trânsito',
         scope: 'financial',
-        issuedBy: 'Finanças Centralizadas DDSulf',
+        issuedBy: 'Finanças Centralizadas PestFlow',
         createdAt: new Date(Date.now() - 86400000).toISOString(),
         fileSize: '1.8 MB',
         downloadCount: 29

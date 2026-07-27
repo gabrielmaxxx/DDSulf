@@ -23,7 +23,7 @@ import {
   FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { classifyFinancialMovement } from '@/utils/ddsulfClassifier';
+import { classifyFinancialMovement } from '@/utils/productClassifier';
 
 const PAYMENT_METHODS = ['Pix', 'Boleto', 'Cartão de Crédito', 'Dinheiro', 'Transferência', 'Débito Automático', 'Sem Parar'];
 const COST_CENTERS = ['Geral', 'Equipe Alfa', 'Equipe Beta', 'Veículo 01', 'Veículo 02'];
@@ -216,7 +216,7 @@ export function PlanoContasTab() {
     }
   };
 
-  // Diagnostic checklist validation for DDSulf
+  // Diagnostic checklist validation for PestFlow
   const validateMovement = (mov: FinancialMovement) => {
     const missing = [];
     if (!mov.date) missing.push('Data');
@@ -323,7 +323,7 @@ export function PlanoContasTab() {
             <BrainCircuit className="size-5" />
           </div>
           <div className="text-left">
-            <h5 className="font-bold">Motor de Classificação DDSulf Inteligente</h5>
+            <h5 className="font-bold">Motor de Classificação PestFlow Inteligente</h5>
             <p className="text-[11px] text-[#6B6B5F]">Cadastre ou importe lançamentos para catalogar instantaneamente nos grupos do DRE e planos de contas.</p>
           </div>
         </div>

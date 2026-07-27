@@ -52,7 +52,7 @@ function formatCurrency(val: number): string {
   return formatBRL(val).replace('R$', '').trim();
 }
 
-// Automatic offline distance estimator between headquarters (sede in Volta Redonda/RJ) and client address across the entire State of Rio de Janeiro
+// Automatic offline distance estimator between headquarters (sede in Cidade Sede/RJ) and client address across the entire State of Rio de Janeiro
 function estimateDistanceOffline(hqAddress: string, clientAddress: string): number {
   if (!hqAddress || !clientAddress) return 0;
 
@@ -64,7 +64,7 @@ function estimateDistanceOffline(hqAddress: string, clientAddress: string): numb
 
   if (cleanHq === cleanClient) return 0.5;
 
-  // 1. NEIGHBORHOODS OF VOLTA REDONDA (Sede / Headquarters)
+  // 1. NEIGHBORHOODS OF HQ CITY (Sede / Headquarters) — currently calibrated for Volta Redonda/RJ; parameterize if reselling outside this region
   const vrNeighborhoods: Record<string, number> = {
     'aterrado': 3.1,
     'retiro': 6.4,
@@ -106,7 +106,7 @@ function estimateDistanceOffline(hqAddress: string, clientAddress: string): numb
     'santa rita': 11.0,
   };
 
-  // 2. MUNICIPALITIES & REGIONS OF THE STATE OF RIO DE JANEIRO WITH ROBUST DISTANCE MATRIX FROM VOLTA REDONDA (km)
+  // 2. MUNICIPALITIES & REGIONS WITH DISTANCE MATRIX FROM HQ CITY (km) — RJ-specific dataset, replace per client region
   const rjMunicipalities: Record<string, number> = {
     'barra mansa': 14.5,
     'pinheiral': 16.8,
@@ -514,7 +514,7 @@ export function CalculatorPage() {
 
     if (!settings?.headquartersAddress) {
       toast.error('Endereço da sede não cadastrado!', {
-        description: 'Vá até o painel de Configurações para cadastrar o endereço da Sede da DDSulf primeiro.'
+        description: 'Vá até o painel de Configurações para cadastrar o endereço da Sede da PestFlow primeiro.'
       });
       return;
     }
@@ -528,7 +528,7 @@ export function CalculatorPage() {
       setTimeout(() => {
         const calculatedKm = estimateDistanceOffline(origins, destinations);
         setDistanceKm(calculatedKm);
-        toast.success('Distância calculada via heurística DDSulf!', {
+        toast.success('Distância calculada via heurística PestFlow!', {
           description: `Partida: Sede (${origins})\nDestino: ${destinations}\nTotal: ${calculatedKm} km.`
         });
         setIsCalculatingDistance(false);
@@ -782,7 +782,7 @@ export function CalculatorPage() {
     const pestName = PESTS_LIST.find(p => p.value === q.service.pestType)?.label || q.service.pestType;
     const serviceName = SERVICES_LIST.find(s => s.value === q.service.serviceType)?.label || q.service.serviceType;
 
-    return `📄 *ORÇAMENTO DE CONTROLE SANITÁRIO - DDSulf*
+    return `📄 *ORÇAMENTO DE CONTROLE SANITÁRIO - PestFlow*
 ----------------------------------------
 *🛒 ID ORÇAMENTO:* #${q.id}
 *👤 CLIENTE:* ${q.client.name}
@@ -802,7 +802,7 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
 *💰 VALOR TOTAL INVESTIMENTO:* R$ ${formatCurrency(q.pricing.finalPrice)}
 *🛡️ GARANTIA TÉCNICA:* 90 dias com auditoria regulatória e fiscal.
 
-*DDSulf Inteligência Sanitária Integrada*`;
+*PestFlow Inteligência Sanitária Integrada*`;
   };
 
   const handleCopyText = () => {
@@ -828,8 +828,8 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
     ? PESTS_LIST.find(p => p.value === clientQuotes[clientQuotes.length - 1].service.pestType)?.label || 'Controle de Pragas'
     : 'Controle de Baratas';
   const resolvedCityName = clientAddress 
-    ? clientAddress.split('-')[1]?.trim() || clientAddress.split(',')[1]?.trim() || 'Volta Redonda' 
-    : 'Volta Redonda';
+    ? clientAddress.split('-')[1]?.trim() || clientAddress.split(',')[1]?.trim() || 'Cidade Sede' 
+    : 'Cidade Sede';
 
   return (
     <div className="space-y-6 pb-16 w-full max-w-7xl mx-auto px-4 sm:px-6 text-left animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -926,7 +926,7 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
 
               {/* Status helper label */}
               <span className="text-[11px] font-mono font-bold text-slate-400 bg-white border border-slate-150 rounded-md px-2 py-0.5">
-                DDSulf Orçador
+                PestFlow Orçador
               </span>
             </div>
 
@@ -1139,7 +1139,7 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
                                     type="text"
                                     value={clientAddress}
                                     onChange={(e) => setClientAddress(e.target.value)}
-                                    placeholder="Av. Ipiranga, 6681 - Volta Redonda - RJ"
+                                    placeholder="Av. Ipiranga, 6681 - Cidade Sede - RJ"
                                     className="w-full h-10 pl-9 pr-3 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none"
                                   />
                                 </div>
@@ -1193,8 +1193,8 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
 
                             <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mt-1">
                               <span className="font-black text-[#1B3A2D]">Base:</span>
-                              <span className="truncate max-w-[200px]" title={settings?.headquartersAddress || 'Sede DDSulf, Volta Redonda'}>
-                                {settings?.headquartersAddress || 'Sede DDSulf, Volta Redonda'}
+                              <span className="truncate max-w-[200px]" title={settings?.headquartersAddress || 'Sede PestFlow, Cidade Sede'}>
+                                {settings?.headquartersAddress || 'Sede PestFlow, Cidade Sede'}
                               </span>
                               <span>&rarr;</span>
                               <span className="font-black text-slate-700 truncate max-w-[200px]" title={clientAddress}>{clientAddress}</span>
@@ -1641,7 +1641,7 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
                 <div>
                   <span className="text-[9px] font-bold uppercase text-slate-400">Serviço</span>
                   <p className="font-extrabold text-slate-800 mt-0.5">
-                    {PESTS_LIST.find(p => p.value === pestType)?.label || 'DDSulf Tratamento'}
+                    {PESTS_LIST.find(p => p.value === pestType)?.label || 'PestFlow Tratamento'}
                   </p>
                 </div>
               </div>

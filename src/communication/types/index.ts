@@ -1,5 +1,5 @@
 /**
- * DDSulf Enterprise Notification, Alerts & Engagement Systems — TypeScript Bedrock
+ * PestFlow Enterprise Notification, Alerts & Engagement Systems — TypeScript Bedrock
  */
 
 export type AlertSeverity = 'critical' | 'high' | 'medium' | 'low' | 'informational';

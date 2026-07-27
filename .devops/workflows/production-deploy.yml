@@ -1,4 +1,4 @@
-# DDSulf High-Availability Production CI/CD Delivery Pipeline Configuration
+# PestFlow High-Availability Production CI/CD Delivery Pipeline Configuration
 # Powered by Enterprise DevOps delivery modules aligned with Vercel & Firebase standards.
 
 name: Enterprise SaaS Production Build & Cloud Continuous Delivery
@@ -75,8 +75,8 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
-          VITE_API_GATEWAY_URL: https://api.prod.ddsulf.com.br
-          VITE_FIREBASE_PROJECT_ID: ddsulf-prod-aed10
+          VITE_API_GATEWAY_URL: https://api.prod.pestflow.com.br
+          VITE_FIREBASE_PROJECT_ID: pestflow-prod-aed10
 
       - name: Deploy Client Distribution to High-Performance CDN Edge
         run: |

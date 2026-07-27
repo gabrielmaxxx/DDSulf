@@ -1,5 +1,5 @@
 /**
- * DDSulf Operational Heuristics and Realtime Insight Generation Engine
+ * PestFlow Operational Heuristics and Realtime Insight Generation Engine
  * Scans financial levels, stock minimums, and sync latencies to supply actionable insights.
  */
 

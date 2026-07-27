@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useSystemStore, AgendaEvent } from '@/store/systemStore';
+import { GoogleMapsViewer } from '@/components/GoogleMapsViewer';
 import { 
   Calendar, 
   ChevronLeft, 
@@ -174,10 +175,16 @@ export function AgendaPage() {
         }
       }
 
+      const matchedClient = (clients || []).find(
+        (c: any) => c.name === clientName || c.id === ev.clientId
+      );
+      const clientAddress = matchedClient?.address || '';
+
       return {
         ...ev,
         client: clientName,
         clientName,
+        clientAddress,
         type: mappedType,
         date: dateObj,
         dateStr,
@@ -187,7 +194,7 @@ export function AgendaPage() {
         obs: ev.obs || ev.notes || 'Sem observações'
       };
     });
-  }, [agenda]);
+  }, [agenda, clients]);
 
   // Events belonging strictly to the visible week
   const eventsInWeek = useMemo(() => {
@@ -620,6 +627,22 @@ export function AgendaPage() {
                     {selectedEvent.obs}
                   </p>
                 </div>
+
+                {/* Rota do Serviço (Google Maps) */}
+                {selectedEvent.clientAddress && (
+                  <div className="space-y-1 pt-1 border-t border-zinc-100">
+                    <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest block">Roteirização Inteligente</span>
+                    <GoogleMapsViewer 
+                      address={selectedEvent.clientAddress}
+                      title={selectedEvent.clientName}
+                      showRouteFromHq={true}
+                      height="180px"
+                    />
+                    <div className="text-[9px] text-zinc-400 font-bold leading-normal">
+                      Exibindo trajeto sugerido partindo da sede da DDSulf.
+                    </div>
+                  </div>
+                )}
 
                 {/* Actions Panel Buttons */}
                 <div className="pt-2.5 border-t border-zinc-150 space-y-2">

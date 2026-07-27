@@ -29,7 +29,7 @@ export function Breadcrumbs() {
             to={ROUTES.dashboard}
             className="text-slate-400 hover:text-black transition-colors"
           >
-            DDSulf
+            PestFlow
           </Link>
           <ChevronRight className="size-3 text-slate-300 shrink-0" />
           <span className="text-slate-900 font-semibold font-sans truncate capitalize">

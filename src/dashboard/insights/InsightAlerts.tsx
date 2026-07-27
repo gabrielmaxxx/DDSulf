@@ -54,7 +54,7 @@ export function InsightAlerts({ insights, anomalies, onDismissAnomaly }: Insight
       <div className="space-y-4">
         <div className="flex items-center gap-2 text-indigo-650">
           <Lightbulb className="size-4 text-indigo-600 shrink-0" />
-          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] leading-none">DDSulf Recomendações</h4>
+          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] leading-none">PestFlow Recomendações</h4>
         </div>
         <div className="grid gap-4">
           {insights.map((ins, idx) => {
@@ -91,7 +91,7 @@ export function InsightAlerts({ insights, anomalies, onDismissAnomaly }: Insight
 
                 <div className="flex items-center justify-between border-t border-slate-100 pt-3.5 mt-5">
                   <div className="flex items-center gap-1">
-                    <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Confiança DDSulf IA</span>
+                    <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Confiança PestFlow IA</span>
                     <span className="text-[9.5px] text-emerald-600 font-black font-mono">{(ins.confidenceScore * 100).toFixed(0)}%</span>
                   </div>
                   <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{ins.associatedDataPoints} Amostras</span>

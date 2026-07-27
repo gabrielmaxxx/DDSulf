@@ -1,5 +1,5 @@
 /**
- * DDSulf Advanced AI Orchestration Service
+ * PestFlow Advanced AI Orchestration Service
  * Integrates context injection, memory pipelines, provider channels, and strict safety validation.
  */
 

@@ -1,5 +1,5 @@
 /**
- * DDSulf Operational Communication Center & Realtime Engagement Platform
+ * PestFlow Operational Communication Center & Realtime Engagement Platform
  */
 
 import React, { useState, useEffect } from 'react';
@@ -230,7 +230,7 @@ export function CommunicationDashboard() {
               Communication Hub
             </h1>
             <p className="text-xs font-semibold text-neutral-400 mt-1 uppercase tracking-wider">
-              DDSulf Operational Communications & Realtime Engagement Panel
+              PestFlow Operational Communications & Realtime Engagement Panel
             </p>
           </div>
         </div>

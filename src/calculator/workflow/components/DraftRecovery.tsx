@@ -17,7 +17,7 @@ export function DraftRecovery({ onLoadDraft, onNewWorkflow }: DraftRecoveryProps
         <div className="inline-flex p-3 bg-indigo-50 border border-indigo-100 rounded-2xl text-indigo-600 mb-2">
           <Sparkles className="size-6 animate-pulse" />
         </div>
-        <h2 className="text-3xl font-black text-black tracking-tight">DDSulf Pricing Portal</h2>
+        <h2 className="text-3xl font-black text-black tracking-tight">PestFlow Pricing Portal</h2>
         <p className="text-sm font-semibold text-gray-500 max-w-md mx-auto leading-relaxed">
           Inicie um novo orçamento calibrado por algoritmo financeiro ou continue rascunhos salvos em campo off-line.
         </p>

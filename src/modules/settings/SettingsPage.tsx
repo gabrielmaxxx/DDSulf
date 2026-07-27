@@ -29,10 +29,10 @@ interface SettingsData {
 }
 
 const DEFAULT_SETTINGS: SettingsData = {
-  companyName: 'DDSulf Dedetizadora',
+  companyName: 'PestFlow Dedetizadora',
   cnpj: '00.000.000/0001-00',
-  address: 'Rua 33, 120 - Vila Santa Cecília, Volta Redonda - RJ',
-  cityState: 'Volta Redonda / RJ',
+  address: 'Rua 33, 120 - Vila Santa Cecília, Cidade Sede - RJ',
+  cityState: 'Cidade Sede / RJ',
   phone: '(24) 3344-5566',
   minMargin: 35,
   monthlyServiceTarget: 120,
@@ -98,7 +98,7 @@ export function SettingsPage() {
         companyName: globalSettings.companyName || DEFAULT_SETTINGS.companyName,
         cnpj: globalSettings.cnpj || DEFAULT_SETTINGS.cnpj,
         address: globalSettings.headquartersAddress || DEFAULT_SETTINGS.address,
-        cityState: `${globalSettings.city || 'Volta Redonda'} / ${globalSettings.state || 'RJ'}`,
+        cityState: `${globalSettings.city || 'Cidade Sede'} / ${globalSettings.state || 'RJ'}`,
         phone: globalSettings.phone || DEFAULT_SETTINGS.phone,
         minMargin: globalSettings.operationalGoals?.minimumMarginPercent ?? DEFAULT_SETTINGS.minMargin,
         monthlyServiceTarget: globalSettings.operationalGoals?.targetServicesPerMonth ?? DEFAULT_SETTINGS.monthlyServiceTarget,
@@ -185,15 +185,22 @@ export function SettingsPage() {
       </header>
 
       <form onSubmit={handleSave} className="space-y-8 max-w-4xl">
-        {/* Seção 1 — Empresa */}
+        {/* Seção 1 — Empresa & Identidade Visual */}
         <Card className="bg-white border-[#E5E7EB] shadow-sm rounded-[32px] p-8 space-y-6">
-          <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
-            <div className="p-2.5 bg-slate-100 rounded-xl">
-              <Building2 className="size-5 text-black" />
+          <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-emerald-950 rounded-xl">
+                <img src="/brand/logo-icon.svg" alt="PestFlow" className="size-5 object-contain" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-black">Seção 1 — Empresa & Identidade Visual</h3>
+                <p className="text-xs text-gray-400">Dados do cadastro geral e identidade visual oficial da marca PestFlow.</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-black text-black">Seção 1 — Empresa</h3>
-              <p className="text-xs text-gray-400">Dados do cadastro geral da dedetizadora usados em orçamentos, relatórios e automações.</p>
+            
+            {/* Logo Badge Preview */}
+            <div className="hidden sm:flex items-center gap-3 p-2 bg-slate-50 border border-slate-200/60 rounded-2xl">
+              <img src="/brand/logo-full.svg" alt="PestFlow Logo Full" className="h-8 object-contain px-2" />
             </div>
           </div>
 
@@ -208,7 +215,7 @@ export function SettingsPage() {
                 required
                 value={settings.companyName}
                 onChange={handleChange}
-                placeholder="Ex: DDSulf Dedetizadora Ltda"
+                placeholder="Ex: PestFlow Dedetizadora Ltda"
                 className="w-full h-11 border border-gray-200 rounded-xl px-4 text-xs font-semibold focus:outline-hidden focus:border-black transition-all bg-white"
               />
             </div>

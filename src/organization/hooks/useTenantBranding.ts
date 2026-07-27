@@ -12,7 +12,7 @@ export function useTenantBranding() {
 
   const brand: TenantBranding = activeTenant?.branding || {
     primaryColor: '#111827',
-    companySlogan: 'DDSulf'
+    companySlogan: 'PestFlow'
   };
 
   /**
@@ -27,7 +27,7 @@ export function useTenantBranding() {
 
   return {
     brand,
-    logoUrl: brand.logoUrl || null,
+    logoUrl: brand.logoUrl || '/brand/logo-full.svg',
     primaryColor: brand.primaryColor || '#111827',
     secondaryColor: brand.secondaryColor || '#6B7280',
     slogan: brand.companySlogan || '',

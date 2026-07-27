@@ -1,5 +1,5 @@
 /**
- * Consolidated exports for DDSulf React Workflows and Automation Hooks
+ * Consolidated exports for PestFlow React Workflows and Automation Hooks
  */
 
 export * from './useWorkflowEngine';

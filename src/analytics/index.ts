@@ -1,5 +1,5 @@
 /**
- * DDSulf Business Intelligence & Operational Analytics Module Entrypoint
+ * PestFlow Business Intelligence & Operational Analytics Module Entrypoint
  */
 
 export * from './types';

@@ -33,7 +33,7 @@ export class AuthService {
       return profile;
     } catch (error: any) {
       logOperationalEvent('auth_login_google_failure', { error: error.message || error });
-      console.error('[DDSulf AuthService] Google Sign-In Error:', error);
+      console.error('[PestFlow AuthService] Google Sign-In Error:', error);
       throw error;
     }
   }
@@ -49,7 +49,7 @@ export class AuthService {
       return profile;
     } catch (error: any) {
       logOperationalEvent('auth_login_email_failure', { email, error: error.message || error });
-      console.error('[DDSulf AuthService] Email Sign-In Error:', error);
+      console.error('[PestFlow AuthService] Email Sign-In Error:', error);
       throw error;
     }
   }
@@ -78,7 +78,7 @@ export class AuthService {
       const newProfile: UserProfile = {
         uid: firebaseUser.uid,
         email: firebaseUser.email || '',
-        name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Colaborador DDSulf',
+        name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Colaborador PestFlow',
         role: 'technician',
         status: 'active',
         createdAt: new Date().toISOString(),
@@ -145,7 +145,7 @@ export class AuthService {
       logOperationalEvent('auth_logout_success', { uid: currentUid });
     } catch (error: any) {
       logOperationalEvent('auth_logout_failure', { error: error.message || error });
-      console.error('[DDSulf AuthService] Logout Error:', error);
+      console.error('[PestFlow AuthService] Logout Error:', error);
       throw error;
     }
   }
@@ -164,7 +164,7 @@ export class AuthService {
           callback(snap.data() as UserProfile);
         }
       } catch (e) {
-        console.warn('[DDSulf AuthService] Profile stream fallback polling failed:', e);
+        console.warn('[PestFlow AuthService] Profile stream fallback polling failed:', e);
       }
     }, 1500);
 

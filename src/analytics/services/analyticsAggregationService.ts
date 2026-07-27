@@ -1,5 +1,5 @@
 /**
- * DDSulf Analytics Aggregation & Data Warehousing Broker
+ * PestFlow Analytics Aggregation & Data Warehousing Broker
  * Synthesizes multi-tenant records, formula costs, and isolates operational databases.
  */
 
@@ -89,7 +89,7 @@ class AnalyticsAggregationService {
     const totalResourceCost = pesticideDensityKg * costPerKg;
     const costPerLiter = combinedVolume > 0 ? (totalResourceCost / combinedVolume) : 0;
     
-    // recommend 5x premium margin pricing standard for DDSulf technical services
+    // recommend 5x premium margin pricing standard for PestFlow technical services
     const baseRecommendPrice = costPerLiter * 5;
 
     return {

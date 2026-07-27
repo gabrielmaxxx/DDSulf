@@ -1,5 +1,5 @@
 /**
- * DDSulf Realtime Notification and Delivery Orchestration Service
+ * PestFlow Realtime Notification and Delivery Orchestration Service
  */
 
 import { db, auth } from '../../firebase';
@@ -52,16 +52,16 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
       emailVerified: auth.currentUser?.emailVerified,
-      tenantId: 'tenant_ddsulf_enterprise'
+      tenantId: 'tenant_pestflow_enterprise'
     },
     operationType,
     path
   };
-  console.error('[DDSulf Notification Service SDK] Firestore Error: ', JSON.stringify(errInfo));
+  console.error('[PestFlow Notification Service SDK] Firestore Error: ', JSON.stringify(errInfo));
 }
 
-class DDSulfNotificationService {
-  private static instance: DDSulfNotificationService;
+class PestFlowNotificationService {
+  private static instance: PestFlowNotificationService;
   private notifications: OperationalNotification[] = [];
   private listeners: Set<(notifications: OperationalNotification[]) => void> = new Set();
   private isOnline: boolean = navigator.onLine;
@@ -92,11 +92,11 @@ class DDSulfNotificationService {
     this.recalculateMetrics();
   }
 
-  public static getInstance(): DDSulfNotificationService {
-    if (!DDSulfNotificationService.instance) {
-      DDSulfNotificationService.instance = new DDSulfNotificationService();
+  public static getInstance(): PestFlowNotificationService {
+    if (!PestFlowNotificationService.instance) {
+      PestFlowNotificationService.instance = new PestFlowNotificationService();
     }
-    return DDSulfNotificationService.instance;
+    return PestFlowNotificationService.instance;
   }
 
   private setupNetworkObserver() {
@@ -113,25 +113,25 @@ class DDSulfNotificationService {
 
   private loadFromLocalStorage() {
     try {
-      const stored = localStorage.getItem('ddsulf_notifications');
+      const stored = localStorage.getItem('pestflow_notifications');
       if (stored) {
         this.notifications = JSON.parse(stored);
       }
-      const queueStored = localStorage.getItem('ddsulf_notifications_offline_queue');
+      const queueStored = localStorage.getItem('pestflow_notifications_offline_queue');
       if (queueStored) {
         this.offlineQueue = JSON.parse(queueStored);
       }
     } catch (e) {
-      console.error('Failed to load ddsulf_notifications from local storage', e);
+      console.error('Failed to load pestflow_notifications from local storage', e);
     }
   }
 
   private saveToLocalStorage() {
     try {
-      localStorage.setItem('ddsulf_notifications', JSON.stringify(this.notifications));
-      localStorage.setItem('ddsulf_notifications_offline_queue', JSON.stringify(this.offlineQueue));
+      localStorage.setItem('pestflow_notifications', JSON.stringify(this.notifications));
+      localStorage.setItem('pestflow_notifications_offline_queue', JSON.stringify(this.offlineQueue));
     } catch (e) {
-      console.error('Failed to save ddsulf_notifications to local storage', e);
+      console.error('Failed to save pestflow_notifications to local storage', e);
     }
   }
 
@@ -154,7 +154,7 @@ class DDSulfNotificationService {
       this.unsubFirestore = null;
     }
 
-    const tenantId = 'tenant_ddsulf_enterprise';
+    const tenantId = 'tenant_pestflow_enterprise';
     const path = `tenants/${tenantId}/notifications`;
 
     try {
@@ -192,7 +192,7 @@ class DDSulfNotificationService {
         handleFirestoreError(error, OperationType.LIST, path);
       });
     } catch (err) {
-      console.warn('[DDSulf] Firestore real-time notification synchronization path bypassed. LocalStorage active.', err);
+      console.warn('[PestFlow] Firestore real-time notification synchronization path bypassed. LocalStorage active.', err);
     }
   }
 
@@ -214,9 +214,9 @@ class DDSulfNotificationService {
   }): Promise<OperationalNotification> {
     const startMs = Date.now();
     const id = `notif_${Math.random().toString(36).substring(2, 12)}`;
-    const tenantId = 'tenant_ddsulf_enterprise';
+    const tenantId = 'tenant_pestflow_enterprise';
 
-    let title = params.customTitle || 'Nova Notificação DDSulf';
+    let title = params.customTitle || 'Nova Notificação PestFlow';
     let message = params.customMessage || '';
     let severity: AlertSeverity = params.severity || 'informational';
     let channels: DeliveryChannel[] = ['in_app'];
@@ -361,7 +361,7 @@ class DDSulfNotificationService {
         return await resp.json();
       }
     } catch (e) {
-      console.warn('[DDSulf AI Notification System Component] Offline/Server bypass for client-side heuristic prediction.', e);
+      console.warn('[PestFlow AI Notification System Component] Offline/Server bypass for client-side heuristic prediction.', e);
     }
 
     // Heuristic standard fallback to keep offline experience snappy of enterprise standards
@@ -376,12 +376,12 @@ class DDSulfNotificationService {
     return {
       aiSummary: `[Resumo Rápido] ${notification.title}: ${notification.message.substring(0, 60)}...`,
       aiPriorityIndex: score,
-      actionSuggestion: 'Verifique as pendências no operacional do DDSulf'
+      actionSuggestion: 'Verifique as pendências no operacional do PestFlow'
     };
   }
 
   private async syncNotificationToFirestore(notif: OperationalNotification) {
-    const tenantId = 'tenant_ddsulf_enterprise';
+    const tenantId = 'tenant_pestflow_enterprise';
     const docPath = `tenants/${tenantId}/notifications/${notif.id}`;
     try {
       await setDoc(doc(db, docPath), {
@@ -422,7 +422,7 @@ class DDSulfNotificationService {
         
         // Queue Firestore update if online
         if (this.isOnline && n.isSynced) {
-          const tenantId = 'tenant_ddsulf_enterprise';
+          const tenantId = 'tenant_pestflow_enterprise';
           const docPath = `tenants/${tenantId}/notifications/${id}`;
           updateDoc(doc(db, docPath), properties).catch(err => {
             handleFirestoreError(err, OperationType.UPDATE, docPath);
@@ -450,7 +450,7 @@ class DDSulfNotificationService {
       if (n.status === 'unread') {
         const updated = { ...n, status: 'read' as NotificationStatus, readAt: Date.now() };
         if (this.isOnline && n.isSynced) {
-          const docPath = `tenants/tenant_ddsulf_enterprise/notifications/${n.id}`;
+          const docPath = `tenants/tenant_pestflow_enterprise/notifications/${n.id}`;
           updateDoc(doc(db, docPath), { status: 'read', readAt: Date.now() }).catch(e => {
             handleFirestoreError(e, OperationType.UPDATE, docPath);
           });
@@ -470,10 +470,10 @@ class DDSulfNotificationService {
   private flushOfflineQueue() {
     if (this.offlineQueue.length === 0) return;
     
-    console.log(`[DDSulf Realtime Synchronizer] Replaying ${this.offlineQueue.length} offline operations...`);
+    console.log(`[PestFlow Realtime Synchronizer] Replaying ${this.offlineQueue.length} offline operations...`);
     const queue = [...this.offlineQueue];
     this.offlineQueue = [];
-    localStorage.removeItem('ddsulf_notifications_offline_queue');
+    localStorage.removeItem('pestflow_notifications_offline_queue');
 
     queue.forEach(op => {
       if (op.type === 'create') {
@@ -544,4 +544,4 @@ class DDSulfNotificationService {
   }
 }
 
-export default DDSulfNotificationService;
+export default PestFlowNotificationService;

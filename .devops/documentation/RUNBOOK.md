@@ -1,17 +1,17 @@
-# DDSulf - DevOps Operational Runbook & Delivery Infrastructure
+# PestFlow - DevOps Operational Runbook & Delivery Infrastructure
 *Enterprise-Grade High Availability & Incident Management Standards*
 
 ---
 
 ## 1. Environment Architecture
 
-The DDSulf application separates environments strictly on both Firestore database scopes and CDN networks:
+The PestFlow application separates environments strictly on both Firestore database scopes and CDN networks:
 
 | Environment | Database Cluster | Ingress/App URL | Scaling Tier | Backup Cycle |
 | :--- | :--- | :--- | :--- | :--- |
-| **Development** | `ddsulf-staging-ef911` (sandbox) | Local + AIS Dev | F1 Micro | On-demand |
-| **Staging** | `ddsulf-staging-ef911` | AIS Pre-production | F2 Medium | 24 Hours |
-| **Production** | `ddsulf-prod-aed10` | App Production Domain | F4 Custom High-RAM | 6 Hours |
+| **Development** | `pestflow-staging-ef911` (sandbox) | Local + AIS Dev | F1 Micro | On-demand |
+| **Staging** | `pestflow-staging-ef911` | AIS Pre-production | F2 Medium | 24 Hours |
+| **Production** | `pestflow-prod-aed10` | App Production Domain | F4 Custom High-RAM | 6 Hours |
 
 ---
 

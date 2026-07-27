@@ -1,5 +1,5 @@
 /**
- * DDSulf Premium Customer Relationship, Experience and Retentions Types
+ * PestFlow Premium Customer Relationship, Experience and Retentions Types
  */
 
 export type CustomerSegment = 'corporate' | 'residential' | 'industrial' | 'agricultural';
