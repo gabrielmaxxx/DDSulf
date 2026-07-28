@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Quote } from '@/store/systemStore';
+import { Quote, useSystemStore } from '@/store/systemStore';
 import { 
   Dialog, 
   DialogContent, 
@@ -24,11 +24,14 @@ export function AgendarServicoModal({ quote, isOpen, onClose, onConfirm }: Agend
   const [scheduledTechnician, setScheduledTechnician] = useState('');
   const [notes, setNotes] = useState('');
 
+  const { employees } = useSystemStore();
+  const activeTechnicians = (employees || []).filter(e => e.active);
+
   useEffect(() => {
     if (isOpen) {
       setScheduledDate('');
       setScheduledTime('08:00');
-      setScheduledTechnician('');
+      setScheduledTechnician(activeTechnicians[0]?.name || '');
       setNotes('');
     }
   }, [isOpen]);
@@ -197,15 +200,20 @@ export function AgendarServicoModal({ quote, isOpen, onClose, onConfirm }: Agend
                   <User className="size-3.5 text-slate-400" />
                   Técnico Responsável <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  type="text"
+                <select
                   id="scheduledTechnician"
-                  placeholder="Nome do técnico"
                   value={scheduledTechnician}
                   onChange={(e) => setScheduledTechnician(e.target.value)}
-                  className="w-full h-11 border border-[#EBEBE5] rounded-xl text-xs text-[#141410] px-4 outline-none focus:ring-2 focus:ring-[#2D6A4F]/10 focus:border-[#2D6A4F] bg-[#FAF9F5] transition-all"
+                  className="w-full h-11 border border-[#EBEBE5] rounded-xl text-xs text-[#141410] px-4 outline-none focus:ring-2 focus:ring-[#2D6A4F]/10 focus:border-[#2D6A4F] bg-[#FAF9F5] transition-all cursor-pointer font-medium"
                   required
-                />
+                >
+                  <option value="">Selecione o técnico responsável...</option>
+                  {activeTechnicians.map((emp) => (
+                    <option key={emp.id} value={emp.name}>
+                      {emp.name} ({emp.role.toUpperCase()})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Observações da equipe */}

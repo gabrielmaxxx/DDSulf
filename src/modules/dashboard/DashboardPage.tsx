@@ -212,7 +212,7 @@ export function DashboardPage() {
 
     // Alerta 🔵 Retornos acima da meta (Problem 4 — calcular real)
     const returnRateThreshold = settings?.maxReturnRatePercent ?? 8;
-    const monthlyRetornos = (quotes?.list || []).filter(q => q.createdAt?.startsWith(currentMonth) && q.status === 'retorno');
+    const monthlyRetornos = (quotes?.list || []).filter(q => q.createdAt?.startsWith(currentMonth) && (q.status === 'retorno' || q.isRetorno === true));
     const qtdRetornos = monthlyRetornos.length;
 
     const monthlyExecutados = (quotes?.list || []).filter(q => q.createdAt?.startsWith(currentMonth) && q.status === 'executado');
@@ -304,7 +304,7 @@ export function DashboardPage() {
   
   // Quality Score based on completed vs return rates in quotes
   const totalCompletedQuotes = (quotes?.list || []).filter(q => q.status === 'executado').length;
-  const totalRetornoQuotes = (quotes?.list || []).filter(q => q.status === 'retorno').length;
+  const totalRetornoQuotes = (quotes?.list || []).filter(q => q.status === 'retorno' || q.isRetorno === true).length;
   const qualityRate = totalCompletedQuotes > 0 ? Math.max(0, 1 - (totalRetornoQuotes / totalCompletedQuotes)) : 1;
   const qualityScore = Math.round(qualityRate * 100);
 
@@ -368,7 +368,7 @@ export function DashboardPage() {
   const potentialRenewalCount = expiredOrExpiringContracts.length;
 
   const returnRateThreshold = settings?.maxReturnRatePercent ?? 8;
-  const currentMonthRetornos = (quotes?.list || []).filter(q => q.createdAt?.startsWith(currentMonth) && q.status === 'retorno');
+  const currentMonthRetornos = (quotes?.list || []).filter(q => q.createdAt?.startsWith(currentMonth) && (q.status === 'retorno' || q.isRetorno === true));
   const qtdRetornosVal = currentMonthRetornos.length;
   const currentMonthExecutados = (quotes?.list || []).filter(q => q.createdAt?.startsWith(currentMonth) && q.status === 'executado');
   const qtdExecutadosVal = currentMonthExecutados.length;

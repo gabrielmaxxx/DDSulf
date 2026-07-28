@@ -215,6 +215,25 @@ export interface Contract {
   createdAt: string;
 }
 
+export interface Employee {
+  id: string;
+  name: string;
+  role: 'tecnico' | 'vendedor' | 'admin' | 'gerente' | 'supervisor' | 'comercial' | 'administrativo';
+  phone?: string;
+  email?: string;
+  active: boolean;
+  specialties?: string[];
+  color?: string;
+}
+
+export const DEFAULT_EMPLOYEES: Employee[] = [
+  { id: 'emp-01', name: 'Carlos Barbosa', role: 'tecnico', phone: '(24) 99811-2020', active: true, specialties: ['Dedetização', 'Desratização'] },
+  { id: 'emp-02', name: 'Roberto Mendes', role: 'tecnico', phone: '(24) 99822-3030', active: true, specialties: ['Descupinização', 'Sanitização'] },
+  { id: 'emp-03', name: 'Gabriel Silva', role: 'tecnico', phone: '(24) 99833-4040', active: true, specialties: ['Dedetização', 'Controle Integrado'] },
+  { id: 'emp-04', name: 'Marcos Souza', role: 'vendedor', phone: '(24) 99844-5050', active: true, specialties: ['Comercial', 'Inspeção'] },
+  { id: 'emp-05', name: 'Admin Demo', role: 'admin', phone: '(24) 99855-6060', active: true, specialties: ['Gestão', 'SecOps'] },
+];
+
 export interface AgendaEvent {
   id: string;
   title: string;
@@ -224,6 +243,8 @@ export interface AgendaEvent {
   clientName: string;
   type: 'servico' | 'visita' | 'retorno' | 'recorrencia' | 'outro';
   quoteId?: string;
+  employeeId?: string;
+  technicianName?: string;
   notes?: string;
   status: 'confirmado' | 'pendente' | 'realizado';
 }
@@ -287,6 +308,7 @@ export interface SystemState {
   contracts: Contract[];
   agenda: AgendaEvent[];
   purchases: PurchaseRequisition[];
+  employees: Employee[];
   
   companies: Record<string, CompanyAccount>;
   currentCompany: string | null;
@@ -371,6 +393,11 @@ export interface SystemActions {
   updatePurchaseStatus: (id: string, status: PurchaseRequisition['status']) => void;
   removePurchaseRequisition: (id: string) => void;
   
+  addEmployee: (employee: Omit<Employee, 'id'>) => void;
+  updateEmployee: (id: string, data: Partial<Employee>) => void;
+  toggleEmployeeStatus: (id: string) => void;
+  removeEmployee: (id: string) => void;
+  
   updateSettings: (settings: Partial<SystemSettings>) => void;
   
   getDashboardKPIs: () => {
@@ -440,6 +467,118 @@ const DEFAULT_MOVEMENTS: FinancialMovement[] = [
   { id: "m-alert-overdue-1", date: "2026-05-20", description: "Fatura Google Ads pendente", category: "DESPESAS OPERACIONAIS", subcategory: "Marketing", value: -1200.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: false, dueDate: "2026-05-25" },
   { id: "m-alert-overdue-2", date: "2026-05-18", description: "Parcela Financiamento Banco do Brasil", category: "DESPESAS FINANCEIRAS", subcategory: "Empréstimos", value: -4600.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: false, dueDate: "2026-05-22" },
   { id: "m-alert-contract-1", date: "2026-06-05", description: "Renovação Contrato Anual Hospital Geral", category: "RECEITAS", subcategory: "Contratos Anuais", value: 8500.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: false, dueDate: "2026-06-15" }
+];
+
+const defaultMonth = new Date().toISOString().slice(0, 7);
+const expDate10Days = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
+
+const DEFAULT_QUOTES: Quote[] = [
+  {
+    id: "q-exec-01",
+    createdAt: `${defaultMonth}-05`,
+    status: "executado",
+    confirmedAt: `${defaultMonth}-05T14:30:00Z`,
+    confirmedBy: "Carlos Barbosa",
+    scheduledTechnician: "Carlos Barbosa",
+    client: {
+      name: "Grupo Pão Duro",
+      address: "Av. Paulista, 100 - São Paulo - SP",
+      phone: "(11) 98765-4321"
+    },
+    service: {
+      pestType: "Dedetização",
+      serviceType: "Dedetização Geral",
+      areaM2: 150,
+      distanceKm: 12
+    },
+    costs: { products: 120, labor: 180, transport: 60, overhead: 40, total: 400 },
+    pricing: { suggestedPrice: 650, marginPercent: 38.46, finalPrice: 650 },
+    productsUsed: [
+      { productId: "prod-01", productName: "BIFENTOL 200SC", quantity: 150, unit: "ml" }
+    ],
+    inventoryDeducted: true,
+    hasReturn: true
+  },
+  {
+    id: "q-exec-02",
+    createdAt: `${defaultMonth}-10`,
+    status: "executado",
+    confirmedAt: `${defaultMonth}-10T16:00:00Z`,
+    confirmedBy: "Mariana Souza",
+    scheduledTechnician: "Mariana Souza",
+    client: {
+      name: "Condomínio Green Park",
+      address: "Al. das Palmeiras, 192 - Volta Redonda - RJ",
+      phone: "(24) 3340-9900"
+    },
+    service: {
+      pestType: "Desratização",
+      serviceType: "Desratização Completa",
+      areaM2: 300,
+      distanceKm: 8
+    },
+    costs: { products: 180, labor: 220, transport: 50, overhead: 50, total: 500 },
+    pricing: { suggestedPrice: 950, marginPercent: 47.37, finalPrice: 950 },
+    productsUsed: [
+      { productId: "prod-02", productName: "Ratol Bloco Isquicida", quantity: 200, unit: "g" }
+    ],
+    inventoryDeducted: true,
+    hasReturn: false
+  },
+  {
+    id: "q-exec-03",
+    createdAt: `${defaultMonth}-15`,
+    status: "executado",
+    confirmedAt: `${defaultMonth}-15T11:00:00Z`,
+    confirmedBy: "Carlos Barbosa",
+    scheduledTechnician: "Carlos Barbosa",
+    client: {
+      name: "Shopping das Flores",
+      address: "Rua das Flores, 450 - Curitiba - PR",
+      phone: "(41) 3222-1111"
+    },
+    service: {
+      pestType: "Descupinização",
+      serviceType: "Tratamento de Barreira Química",
+      areaM2: 500,
+      distanceKm: 25
+    },
+    costs: { products: 450, labor: 500, transport: 120, overhead: 100, total: 1170 },
+    pricing: { suggestedPrice: 2200, marginPercent: 46.81, finalPrice: 2200 },
+    productsUsed: [
+      { productId: "prod-04", productName: "Termidor 25 CE", quantity: 1500, unit: "ml" }
+    ],
+    inventoryDeducted: true,
+    hasReturn: false
+  },
+  {
+    id: "q-ret-01",
+    createdAt: `${defaultMonth}-18`,
+    status: "retorno",
+    isRetorno: true,
+    parentQuoteId: "q-exec-01",
+    returnCost: 180,
+    confirmedBy: "Mariana Souza",
+    scheduledTechnician: "Mariana Souza",
+    client: {
+      name: "Grupo Pão Duro",
+      address: "Av. Paulista, 100 - São Paulo - SP",
+      phone: "(11) 98765-4321"
+    },
+    service: {
+      pestType: "Dedetização (Retorno)",
+      serviceType: "Retorno Técnico de Garantia",
+      areaM2: 150,
+      distanceKm: 12
+    },
+    costs: { products: 60, labor: 90, transport: 30, overhead: 0, total: 180 },
+    pricing: { suggestedPrice: 0, marginPercent: 0, finalPrice: 0 },
+    productsUsed: [
+      { productId: "prod-01", productName: "BIFENTOL 200SC", quantity: 50, unit: "ml" }
+    ],
+    inventoryDeducted: true,
+    serviceNotes: "Reforço de barreira em caixas de gordura do refeitório."
+  }
 ];
 
 const INITIAL_STATE: SystemState = {
@@ -565,7 +704,7 @@ const INITIAL_STATE: SystemState = {
     ]
   },
   quotes: {
-    list: []
+    list: DEFAULT_QUOTES
   },
   clients: [
     { id: "c-01", name: "Grupo Pão Duro", cnpjCpf: "12.345.678/0001-90", address: "Av. Paulista, 100 - São Paulo - SP", phone: "(11) 98765-4321", email: "contato@paoduro.com.br", createdAt: "2026-05-10" },
@@ -578,7 +717,8 @@ const INITIAL_STATE: SystemState = {
   contracts: [
     { id: "contr-01", clientId: "c-02", clientName: "Shopping das Flores", title: "Contrato de CIP (Controle Inteligente)", value: 50400.00, recurrentValue: 4200.00, status: "ativo", startDate: "2026-01-10", endDate: "2027-01-10", recurrencyMonths: 1, createdAt: "2026-01-10" },
     { id: "contr-02", clientId: "c-06", clientName: "Indústria Metalnorte", title: "Contrato Anual Controle de Pragas", value: 12500.00, recurrentValue: 12500.00, status: "ativo", startDate: "2026-05-22", endDate: "2027-05-22", recurrencyMonths: 12, createdAt: "2026-05-22" },
-    { id: "contr-03", clientId: "c-03", clientName: "Condomínio Green Park", title: "Plano Anual de Controle de Roedores", value: 33600.00, recurrentValue: 2800.00, status: "vencido", startDate: "2025-05-01", endDate: "2026-05-01", recurrencyMonths: 1, createdAt: "2025-05-01" }
+    { id: "contr-03", clientId: "c-03", clientName: "Condomínio Green Park", title: "Plano Anual de Controle de Roedores", value: 33600.00, recurrentValue: 2800.00, status: "vencido", startDate: "2025-05-01", endDate: "2026-05-01", recurrencyMonths: 1, createdAt: "2025-05-01" },
+    { id: "contr-04", clientId: "c-04", clientName: "Clínica MedSim", title: "Contrato Mensal de Sanitização", value: 18000.00, recurrentValue: 1500.00, status: "ativo", startDate: "2025-08-01", endDate: expDate10Days, recurrencyMonths: 1, createdAt: "2025-08-01" }
   ],
   agenda: [
     { id: "ev-01", title: "Ordem de Serviço #m-rev-01 - Dedetização", date: "2026-05-10", clientId: "c-01", clientName: "Grupo Pão Duro", type: "servico", quoteId: "q-rev-01", notes: "Dedetização inicial concluída com sucesso.", status: "realizado" },
@@ -590,6 +730,7 @@ const INITIAL_STATE: SystemState = {
     { id: "purch-01", productId: "prod-02", productName: "Ratol Bloco Isquicida", currentStock: 800, minStock: 1200, idealStock: 3000, quantityToBuy: 2200, status: "Pendente", createdAt: "2026-05-28", updatedAt: "2026-05-28" },
     { id: "purch-02", productId: "prod-01", productName: "BIFENTOL 200SC", currentStock: 2500, minStock: 1000, idealStock: 5000, quantityToBuy: 2500, status: "Recebido", createdAt: "2026-05-02", updatedAt: "2026-05-05" }
   ],
+  employees: DEFAULT_EMPLOYEES,
   settings: {
     companyName: 'DDSulf Dedetizadora',
     cnpj: '00.000.000/0001-00',
@@ -1567,6 +1708,26 @@ export const useSystemStore = create<SystemState & SystemActions>()(
       }),
       removePurchaseRequisition: (id) => set((state) => updateCompanyData(state, {
         purchases: (state.purchases || []).filter(p => p.id !== id)
+      })),
+
+      addEmployee: (employeeData) => set((state) => {
+        const id = `emp-${Math.random().toString(36).substring(2, 9)}`;
+        const newEmp: Employee = { ...employeeData, id };
+        return updateCompanyData(state, {
+          employees: [...(state.employees || DEFAULT_EMPLOYEES), newEmp]
+        });
+      }),
+
+      updateEmployee: (id, data) => set((state) => updateCompanyData(state, {
+        employees: (state.employees || DEFAULT_EMPLOYEES).map(e => e.id === id ? { ...e, ...data } : e)
+      })),
+
+      toggleEmployeeStatus: (id) => set((state) => updateCompanyData(state, {
+        employees: (state.employees || DEFAULT_EMPLOYEES).map(e => e.id === id ? { ...e, active: !e.active } : e)
+      })),
+
+      removeEmployee: (id) => set((state) => updateCompanyData(state, {
+        employees: (state.employees || DEFAULT_EMPLOYEES).filter(e => e.id !== id)
       })),
 
       updateSettings: (settings) => set((state) => {

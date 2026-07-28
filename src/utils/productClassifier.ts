@@ -15,6 +15,8 @@ export interface DDSulfOfficialProduct {
   categoryCode: 'inseticida' | 'raticida' | 'formicida' | 'gel_baraticida' | 'iscas' | 'equipamentos' | 'epi' | 'consumiveis' | 'outros';
 }
 
+export type PestFlowOfficialProduct = DDSulfOfficialProduct;
+
 export const DDSULF_OFFICIAL_PRODUCTS: DDSulfOfficialProduct[] = [
   {
     name: 'DEVETION CE',
@@ -739,3 +741,6 @@ export function classifyFinancialMovement(description: string, value?: number): 
   }
   return { category: 'DESPESAS OPERACIONAIS', subcategory: 'Internet', isDespesa: true };
 }
+
+export const PESTFLOW_OFFICIAL_PRODUCTS = DDSULF_OFFICIAL_PRODUCTS;
+

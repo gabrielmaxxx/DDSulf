@@ -163,7 +163,12 @@ export function ServicoConfirmacaoPage() {
     const quoteId = selectedQuoteForConfirm.id;
     setIsConfirmModalOpen(false);
     setSelectedQuoteForConfirm(null);
-    toast.info("Processando conclusão...", { description: "Publicando evento de integração [OS_CONCLUIDA]..." });
+
+    confirmServiceExecuted(
+      quoteId,
+      techName || 'Técnico DDSulf',
+      notes || 'Concluído via Confirmação de Serviços'
+    );
 
     await eventBusService.publish(
       OperationalEventType.OS_CONCLUIDA,
@@ -175,6 +180,8 @@ export function ServicoConfirmacaoPage() {
       },
       SystemModuleName.SERVICE
     );
+
+    toast.success("Serviço concluído com sucesso!", { description: "Baixa de estoque e receita financeira lançadas." });
   };
 
   const handleReturnSubmit = (cost: number, notes: string) => {

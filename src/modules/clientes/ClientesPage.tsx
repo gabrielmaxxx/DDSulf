@@ -36,6 +36,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatBRL, formatPercent, formatDate } from '@/utils/format';
 import { GoogleMapsViewer } from '@/components/GoogleMapsViewer';
+import { AgendarServicoModal } from '@/modules/confirmacoes/AgendarServicoModal';
 
 // Extended client and document types
 type ExtendedClient = Client & {
@@ -94,7 +95,10 @@ export function ClientesPage() {
     addAgendaEvent,
     addQuote,
     quotes,
-    financial
+    financial,
+    scheduleApprovedQuote,
+    updateQuoteStatus,
+    markAsRetorno
   } = systemState;
 
   // Listen for clientId and activeTab in URL parameters and automatically select the client and tab on mount or change
@@ -105,7 +109,7 @@ export function ClientesPage() {
       if (exists) {
         setSelectedClientId(cid);
         const tab = searchParams.get('activeTab');
-        if (tab && ['servicos', 'contratos', 'financeiro', 'documentos', 'garantias', 'retornos', 'timeline'].includes(tab)) {
+        if (tab && ['servicos', 'orcamentos', 'contratos', 'financeiro', 'documentos', 'garantias', 'retornos', 'timeline'].includes(tab)) {
           setActiveProfileTab(tab as any);
         }
       }
@@ -116,7 +120,7 @@ export function ClientesPage() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [activeProfileTab, setActiveProfileTab] = useState<'servicos' | 'contratos' | 'financeiro' | 'documentos' | 'garantias' | 'retornos' | 'timeline'>('servicos');
+  const [activeProfileTab, setActiveProfileTab] = useState<'servicos' | 'orcamentos' | 'contratos' | 'financeiro' | 'documentos' | 'garantias' | 'retornos' | 'timeline'>('servicos');
   const [showMobileProfile, setShowMobileProfile] = useState(false);
 
   // Document management state
@@ -134,8 +138,20 @@ export function ClientesPage() {
   // Detail view for service order modal
   const [detailServiceModal, setDetailServiceModal] = useState<AgendaEvent | null>(null);
 
+  // Schedule Quote Modal state
+  const [quoteToSchedule, setQuoteToSchedule] = useState<Quote | null>(null);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+
+  const handleConfirmScheduleFromClientPage = (scheduledDate: string, scheduledTime: string, technician: string) => {
+    if (!quoteToSchedule) return;
+    scheduleApprovedQuote(quoteToSchedule.id, scheduledDate, scheduledTime, technician);
+    updateQuoteStatus(quoteToSchedule.id, 'aprovado');
+    setIsScheduleModalOpen(false);
+    setQuoteToSchedule(null);
+    toast.success('Orçamento aprovado e serviço agendado com sucesso!');
+  };
+
   // New forms states (pre-filled client creations)
-  const [isNewQuoteOpen, setIsNewQuoteOpen] = useState(false);
   const [isNewServiceOpen, setIsNewServiceOpen] = useState(false);
   const [isNewReturnOpen, setIsNewReturnOpen] = useState(false);
 
@@ -154,12 +170,6 @@ export function ClientesPage() {
   const [formContractStart, setFormContractStart] = useState(SIMULATED_TODAY);
   const [formContractEnd, setFormContractEnd] = useState('2027-06-05');
   const [formContractStatus, setFormContractStatus] = useState<'ativo' | 'vencido' | 'cancelado'>('ativo');
-
-  // New Quote Form
-  const [formQuotePest, setFormQuotePest] = useState('Baratas e Roedores');
-  const [formQuoteType, setFormQuoteType] = useState('Dedetização Integrada');
-  const [formQuoteArea, setFormQuoteArea] = useState(150);
-  const [formQuoteValue, setFormQuoteValue] = useState(1200);
 
   // New Service Calendar Form
   const [formServiceTitle, setFormServiceTitle] = useState('Dedetização e Pulverização');
@@ -673,52 +683,47 @@ export function ClientesPage() {
   };
 
   // Inline forms additions
-  const handleAddQuoteSubmission = (e: React.FormEvent) => {
+  const handleAddServiceSubmission = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeClient) return;
 
     const newQuote: Quote = {
-      id: `q-gen-${Math.random().toString(36).substr(2, 7)}`,
+      id: `q-cli-${Math.random().toString(36).substr(2, 7)}`,
       createdAt: SIMULATED_TODAY,
-      status: 'enviado',
+      status: 'aprovado',
       client: {
         name: activeClient.name,
         address: activeClient.address,
         phone: activeClient.phone
       },
       service: {
-        pestType: formQuotePest,
-        serviceType: formQuoteType,
-        areaM2: Number(formQuoteArea),
-        distanceKm: 15
+        pestType: formServiceTitle,
+        serviceType: formServiceTitle,
+        areaM2: 100,
+        distanceKm: 10
       },
       costs: {
-        products: 150,
-        labor: 300,
-        transport: 80,
-        overhead: 50,
-        total: 580
+        products: 100,
+        labor: 150,
+        transport: 50,
+        overhead: 30,
+        total: 330
       },
       pricing: {
-        suggestedPrice: Number(formQuoteValue),
-        marginPercent: 40,
-        finalPrice: Number(formQuoteValue)
+        suggestedPrice: 500,
+        marginPercent: 34,
+        finalPrice: 500
       },
       productsUsed: [
         { productId: 'prod-01', productName: 'BIFENTOL 200SC', quantity: 150, unit: 'ml' }
       ],
       inventoryDeducted: false,
-      hasReturn: false
+      hasReturn: false,
+      scheduledDate: formServiceDate,
+      scheduledTime: '08:00'
     };
 
     addQuote(newQuote);
-    setIsNewQuoteOpen(false);
-    toast.success('Orçamento gerado com sucesso!', { description: `Enviado proposta de R$ ${newQuote.pricing.finalPrice.toLocaleString('pt-BR', {minimumFractionDigits:2})} para ${activeClient.name}.` });
-  };
-
-  const handleAddServiceSubmission = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeClient) return;
 
     const newEvent: AgendaEvent = {
       id: `ev-new-${Math.random().toString(36).substr(2, 7)}`,
@@ -727,6 +732,7 @@ export function ClientesPage() {
       clientId: activeClient.id,
       clientName: activeClient.name,
       type: formServiceType,
+      quoteId: newQuote.id,
       status: 'pendente',
       notes: formServiceNotes
     };
@@ -740,6 +746,40 @@ export function ClientesPage() {
     e.preventDefault();
     if (!activeClient) return;
 
+    const clientQuote = quotes?.list?.find(q => q.client.name.toLowerCase() === activeClient.name.toLowerCase());
+    let targetQuoteId = clientQuote?.id;
+
+    if (!targetQuoteId) {
+      const baseQuote: Quote = {
+        id: `q-ret-base-${Math.random().toString(36).substr(2, 7)}`,
+        createdAt: SIMULATED_TODAY,
+        status: 'executado',
+        client: {
+          name: activeClient.name,
+          address: activeClient.address,
+          phone: activeClient.phone
+        },
+        service: {
+          pestType: formReturnReason,
+          serviceType: 'Retorno Técnico',
+          areaM2: 100,
+          distanceKm: 10
+        },
+        costs: { products: 100, labor: 150, transport: 50, overhead: 30, total: 330 },
+        pricing: { suggestedPrice: 500, marginPercent: 34, finalPrice: 500 },
+        productsUsed: [{ productId: 'prod-01', productName: 'BIFENTOL 200SC', quantity: 150, unit: 'ml' }],
+        inventoryDeducted: true,
+        hasReturn: false
+      };
+      addQuote(baseQuote);
+      targetQuoteId = baseQuote.id;
+    }
+
+    const returnCostNum = Number(formReturnCost) || 0;
+    if (markAsRetorno && targetQuoteId) {
+      markAsRetorno(targetQuoteId, returnCostNum, 'Técnico DDSulf', formReturnNotes);
+    }
+
     const newReturnEvent: AgendaEvent = {
       id: `ev-ret-${Math.random().toString(36).substr(2, 7)}`,
       title: `Retorno Técnico: ${formReturnReason}`,
@@ -747,6 +787,7 @@ export function ClientesPage() {
       clientId: activeClient.id,
       clientName: activeClient.name,
       type: 'retorno',
+      quoteId: targetQuoteId,
       status: 'pendente',
       notes: `${formReturnNotes} (Custo estimado: R$ ${formReturnCost})`
     };
@@ -1096,12 +1137,7 @@ export function ClientesPage() {
                 <div className="flex flex-wrap gap-1.5 shrink-0 w-full md:w-auto md:justify-end">
                   <button
                     type="button"
-                    onClick={() => {
-                      setFormQuotePest('Cupins e Roedores');
-                      setFormQuoteArea(180);
-                      setFormQuoteValue(1450);
-                      setIsNewQuoteOpen(true);
-                    }}
+                    onClick={() => navigate(`/calculator?clientId=${activeClient.id}`)}
                     className="flex-1 md:flex-none justify-center flex items-center gap-1 px-3 py-1.5 bg-slate-50 border border-[#E8E6E1] text-[#141410] hover:bg-[#FAF9F6] text-[9px] font-black uppercase tracking-wider rounded-lg cursor-pointer"
                   >
                     <Plus className="size-3" /> Orçamento
@@ -1189,6 +1225,7 @@ export function ClientesPage() {
                   <div className="flex border-b border-slate-200 overflow-x-auto pb-0.5 gap-1 select-none whitespace-nowrap scrollbar-none">
                     {[
                       { id: 'servicos', label: 'Serviços' },
+                      { id: 'orcamentos', label: 'Orçamentos' },
                       { id: 'contratos', label: 'Contratos' },
                       { id: 'financeiro', label: 'Financeiro' },
                       { id: 'documentos', label: 'Documentos' },
@@ -1259,6 +1296,73 @@ export function ClientesPage() {
                                   >
                                     Visualizar OS
                                   </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ORÇAMENTOS TAB */}
+                    {activeProfileTab === 'orcamentos' && (
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Orçamentos Propostos do Cliente</p>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/calculator?clientId=${activeClient.id}`)}
+                            className="text-[9px] font-black uppercase tracking-wider text-[#1B3A2D] hover:underline flex items-center gap-1"
+                          >
+                            <Plus className="size-3" /> Gerar Novo Orçamento
+                          </button>
+                        </div>
+
+                        {((quotes?.list || []).filter(q => q.client?.name?.toLowerCase() === activeClient.name.toLowerCase() || (q as any).clientId === activeClient.id).length === 0) ? (
+                          <div className="py-12 border-2 border-dashed border-[#E8E6E1] rounded-2xl text-center text-slate-400">
+                            <FileText className="size-6 mx-auto opacity-30 text-[#6B6B5F] mb-1" />
+                            <p className="font-bold text-[#141410]">Nenhum orçamento registrado</p>
+                            <p className="text-[9px]">Acesse a Calculadora para gerar propostas comerciais personalizadas.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {(quotes?.list || []).filter(q => q.client?.name?.toLowerCase() === activeClient.name.toLowerCase() || (q as any).clientId === activeClient.id).map(q => (
+                              <div key={q.id} className="p-3 bg-white border border-[#E8E6E1]/80 rounded-xl flex items-center justify-between gap-3 text-left">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-[#141410]">Orçamento #{q.id}</span>
+                                    <span className="text-[10px] text-slate-500">• {q.service?.pestType || 'Controle de Pragas'} ({q.service?.areaM2 || 0}m²)</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
+                                    <span>R$ {(q.pricing?.finalPrice || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                    <span>•</span>
+                                    <span>Criado em: {q.createdAt?.split('T')[0] || 'Hoje'}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-full ${
+                                    q.status === 'aprovado' || q.status === 'executado'
+                                      ? 'bg-emerald-50 text-[#1B3A2D] border border-emerald-100'
+                                      : q.status === 'enviado'
+                                      ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                      : 'bg-amber-50 text-amber-700 border border-amber-100'
+                                  }`}>
+                                    {q.status}
+                                  </span>
+
+                                  {q.status !== 'aprovado' && q.status !== 'executado' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setQuoteToSchedule(q);
+                                        setIsScheduleModalOpen(true);
+                                      }}
+                                      className="px-2.5 py-1 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-[10px] font-bold rounded-lg cursor-pointer transition-all flex items-center gap-1"
+                                    >
+                                      <Calendar className="size-3" /> Aprovar / Agendar
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             ))}
@@ -1708,11 +1812,7 @@ export function ClientesPage() {
 
                         <button
                           type="button"
-                          onClick={() => {
-                            setFormQuotePest(activeClient.id === 'c-03' ? 'Roedores Pragas' : 'Baratas Ralos');
-                            setFormQuoteValue(aiOpportunity.estimatedValue > 30000 ? 2800 : aiOpportunity.estimatedValue);
-                            setIsNewQuoteOpen(true);
-                          }}
+                          onClick={() => navigate(`/calculator?clientId=${activeClient.id}`)}
                           className="w-full justify-center flex items-center gap-2 py-2 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-sm"
                         >
                           <Check className="size-3.5" /> Gerar Orçamento
@@ -2049,57 +2149,6 @@ export function ClientesPage() {
         )}
       </AnimatePresence>
 
-      {/* 🔮 MODAL 3: NOVO ORÇAMENTO EXECUTIVO CO-PROPOSTA */}
-      <AnimatePresence>
-        {isNewQuoteOpen && activeClient && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-[#E8E6E1] rounded-2xl max-w-md w-full overflow-hidden shadow-xl text-left"
-            >
-              <div className="px-6 py-4 border-b border-[#FAF9F6] flex items-center justify-between">
-                <div>
-                  <h3 className="font-display font-black text-[#141410] text-xs uppercase tracking-wider">Criar Orçamento para {activeClient.name}</h3>
-                  <p className="text-[10px] text-[#6B6B5F] mt-0.5">Preencha estimativas para calcular preço final.</p>
-                </div>
-                <button type="button" onClick={() => setIsNewQuoteOpen(false)} className="p-1"><X className="size-4" /></button>
-              </div>
-
-              <form onSubmit={handleAddQuoteSubmission} className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Alvo Controle (Pragas)</label>
-                    <input type="text" value={formQuotePest} onChange={(e) => setFormQuotePest(e.target.value)} className="w-full bg-[#FAF9F6] border border-[#E8E6E1] rounded-lg px-3 py-2 text-xs" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Ação Técnica</label>
-                    <input type="text" value={formQuoteType} onChange={(e) => setFormQuoteType(e.target.value)} className="w-full bg-[#FAF9F6] border border-[#E8E6E1] rounded-lg px-3 py-2 text-xs" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Área do Local (M²)</label>
-                    <input type="number" value={formQuoteArea} onChange={(e) => setFormQuoteArea(Number(e.target.value))} className="w-full bg-[#FAF9F6] border border-[#E8E6E1] rounded-lg px-3 py-2 text-xs font-mono" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Preço Final Proposto (R$)</label>
-                    <input type="number" value={formQuoteValue} onChange={(e) => setFormQuoteValue(Number(e.target.value))} className="w-full bg-[#FAF9F6] border border-[#E8E6E1] rounded-lg px-3 py-2 text-xs font-mono" />
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-[#FAF9F6] flex justify-end gap-2.5">
-                  <button type="button" onClick={() => setIsNewQuoteOpen(false)} className="px-4 py-2 bg-slate-100 uppercase text-[9px] font-black rounded-lg">Cancelar</button>
-                  <button type="submit" className="px-5 py-2 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white uppercase text-[9px] font-black rounded-lg">Transmitir Proposta</button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* 🔮 MODAL 4: REGISTRAR NOVO CHAMADO DESIGNADO (SERVIÇO OS) */}
       <AnimatePresence>
         {isNewServiceOpen && activeClient && (
@@ -2298,6 +2347,19 @@ export function ClientesPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* AgendarServicoModal for Budget Approvals */}
+      {quoteToSchedule && (
+        <AgendarServicoModal
+          quote={quoteToSchedule}
+          isOpen={isScheduleModalOpen}
+          onClose={() => {
+            setIsScheduleModalOpen(false);
+            setQuoteToSchedule(null);
+          }}
+          onConfirm={handleConfirmScheduleFromClientPage}
+        />
+      )}
 
     </div>
   );

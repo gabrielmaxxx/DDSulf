@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Quote } from '@/store/systemStore';
+import { Quote, useSystemStore } from '@/store/systemStore';
 import { 
   CheckCircle2, 
   X, 
@@ -51,6 +51,9 @@ export function ConfirmacaoServicoModal({ quote, onConfirm, onClose }: Confirmac
     if (!hasConfirmedCheckbox) return;
     onConfirm(confirmedBy.trim(), serviceNotes.trim());
   };
+
+  const { employees } = useSystemStore();
+  const activeTechnicians = (employees || []).filter(e => e.active);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
@@ -129,14 +132,19 @@ export function ConfirmacaoServicoModal({ quote, onConfirm, onClose }: Confirmac
                   <User className="size-3.5 text-slate-400" />
                   Responsável Técnico / Aplicador <span className="text-xs text-slate-400 font-normal lowercase">(opcional)</span>
                 </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Carlos - Técnico Dedetizador"
+                <select
                   value={confirmedBy}
                   onChange={(e) => setConfirmedBy(e.target.value)}
-                  className="w-full h-11 border border-[#EBEBE5] rounded-xl text-xs text-[#141410] px-4 outline-none focus:ring-2 focus:ring-[#2D6A4F]/10 focus:border-[#2D6A4F] bg-[#FAF9F5] transition-all"
+                  className="w-full h-11 border border-[#EBEBE5] rounded-xl text-xs text-[#141410] px-4 outline-none focus:ring-2 focus:ring-[#2D6A4F]/10 focus:border-[#2D6A4F] bg-[#FAF9F5] transition-all cursor-pointer font-medium"
                   id="modal-input-confirmed-by"
-                />
+                >
+                  <option value="">Selecione o técnico responsável...</option>
+                  {activeTechnicians.map((emp) => (
+                    <option key={emp.id} value={emp.name}>
+                      {emp.name} ({emp.role.toUpperCase()})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

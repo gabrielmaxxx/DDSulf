@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useSystemStore, AgendaEvent } from '@/store/systemStore';
+import { useSystemStore, AgendaEvent, Quote } from '@/store/systemStore';
 import { GoogleMapsViewer } from '@/components/GoogleMapsViewer';
 import { 
   Calendar, 
@@ -54,7 +54,9 @@ export function AgendaPage() {
     updateAgendaEvent, 
     clients,
     quotes,
-    confirmServiceExecuted
+    employees,
+    confirmServiceExecuted,
+    addQuote
   } = useSystemStore();
 
   const [searchParams] = useSearchParams();
@@ -63,6 +65,9 @@ export function AgendaPage() {
   const [currentDate, setCurrentDate] = useState(() => new Date(2026, 5, 9)); 
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   
+  // Filter state for technician
+  const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState<string>('all');
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -72,6 +77,7 @@ export function AgendaPage() {
   const [formDate, setFormDate] = useState('2026-06-09');
   const [formTime, setFormTime] = useState('08:00');
   const [formSegment, setFormSegment] = useState('B2B — Empresa');
+  const [formTechnician, setFormTechnician] = useState('');
   const [formObs, setFormObs] = useState('');
 
   // Handle URL deep-linking to highlight a specific event
@@ -196,10 +202,16 @@ export function AgendaPage() {
     });
   }, [agenda, clients]);
 
-  // Events belonging strictly to the visible week
+  // Events belonging strictly to the visible week and filtered by selected employee/technician
   const eventsInWeek = useMemo(() => {
-    return mappedEvents.filter(ev => weekDayStrings.includes(ev.dateStr));
-  }, [mappedEvents, weekDayStrings]);
+    const rawInWeek = mappedEvents.filter(ev => weekDayStrings.includes(ev.dateStr));
+    if (selectedEmployeeFilter === 'all') return rawInWeek;
+    return rawInWeek.filter(ev => {
+      const techName = (ev.scheduledTechnician || ev.technicianName || ev.confirmedBy || ev.notes || '').toLowerCase();
+      const filterLower = selectedEmployeeFilter.toLowerCase();
+      return ev.employeeId === selectedEmployeeFilter || techName.includes(filterLower);
+    });
+  }, [mappedEvents, weekDayStrings, selectedEmployeeFilter]);
 
   // Recalculates cards of summary BASED ONLY on the visible week range
   const summaryCounters = useMemo(() => {
@@ -250,13 +262,22 @@ export function AgendaPage() {
   const handleConfirmService = (evId: string) => {
     const originalEv = agenda.find(e => e.id === evId);
     
-    // Call system store callback for full stack reconciliation (inventory, financial) if this is linked to a quote
-    if (originalEv && originalEv.quoteId) {
-      const quote = quotes?.list?.find(q => q.id === originalEv.quoteId);
+    let targetQuoteId = originalEv?.quoteId;
+    if (!targetQuoteId && originalEv) {
+      const clientNameStr = originalEv.clientName || (originalEv as any).client || '';
+      const matched = quotes?.list?.find(q => 
+        (originalEv.clientId && (q.client as any)?.id === originalEv.clientId) ||
+        (q.client?.name && q.client.name.toLowerCase() === clientNameStr.toLowerCase())
+      );
+      if (matched) targetQuoteId = matched.id;
+    }
+
+    if (targetQuoteId) {
+      const quote = quotes?.list?.find(q => q.id === targetQuoteId);
       confirmServiceExecuted(
-        originalEv.quoteId, 
-        quote?.scheduledTechnician || 'Carlos Barbosa', 
-        originalEv.notes || 'Executado e verificado no fluxo de agenda'
+        targetQuoteId, 
+        quote?.scheduledTechnician || (originalEv as any)?.technicianName || 'Carlos Barbosa', 
+        originalEv?.notes || 'Executado e verificado no fluxo de agenda'
       );
     }
     
@@ -285,6 +306,35 @@ export function AgendaPage() {
       return;
     }
 
+    const techName = formTechnician || (employees?.find(e => e.active)?.name || 'Carlos Barbosa');
+
+    const newQuote: Quote = {
+      id: `q-ag-${Math.random().toString(36).substring(2, 11)}`,
+      createdAt: formDate,
+      status: 'aprovado',
+      client: {
+        name: formClient,
+        address: '⚠️ NÃO INFORMADO'
+      },
+      service: {
+        pestType: formServiceType,
+        serviceType: formServiceType,
+        areaM2: 100,
+        distanceKm: 10
+      },
+      costs: { products: 100, labor: 150, transport: 50, overhead: 30, total: 330 },
+      pricing: { suggestedPrice: 500, marginPercent: 34, finalPrice: 500 },
+      productsUsed: [
+        { productId: 'prod-01', productName: 'BIFENTOL 200SC', quantity: 150, unit: 'ml' }
+      ],
+      inventoryDeducted: false,
+      scheduledDate: formDate,
+      scheduledTime: formTime,
+      scheduledTechnician: techName
+    };
+
+    addQuote(newQuote);
+
     const eventId = `ev-${Math.random().toString(36).substring(2, 11)}`;
     const newService: AgendaEvent & any = {
       id: eventId,
@@ -296,6 +346,9 @@ export function AgendaPage() {
       type: formServiceType === 'Manutenção (retorno)' ? 'retorno' : 'servico',
       serviceType: formServiceType,
       seg: formSegment,
+      scheduledTechnician: techName,
+      technicianName: techName,
+      quoteId: newQuote.id,
       status: 'pendente',
       notes: formObs,
       obs: formObs
@@ -374,13 +427,32 @@ export function AgendaPage() {
                 {formattedWeekRange}
               </div>
 
-              <button
-                id="btn-semana-hoje"
-                onClick={() => setCurrentDate(new Date(2026, 5, 9))}
-                className="px-3 py-1.5 border border-zinc-200 hover:bg-zinc-50 text-[10px] font-black uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
-              >
-                Voltar a Hoje
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 bg-zinc-50 border border-zinc-200 rounded-lg px-2.5 py-1">
+                  <User className="size-3.5 text-zinc-500" />
+                  <select
+                    id="filter-tecnico-select"
+                    value={selectedEmployeeFilter}
+                    onChange={(e) => setSelectedEmployeeFilter(e.target.value)}
+                    className="bg-transparent text-xs font-bold text-zinc-800 outline-none cursor-pointer py-0.5"
+                  >
+                    <option value="all">Todos os Técnicos</option>
+                    {(employees || []).filter(e => e.active).map(emp => (
+                      <option key={emp.id} value={emp.name}>
+                        {emp.name} ({emp.role.toUpperCase()})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  id="btn-semana-hoje"
+                  onClick={() => setCurrentDate(new Date(2026, 5, 9))}
+                  className="px-3 py-1.5 border border-zinc-200 hover:bg-zinc-50 text-[10px] font-black uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                >
+                  Voltar a Hoje
+                </button>
+              </div>
             </div>
 
             {/* Weekly Grid Calendar View */}
@@ -791,6 +863,26 @@ export function AgendaPage() {
                     <option value="B2B — Condomínio">B2B — Condomínio</option>
                     <option value="B2B — Empresa">B2B — Empresa</option>
                     <option value="B2C — Residencial">B2C — Residencial</option>
+                  </select>
+                </div>
+
+                {/* Técnico Responsável */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest block">
+                    Técnico Responsável
+                  </label>
+                  <select
+                    id="modal-select-technician"
+                    value={formTechnician}
+                    onChange={(e) => setFormTechnician(e.target.value)}
+                    className="w-full h-10 border border-zinc-250/85 rounded-xl px-3 text-xs font-bold focus:outline-none focus:border-[#1D9E75] bg-white transition-all text-zinc-800"
+                  >
+                    <option value="">Selecione o técnico responsável...</option>
+                    {(employees || []).filter(e => e.active).map(emp => (
+                      <option key={emp.id} value={emp.name}>
+                        {emp.name} ({emp.role.toUpperCase()})
+                      </option>
+                    ))}
                   </select>
                 </div>
 

@@ -39,7 +39,7 @@ import {
   FileUp,
   Settings2
 } from 'lucide-react';
-import { useSystemStore, FinancialMovement, Quote, Client, InventoryProduct, selectProjecaoCaixa, ProjecaoCaixa } from '@/store';
+import { useSystemStore, FinancialMovement, Quote, Client, InventoryProduct, selectProjecaoCaixa, ProjecaoCaixa, calcularDREPorOS, DREBreakdown } from '@/store';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ResponsiveContainer, 
@@ -61,7 +61,7 @@ import {
 import { FileUpload, UploadedFile } from '@/components/FileUpload';
 import { SpreadsheetImportTab } from './components/SpreadsheetImportTab';
 import { PlanoContasTab } from './components/PlanoContasTab';
-import { formatBRL, formatPercent } from '@/utils/format';
+import { formatBRL, formatPercent, formatDate } from '@/utils/format';
 
 const COLORS = ['#1B3A2D', '#2D6A4F', '#D4A017', '#C1361A', '#7C6F5B', '#A8CDB8', '#3F51B5'];
 const COST_CENTERS = ['Geral', 'Equipe Alfa', 'Equipe Beta', 'Veículo 01', 'Veículo 02'];
@@ -100,7 +100,7 @@ export function FinancialPage() {
   const productList = inventory.products || [];
 
   // Interactive Sub-Tabs
-  const [activeTab, setActiveTab] = useState<'painel' | 'lancamentos' | 'caixa' | 'planilha'>('painel');
+  const [activeTab, setActiveTab] = useState<'painel' | 'servicos' | 'lancamentos' | 'caixa' | 'planilha'>('painel');
 
   // Modals status
   const [isNewTxOpen, setIsNewTxOpen] = useState(false);
@@ -209,6 +209,132 @@ export function FinancialPage() {
 
   // Chart configuration period selector (7d, 30d, 90d, 12m)
   const [chartPeriod, setChartPeriod] = useState<'7d' | '30d' | '90d' | '12m'>('30d');
+
+  // DRE por Serviço Executado State & Filters
+  const [serviceSearch, setServiceSearch] = useState('');
+  const [servicePeriod, setServicePeriod] = useState<'mes_atual' | '30_dias' | '90_dias' | 'todos'>('todos');
+  const [serviceSort, setServiceSort] = useState<'margem_asc' | 'margem_desc' | 'margem_rs_asc' | 'margem_rs_desc' | 'receita_desc' | 'custo_desc' | 'data_desc' | 'data_asc'>('margem_asc');
+  const [selectedQuoteForDREModal, setSelectedQuoteForDREModal] = useState<Quote | null>(null);
+
+  // Executed Services Data Consolidation with DRE Breakdown
+  const executedServicesWithDRE = useMemo(() => {
+    const rawList = quoteList.filter(q => q.status === 'executado' || q.status === 'retorno' || q.status === 'aprovado');
+    const state = useSystemStore.getState();
+
+    const today = new Date();
+    const currentMonthStr = today.toISOString().slice(0, 7);
+
+    const mapped = rawList.map(q => {
+      const breakdown: DREBreakdown = q.dreBreakdown || calcularDREPorOS(q, state);
+      const dateStr = q.confirmedAt 
+        ? q.confirmedAt.substring(0, 10) 
+        : (q.scheduledDate || (q.createdAt ? q.createdAt.substring(0, 10) : today.toISOString().substring(0, 10)));
+      
+      const receita = Number(q.pricing?.finalPrice) || 0;
+      const custoTotal = Number(breakdown.totalCost) || Number(q.costs?.total) || 0;
+      const custoFixo = Number(breakdown.fixedCostShare) || 0;
+      const custoVariavel = Number(breakdown.variableCost) || Number(q.costs?.total) || 0;
+      const margemRs = Number(breakdown.netMargin) ?? (receita - custoTotal);
+      const margemPct = Number(breakdown.netMarginPercent) ?? (receita > 0 ? (margemRs / receita) * 100 : 0);
+
+      return {
+        quote: q,
+        clientName: q.client?.name || 'Cliente Sem Nome',
+        clientAddress: q.client?.address || '',
+        clientPhone: q.client?.phone || '',
+        serviceType: q.service?.serviceType || q.service?.pestType || 'Serviço Geral',
+        pestType: q.service?.pestType || '',
+        areaM2: q.service?.areaM2 || 0,
+        dateStr,
+        receita,
+        custoTotal,
+        custoFixo,
+        custoVariavel,
+        margemRs,
+        margemPct,
+        breakdown
+      };
+    });
+
+    // Apply Period Filter
+    const filteredByPeriod = mapped.filter(item => {
+      if (servicePeriod === 'todos') return true;
+      
+      if (servicePeriod === 'mes_atual') {
+        return item.dateStr.startsWith(currentMonthStr);
+      }
+
+      const itemDate = new Date(item.dateStr).getTime();
+      const nowTime = today.getTime();
+      const diffDays = Math.floor((nowTime - itemDate) / (1000 * 60 * 60 * 24));
+
+      if (servicePeriod === '30_dias') {
+        return diffDays >= -30 && diffDays <= 30;
+      }
+
+      if (servicePeriod === '90_dias') {
+        return diffDays >= -90 && diffDays <= 90;
+      }
+
+      return true;
+    });
+
+    // Apply Search Filter
+    const filteredBySearch = filteredByPeriod.filter(item => {
+      if (!serviceSearch.trim()) return true;
+      const term = serviceSearch.toLowerCase();
+      return (
+        item.clientName.toLowerCase().includes(term) ||
+        item.serviceType.toLowerCase().includes(term) ||
+        item.pestType.toLowerCase().includes(term) ||
+        (item.quote.scheduledTechnician && item.quote.scheduledTechnician.toLowerCase().includes(term))
+      );
+    });
+
+    // Apply Sorting
+    return filteredBySearch.sort((a, b) => {
+      switch (serviceSort) {
+        case 'margem_asc':
+          return a.margemPct - b.margemPct;
+        case 'margem_desc':
+          return b.margemPct - a.margemPct;
+        case 'margem_rs_asc':
+          return a.margemRs - b.margemRs;
+        case 'margem_rs_desc':
+          return b.margemRs - a.margemRs;
+        case 'receita_desc':
+          return b.receita - a.receita;
+        case 'custo_desc':
+          return b.custoTotal - a.custoTotal;
+        case 'data_desc':
+          return b.dateStr.localeCompare(a.dateStr);
+        case 'data_asc':
+          return a.dateStr.localeCompare(b.dateStr);
+        default:
+          return a.margemPct - b.margemPct;
+      }
+    });
+  }, [quoteList, serviceSearch, servicePeriod, serviceSort]);
+
+  // Consolidated Metrics for Executed Services
+  const serviceMetrics = useMemo(() => {
+    const totalReceita = executedServicesWithDRE.reduce((acc, i) => acc + i.receita, 0);
+    const totalCusto = executedServicesWithDRE.reduce((acc, i) => acc + i.custoTotal, 0);
+    const totalMargemRs = totalReceita - totalCusto;
+    const margemMediaPct = totalReceita > 0 ? (totalMargemRs / totalReceita) * 100 : 0;
+
+    const sortedByMarginAsc = [...executedServicesWithDRE].sort((a, b) => a.margemPct - b.margemPct);
+    const lowestMargin = sortedByMarginAsc.length > 0 ? sortedByMarginAsc[0] : null;
+
+    return {
+      totalReceita,
+      totalCusto,
+      totalMargemRs,
+      margemMediaPct,
+      count: executedServicesWithDRE.length,
+      lowestMargin
+    };
+  }, [executedServicesWithDRE]);
 
   // Math Calculations for Dashboard (PRESERVING existing rules & calculation models)
   const activeMovements = useMemo(() => {
@@ -439,10 +565,13 @@ export function FinancialPage() {
       // Cost Center
       if (txFilterCostCenter !== 'todos' && m.costCenter !== txFilterCostCenter) return false;
 
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const currentMonthStr = new Date().toISOString().slice(0, 7);
+
       // Period limit
-      if (txQuickPeriod === 'hoje' && m.date !== '2026-06-01') return false; // Simulated 
-      // Sazonal filters (simulate month filters on May 2026 seeds since we are in fiscal simulation)
-      if (txQuickPeriod === 'mes' && !m.date.includes('-05-') && !m.date.includes('-06-')) return false;
+      if (txQuickPeriod === 'hoje' && m.date !== todayStr && m.date !== '2026-06-01') return false; 
+      // Sazonal filters
+      if (txQuickPeriod === 'mes' && !m.date.startsWith(currentMonthStr) && !m.date.includes('-05-') && !m.date.includes('-06-')) return false;
 
       return true;
     });
@@ -460,8 +589,11 @@ export function FinancialPage() {
       if (txFilterCostCenter !== 'todos' && m.costCenter !== txFilterCostCenter) return false;
       if (txFilterCategory !== 'todos' && m.category !== txFilterCategory) return false;
 
-      if (txQuickPeriod === 'hoje' && m.date !== '2026-06-01') return false;
-      if (txQuickPeriod === 'mes' && !m.date.includes('-05-') && !m.date.includes('-06-')) return false;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const currentMonthStr = new Date().toISOString().slice(0, 7);
+
+      if (txQuickPeriod === 'hoje' && m.date !== todayStr && m.date !== '2026-06-01') return false;
+      if (txQuickPeriod === 'mes' && !m.date.startsWith(currentMonthStr) && !m.date.includes('-05-') && !m.date.includes('-06-')) return false;
 
       return true;
     });
@@ -512,20 +644,20 @@ export function FinancialPage() {
   // SECTION 7: GARANTIAS OPERACIONAIS IMPACT CALC
   // ----------------------------------------------------
   const operationalGuaranteeMetrics = useMemo(() => {
-    // 1. Quantiade de retornos: count
-    const qty = warrantyQuotes.length || 3; // Fallback to 3 if empty
+    // 1. Quantidade de retornos: count
+    const qty = warrantyQuotes.length;
     
     // 2. Custos gerados (Amortizações extra, deslocamentos, técnico)
-    const cost = totalWarrantyCost || 540; 
+    const cost = totalWarrantyCost; 
     
-    // 3. Produtos consumidos (estimado 1.8 Litros de Bifentol / Ratol por retorno em média)
+    // 3. Produtos consumidos (estimado 1.5 Litros de Bifentol / Ratol por retorno em média)
     const productsConsumed = (qty * 1.5).toFixed(1) + " L";
     
     // 4. Horas gastas (estimado 2.5 horas por chamado de garantia rural/urbana)
     const hoursSpent = (qty * 2.5).toFixed(1) + " h";
 
     // Ratio of revenue wasted on warranty issues
-    const revWastePercent = totalRevenue > 0 ? (cost / totalRevenue) * 100 : 1.30;
+    const revWastePercent = totalRevenue > 0 ? (cost / totalRevenue) * 100 : 0;
 
     return {
       qty,
@@ -774,6 +906,16 @@ export function FinancialPage() {
         >
           <Gauge className="size-4" />
           Painel Executivo
+        </button>
+
+        <button
+          onClick={() => setActiveTab('servicos')}
+          className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+            activeTab === 'servicos' ? 'bg-[#1B3A2D] text-white shadow-sm' : 'text-[#6B6B5F] hover:text-[#141410]'
+          }`}
+        >
+          <Briefcase className="size-4" />
+          DRE por Serviço
         </button>
 
         <button
@@ -1438,6 +1580,28 @@ export function FinancialPage() {
                       Garantias operacionais e re-dedetizações custaram <span className="font-bold underline text-[#C1361A]">R$ {operationalGuaranteeMetrics.cost.toLocaleString('pt-BR')}</span> ao caixa corporativo este mês. Isso causou vazamento de faturamento bruto equivalente a <span className="font-bold">{operationalGuaranteeMetrics.revWastePercent.toFixed(2)}%</span>.
                     </p>
                   </div>
+
+                  {warrantyQuotes.length > 0 && (
+                    <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
+                      <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider block">
+                        Lista de Atendimentos em Garantia ({warrantyQuotes.length})
+                      </span>
+                      <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                        {warrantyQuotes.map((q) => (
+                          <div key={q.id} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
+                            <div className="min-w-0 pr-2">
+                              <span className="font-bold text-slate-800 block truncate">{q.client.name}</span>
+                              <span className="text-[10px] text-slate-500 font-medium">{q.service.serviceType || q.service.pestType || 'Retorno de Garantia'} • {q.createdAt.slice(0, 10)}</span>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="font-bold text-rose-700 block font-mono">R$ {(q.returnCost || q.costs?.total || 180).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                              <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">Garantia OS #{q.parentQuoteId || q.id}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1548,6 +1712,402 @@ export function FinancialPage() {
 
             </div>
 
+          </motion.div>
+        )}
+
+        {/* TAB DRE POR SERVIÇO EXECUTADO */}
+        {activeTab === 'servicos' && (
+          <motion.div
+            key="servicos-view"
+            className="space-y-6 text-left"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.15 }}
+          >
+            {/* Header Banner */}
+            <div className="bg-[#FAF9F6] border border-[#E8E6E1] rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-2xs">
+              <div className="flex items-center gap-3.5">
+                <div className="p-3 bg-[#1B3A2D] text-white rounded-xl shrink-0 shadow-xs">
+                  <Briefcase className="size-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display font-black text-[#141410] text-sm uppercase tracking-wider">
+                      Custo e Margem por Serviço Executado (DRE por OS)
+                    </h3>
+                    <span className="px-2.5 py-0.5 bg-[#1B3A2D]/10 text-[#1B3A2D] text-[10px] font-black uppercase rounded-full">
+                      {serviceMetrics.count} {serviceMetrics.count === 1 ? 'OS Analisada' : 'OSs Analisadas'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#6B6B5F] mt-0.5">
+                    Consolidação analítica de margens operacionais individuais, considerando rateio de custos fixos e custos variáveis reais de insumos/equipes.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Metrics Cards */}
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Card 1: Receita Total Executada */}
+              <Card className="bg-white border border-slate-200 p-5 rounded-2xl text-left flex flex-col justify-between shadow-xs">
+                <div className="space-y-1">
+                  <span className="text-[9.5px] font-extrabold uppercase text-slate-500 tracking-wider">Receita Total das OSs</span>
+                  <h4 className="text-xl font-black text-slate-900 font-mono">
+                    {formatBRL(serviceMetrics.totalReceita)}
+                  </h4>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Volume no Filtro</span>
+                  <span className="font-bold text-slate-800 font-mono">{serviceMetrics.count} ordens</span>
+                </div>
+              </Card>
+
+              {/* Card 2: Custo Total Consolidado */}
+              <Card className="bg-white border border-slate-200 p-5 rounded-2xl text-left flex flex-col justify-between shadow-xs">
+                <div className="space-y-1">
+                  <span className="text-[9.5px] font-extrabold uppercase text-slate-500 tracking-wider">Custo Total (Rateio Fixo + Variável)</span>
+                  <h4 className="text-xl font-black text-rose-700 font-mono">
+                    {formatBRL(serviceMetrics.totalCusto)}
+                  </h4>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Insumos + Rateio</span>
+                  <span className="font-bold text-rose-700 font-mono">
+                    {serviceMetrics.totalReceita > 0 ? formatPercent((serviceMetrics.totalCusto / serviceMetrics.totalReceita) * 100) : '0,00%'}
+                  </span>
+                </div>
+              </Card>
+
+              {/* Card 3: Margem Líquida Consolidada */}
+              <Card className="bg-white border border-slate-200 p-5 rounded-2xl text-left flex flex-col justify-between shadow-xs">
+                <div className="space-y-1">
+                  <span className="text-[9.5px] font-extrabold uppercase text-slate-500 tracking-wider">Lucro Operacional Líquido</span>
+                  <h4 className={`text-xl font-black font-mono ${serviceMetrics.totalMargemRs >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                    {formatBRL(serviceMetrics.totalMargemRs)}
+                  </h4>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Margem Média Líquida</span>
+                  <span className={`font-black font-mono ${serviceMetrics.margemMediaPct >= 35 ? 'text-emerald-700' : 'text-amber-600'}`}>
+                    {formatPercent(serviceMetrics.margemMediaPct)}
+                  </span>
+                </div>
+              </Card>
+
+              {/* Card 4: Menor Margem / Ponto de Atenção */}
+              <Card className="bg-white border border-slate-200 p-5 rounded-2xl text-left flex flex-col justify-between shadow-xs">
+                <div className="space-y-1">
+                  <span className="text-[9.5px] font-extrabold uppercase text-slate-500 tracking-wider">Ponto de Menor Margem</span>
+                  {serviceMetrics.lowestMargin ? (
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 truncate">
+                        {serviceMetrics.lowestMargin.clientName}
+                      </h4>
+                      <p className="text-xs text-rose-600 font-black font-mono mt-0.5">
+                        Margem: {formatPercent(serviceMetrics.lowestMargin.margemPct)} ({formatBRL(serviceMetrics.lowestMargin.margemRs)})
+                      </p>
+                    </div>
+                  ) : (
+                    <h4 className="text-sm font-medium text-slate-400">Sem registros</h4>
+                  )}
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Diagnóstico OS</span>
+                  <span className="font-bold text-slate-700">Identificação Ativa</span>
+                </div>
+              </Card>
+            </div>
+
+            {/* Filter and Control Bar */}
+            <div className="bg-white border border-[#E8E6E1] rounded-2xl p-4 space-y-3 shadow-xs">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                {/* Search Bar */}
+                <div className="relative flex-1 min-w-[240px]">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#6B6B5F]" />
+                  <input
+                    type="text"
+                    value={serviceSearch}
+                    onChange={(e) => setServiceSearch(e.target.value)}
+                    placeholder="Buscar por cliente, serviço, praga ou técnico..."
+                    className="w-full pl-10 pr-4 py-2 bg-[#FAF9F6] border border-[#E8E6E1] rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]"
+                  />
+                  {serviceSearch && (
+                    <button
+                      onClick={() => setServiceSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6B5F] hover:text-[#141410]"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Controls */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Period Filter */}
+                  <div className="flex items-center gap-1.5 bg-[#FAF9F6] border border-[#E8E6E1] rounded-xl px-3 py-1.5">
+                    <Calendar className="size-3.5 text-[#1B3A2D]" />
+                    <span className="text-[10px] font-black uppercase text-[#6B6B5F]">Período:</span>
+                    <select
+                      value={servicePeriod}
+                      onChange={(e) => setServicePeriod(e.target.value as any)}
+                      className="bg-transparent text-xs font-bold text-[#141410] focus:outline-none cursor-pointer"
+                    >
+                      <option value="todos">Todos os Períodos</option>
+                      <option value="mes_atual">Mês Atual</option>
+                      <option value="30_dias">Últimos 30 Dias</option>
+                      <option value="90_dias">Últimos 90 Dias</option>
+                    </select>
+                  </div>
+
+                  {/* Margin Sorting Control */}
+                  <div className="flex items-center gap-1.5 bg-[#FAF9F6] border border-[#E8E6E1] rounded-xl px-3 py-1.5">
+                    <Filter className="size-3.5 text-[#1B3A2D]" />
+                    <span className="text-[10px] font-black uppercase text-[#6B6B5F]">Ordenar Por:</span>
+                    <select
+                      value={serviceSort}
+                      onChange={(e) => setServiceSort(e.target.value as any)}
+                      className="bg-transparent text-xs font-bold text-[#141410] focus:outline-none cursor-pointer"
+                    >
+                      <option value="margem_asc">⚠️ Menor Margem (%) Primeiro</option>
+                      <option value="margem_desc">❇️ Maior Margem (%) Primeiro</option>
+                      <option value="margem_rs_asc">Margem em R$ (Menor → Maior)</option>
+                      <option value="margem_rs_desc">Margem em R$ (Maior → Menor)</option>
+                      <option value="receita_desc">Maior Receita (R$)</option>
+                      <option value="custo_desc">Maior Custo Total (R$)</option>
+                      <option value="data_desc">Data de Execução (Mais Recente)</option>
+                      <option value="data_asc">Data de Execução (Mais Antigo)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Services Table */}
+            <div className="bg-white border border-[#E8E6E1] rounded-2xl overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-[#FAF9F6] border-b border-[#E8E6E1] text-[10px] font-black uppercase tracking-wider text-[#6B6B5F]">
+                      <th className="py-3 px-4">Cliente / Endereço</th>
+                      <th className="py-3 px-4">Serviço / Alvo</th>
+                      <th className="py-3 px-4 text-center">Data Execução</th>
+                      <th className="py-3 px-4 text-right">Receita (R$)</th>
+                      <th className="py-3 px-4 text-right">Custo Total (R$)</th>
+                      <th className="py-3 px-4 text-right">Margem (R$)</th>
+                      <th className="py-3 px-4 text-center">Margem (%)</th>
+                      <th className="py-3 px-4 text-center">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E8E6E1]">
+                    {executedServicesWithDRE.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-slate-500">
+                          <AlertTriangle className="size-8 mx-auto text-amber-500/70 mb-2" />
+                          <p className="font-bold text-xs text-slate-700">Nenhum serviço executado localizado com os filtros selecionados.</p>
+                          <p className="text-[11px] text-slate-400 mt-1">Tente selecionar "Todos os Períodos" ou limpar a busca por nome.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      executedServicesWithDRE.map((item) => {
+                        const isLowMargin = item.margemPct < 25;
+                        
+                        return (
+                          <tr key={item.quote.id} className="hover:bg-[#FAF9F6]/80 transition-colors">
+                            {/* Cliente */}
+                            <td className="py-3.5 px-4">
+                              <div className="font-bold text-[#141410]">{item.clientName}</div>
+                              {item.clientAddress && (
+                                <div className="text-[10px] text-[#6B6B5F] truncate max-w-[200px]">{item.clientAddress}</div>
+                              )}
+                            </td>
+
+                            {/* Serviço / Alvo */}
+                            <td className="py-3.5 px-4">
+                              <div className="font-semibold text-slate-800">{item.serviceType}</div>
+                              {item.pestType && (
+                                <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold uppercase rounded">
+                                  {item.pestType}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Data Execução */}
+                            <td className="py-3.5 px-4 text-center font-mono text-[11px] text-slate-600">
+                              {formatDate(item.dateStr)}
+                            </td>
+
+                            {/* Receita (R$) */}
+                            <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
+                              {formatBRL(item.receita)}
+                            </td>
+
+                            {/* Custo Total (R$) */}
+                            <td className="py-3.5 px-4 text-right font-mono text-slate-700">
+                              <div className="font-bold text-rose-700">{formatBRL(item.custoTotal)}</div>
+                              <div className="text-[9px] text-slate-400">
+                                Var: {formatBRL(item.custoVariavel)} | Fix: {formatBRL(item.custoFixo)}
+                              </div>
+                            </td>
+
+                            {/* Margem (R$) */}
+                            <td className={`py-3.5 px-4 text-right font-mono font-bold ${item.margemRs >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                              {formatBRL(item.margemRs)}
+                            </td>
+
+                            {/* Margem (%) */}
+                            <td className="py-3.5 px-4 text-center">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black font-mono ${
+                                item.margemPct >= 40 
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                  : item.margemPct >= 20 
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                                  : 'bg-rose-100 text-rose-800 border border-rose-200'
+                              }`}>
+                                {isLowMargin && <AlertTriangle className="size-3 text-rose-600 shrink-0" />}
+                                {formatPercent(item.margemPct)}
+                              </span>
+                            </td>
+
+                            {/* Ações */}
+                            <td className="py-3.5 px-4 text-center">
+                              <button
+                                onClick={() => setSelectedQuoteForDREModal(item.quote)}
+                                className="px-3 py-1.5 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center gap-1 mx-auto"
+                              >
+                                <Eye className="size-3" /> Ver DRE
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* DRE Detail Modal */}
+            <AnimatePresence>
+              {selectedQuoteForDREModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-white border border-[#E8E6E1] rounded-2xl max-w-lg w-full overflow-hidden shadow-xl text-left"
+                  >
+                    {/* Modal Header */}
+                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-[#FAF9F6]">
+                      <div>
+                        <h3 className="font-display font-black text-[#141410] text-xs uppercase tracking-wider">
+                          DRE do Serviço: OS #{selectedQuoteForDREModal.id}
+                        </h3>
+                        <p className="text-[11px] text-[#6B6B5F] mt-0.5">
+                          {selectedQuoteForDREModal.client?.name} — {selectedQuoteForDREModal.service?.serviceType}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedQuoteForDREModal(null)}
+                        className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+
+                    {/* Modal Content */}
+                    <div className="p-6 space-y-4">
+                      {(() => {
+                        const q = selectedQuoteForDREModal;
+                        const state = useSystemStore.getState();
+                        const breakdown = q.dreBreakdown || calcularDREPorOS(q, state);
+                        const receita = Number(q.pricing?.finalPrice) || 0;
+                        const custoVariavel = Number(breakdown.variableCost) || Number(q.costs?.total) || 0;
+                        const custoFixoShare = Number(breakdown.fixedCostShare) || 0;
+                        const custoTotal = Number(breakdown.totalCost) || (custoVariavel + custoFixoShare);
+                        const lucroLiquido = Number(breakdown.netMargin) ?? (receita - custoTotal);
+                        const margemPct = Number(breakdown.netMarginPercent) ?? (receita > 0 ? (lucroLiquido / receita) * 100 : 0);
+
+                        return (
+                          <>
+                            {/* Detailed Table */}
+                            <div className="bg-[#FAF9F6] border border-[#E8E6E1] rounded-xl p-4 space-y-2.5 text-xs font-mono">
+                              <div className="flex justify-between items-center py-1 border-b border-slate-200/80">
+                                <span className="font-sans font-bold text-slate-700">Receita Bruta do Serviço</span>
+                                <span className="font-black text-slate-900">{formatBRL(receita)}</span>
+                              </div>
+
+                              <div className="flex justify-between items-center py-1 border-b border-slate-200/80 text-rose-700">
+                                <span className="font-sans font-medium text-slate-600">(-) Custo Variável Direto (Produtos + MO + Transp.)</span>
+                                <span>- {formatBRL(custoVariavel)}</span>
+                              </div>
+
+                              <div className="flex justify-between items-center py-1 border-b border-slate-200/80 text-rose-700">
+                                <span className="font-sans font-medium text-slate-600">(-) Rateio de Custos Fixos Operacionais</span>
+                                <span>- {formatBRL(custoFixoShare)}</span>
+                              </div>
+
+                              <div className="flex justify-between items-center py-1 border-b border-slate-200/80 font-bold text-slate-800">
+                                <span className="font-sans font-bold text-slate-700">(=) Custo Total do Serviço</span>
+                                <span className="text-rose-700">{formatBRL(custoTotal)}</span>
+                              </div>
+
+                              <div className="flex justify-between items-center pt-2 font-black text-sm">
+                                <span className="font-sans text-slate-900">(=) Lucro Operacional Líquido</span>
+                                <span className={lucroLiquido >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
+                                  {formatBRL(lucroLiquido)} ({formatPercent(margemPct)})
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Products Used Info */}
+                            {q.productsUsed && q.productsUsed.length > 0 && (
+                              <div className="space-y-1.5 pt-2">
+                                <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-wider font-sans">
+                                  Insumos Consumidos do Estoque
+                                </h4>
+                                <div className="space-y-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-mono">
+                                  {q.productsUsed.map((p, idx) => (
+                                    <div key={idx} className="flex justify-between text-[#141410]">
+                                      <span>{p.productName}</span>
+                                      <span className="font-bold">{p.quantity} {p.unit}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Service metadata */}
+                            <div className="grid grid-cols-2 gap-3 pt-2 text-[11px] text-slate-600 font-sans border-t border-slate-100">
+                              <div>
+                                <span className="font-bold block text-slate-800">Técnico Designado</span>
+                                {q.scheduledTechnician || 'Não informado'}
+                              </div>
+                              <div>
+                                <span className="font-bold block text-slate-800">Data de Confirmação</span>
+                                {q.confirmedAt ? formatDate(q.confirmedAt.substring(0, 10)) : (q.scheduledDate ? formatDate(q.scheduledDate) : 'N/A')}
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Modal Footer */}
+                    <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedQuoteForDREModal(null)}
+                        className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[10px] font-black uppercase rounded-lg cursor-pointer"
+                      >
+                        Fechar
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
 
