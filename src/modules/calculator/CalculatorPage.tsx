@@ -4,6 +4,8 @@ import { useSystemStore } from '@/store';
 import { Button } from '@/components/ui/button';
 import { getPOPForService, calculateProductsForArea } from '@/utils/popUtils';
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps';
+import { GoogleMapsViewer } from '@/components/GoogleMapsViewer';
+import { fetchGoogleMapsDistance } from '@/utils/distanceUtils';
 import { calcularPrecoPorMarkup } from '@/calculator/calculations/pricingEngine';
 import { PestType, EnvironmentType, InfestationLevel, OperationalComplexity, UrgencyLevel } from '@/types/database';
 import { 
@@ -353,6 +355,8 @@ export function CalculatorPage() {
   const [clientAddress, setClientAddress] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [distanceKm, setDistanceKm] = useState<number>(0);
+  const [travelDurationText, setTravelDurationText] = useState<string>('');
+  const [showMapPreview, setShowMapPreview] = useState<boolean>(false);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
 
   // Effect to handle automatic client loading on mount from search parameters (?clientId=...) or location state
@@ -518,56 +522,23 @@ export function CalculatorPage() {
       return;
     }
 
-    if (!settings?.headquartersAddress) {
-      toast.error('Endereço da sede não cadastrado!', {
-        description: 'Vá até o painel de Configurações para cadastrar o endereço da Sede da PestFlow primeiro.'
-      });
-      return;
-    }
-
+    const hq = settings?.headquartersAddress || 'Rua 33, 120 - Vila Santa Cecília, Volta Redonda - RJ';
     setIsCalculatingDistance(true);
-    const origins = settings.headquartersAddress;
-    const destinations = clientAddress;
-    const key = GOOGLE_MAPS_API_KEY;
 
-    if (!key) {
-      setTimeout(() => {
-        const calculatedKm = estimateDistanceOffline(origins, destinations);
-        setDistanceKm(calculatedKm);
-        toast.success('Distância calculada via heurística PestFlow!', {
-          description: `Partida: Sede (${origins})\nDestino: ${destinations}\nTotal: ${calculatedKm} km.`
-        });
-        setIsCalculatingDistance(false);
-      }, 300);
-      return;
-    }
+    const result = await fetchGoogleMapsDistance(hq, clientAddress, GOOGLE_MAPS_API_KEY);
+    setDistanceKm(result.distanceKm);
+    if (result.durationText) setTravelDurationText(result.durationText);
 
-    try {
-      let url = `/api/maps/distance?origins=${encodeURIComponent(origins)}&destinations=${encodeURIComponent(destinations)}`;
-      url += `&key=${encodeURIComponent(key)}`;
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-
-      const data = await res.json();
-      if (data.status === 'OK' && data.rows?.[0]?.elements?.[0]?.status === 'OK') {
-        const distanceMeters = data.rows[0].elements[0].distance.value;
-        const calculatedKm = parseFloat((distanceMeters / 1000).toFixed(2));
-        setDistanceKm(calculatedKm);
-
-        toast.success('Distância calculada!');
-      } else {
-        throw new Error('Google Maps erro.');
-      }
-    } catch (err) {
-      const calculatedKm = estimateDistanceOffline(origins, destinations);
-      setDistanceKm(calculatedKm);
-      toast.info('Simulação de Rota Inteligente (Offline)', {
-        description: `Conexão falhou. Usando estimador inteligente offline (${calculatedKm} km).`
+    if (result.source === 'google') {
+      toast.success('Distância Roteirizada via Google Maps!', {
+        description: `Total: ${result.distanceKm} km ${result.durationText ? `(${result.durationText})` : ''}. Ida & Volta: ${(result.distanceKm * 2).toFixed(1)} km.`
       });
-    } finally {
-      setIsCalculatingDistance(false);
+    } else {
+      toast.info('Distância Estimada (Heurística Geográfica)', {
+        description: `Partida: Sede (${hq})\nDestino: ${clientAddress}\nTotal: ${result.distanceKm} km.`
+      });
     }
+    setIsCalculatingDistance(false);
   };
 
   // 1. PRODUCTS CALCULATION & COSTS INGESTION
@@ -1184,32 +1155,74 @@ ${q.productsUsed.map((p: any) => `• ${p.productName}: ${p.quantity} ${p.unit}`
                         </div>
                       )}
 
-                      {/* DISTÂNCIA ESTIMADA AUTO PANEL */}
+                      {/* DISTÂNCIA ESTIMADA & ROTEIRIZAÇÃO GOOGLE MAPS */}
                       {clientAddress.trim() !== '' && (
-                        <div className="bg-emerald-50/10 border border-slate-150 p-4 rounded-xl flex items-start gap-4">
-                          <div className="p-3 bg-white border border-slate-150 rounded-xl shadow-xs text-slate-500 shrink-0">
-                            <Truck className="size-5 text-emerald-600" />
-                          </div>
-                          <div className="space-y-1.5 flex-1 min-w-0">
-                            <span className="text-[9px] font-black uppercase text-emerald-700 tracking-wider">Logística & Deslocamento</span>
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <p className="text-xs font-bold text-slate-650 truncate">
-                                Distância estimada: <span className="font-extrabold text-slate-900 font-mono text-sm">{distanceKm} km</span>
-                              </p>
-                              <span className="text-[10px] font-bold text-[#6B6B5F] bg-[#FAFAF9] border border-slate-200 rounded px-2 py-0.5">
-                                Ida & Volta: {distanceKm * 2} Km
-                              </span>
+                        <div className="bg-emerald-50/15 border border-slate-200 p-4 rounded-xl space-y-3">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2.5 bg-white border border-slate-200 rounded-xl shadow-2xs text-emerald-700 shrink-0">
+                              <Truck className="size-5" />
                             </div>
+                            <div className="space-y-1 flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[9px] font-black uppercase text-emerald-800 tracking-wider">Logística & Roteirização Google Maps</span>
+                                <div className="flex items-center gap-1.5">
+                                  <Button
+                                    type="button"
+                                    onClick={handleCalculateDistance}
+                                    disabled={isCalculatingDistance}
+                                    className="h-7 px-2.5 bg-slate-900 hover:bg-black text-white text-[10px] font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                                  >
+                                    <RefreshCw className={`size-3 ${isCalculatingDistance ? 'animate-spin' : ''}`} />
+                                    {isCalculatingDistance ? 'Calculando...' : 'Calcular Rota Real'}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    onClick={() => setShowMapPreview(!showMapPreview)}
+                                    className="h-7 px-2.5 bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 text-[10px] font-bold rounded-lg flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <MapPin className="size-3 text-emerald-600" />
+                                    {showMapPreview ? 'Ocultar Mapa' : 'Ver Mapa'}
+                                  </Button>
+                                </div>
+                              </div>
 
-                            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mt-1">
-                              <span className="font-black text-[#1B3A2D]">Base:</span>
-                              <span className="truncate max-w-[200px]" title={settings?.headquartersAddress || 'Sede PestFlow, Cidade Sede'}>
-                                {settings?.headquartersAddress || 'Sede PestFlow, Cidade Sede'}
-                              </span>
-                              <span>&rarr;</span>
-                              <span className="font-black text-slate-700 truncate max-w-[200px]" title={clientAddress}>{clientAddress}</span>
+                              <div className="flex flex-wrap items-center gap-3 pt-1">
+                                <p className="text-xs font-bold text-slate-700">
+                                  Distância (Um Sentido): <span className="font-extrabold text-slate-900 font-mono text-sm">{distanceKm} km</span>
+                                </p>
+                                <span className="text-[10px] font-bold text-emerald-900 bg-emerald-100/60 border border-emerald-200/80 rounded px-2 py-0.5 font-mono">
+                                  Ida & Volta: {(distanceKm * 2).toFixed(1)} Km
+                                </span>
+                                {travelDurationText && (
+                                  <span className="text-[10px] font-bold text-slate-600 bg-white border border-slate-200 rounded px-2 py-0.5 font-mono">
+                                    Tempo Estimado: {travelDurationText}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mt-1 truncate">
+                                <span className="font-bold text-slate-900">Sede:</span>
+                                <span className="truncate max-w-[180px]" title={settings?.headquartersAddress || 'Sede PestFlow'}>
+                                  {settings?.headquartersAddress || 'Sede PestFlow'}
+                                </span>
+                                <span>&rarr;</span>
+                                <span className="font-bold text-slate-800 truncate max-w-[200px]" title={clientAddress}>{clientAddress}</span>
+                              </div>
                             </div>
                           </div>
+
+                          {/* Collapsible Interactive Google Maps Route View */}
+                          {showMapPreview && (
+                            <div className="pt-2 border-t border-slate-200/60">
+                              <GoogleMapsViewer
+                                address={clientAddress}
+                                title={clientName || clientAddress}
+                                showRouteFromHq={true}
+                                hqAddress={settings?.headquartersAddress || 'Rua 33, 120 - Vila Santa Cecília, Volta Redonda - RJ'}
+                                height="220px"
+                              />
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

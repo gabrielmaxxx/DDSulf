@@ -79,6 +79,36 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  // Google Maps Status check
+  app.get("/api/maps/status", (req, res) => {
+    const key = process.env.GOOGLE_MAPS_PLATFORM_KEY || process.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || "";
+    const configured = Boolean(key) && key.trim() !== "" && key !== "YOUR_API_KEY";
+    res.json({ configured, hasKey: configured });
+  });
+
+  // Google Maps Geocoding Proxy
+  app.get("/api/maps/geocode", async (req, res) => {
+    try {
+      const { address, key } = req.query;
+      if (!address) {
+        return res.status(400).json({ error: "address is required" });
+      }
+
+      const apiKey = (key as string) || process.env.GOOGLE_MAPS_PLATFORM_KEY || process.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || "";
+      if (!apiKey) {
+        return res.status(400).json({ error: "Google Maps API Key not configured." });
+      }
+
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address as string)}&key=${apiKey}&language=pt-BR`;
+      const response = await fetch(url);
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Geocoding Proxy Error:", error);
+      res.status(500).json({ error: error.message || "Failed to geocode address" });
+    }
+  });
+
   // Google Maps Distance Matrix Proxy to bypass client CORS
   app.get("/api/maps/distance", async (req, res) => {
     try {
@@ -87,7 +117,7 @@ async function startServer() {
         return res.status(400).json({ error: "origins and destinations are required" });
       }
 
-      const apiKey = (key as string) || process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_PLATFORM_KEY || "";
+      const apiKey = (key as string) || process.env.GOOGLE_MAPS_PLATFORM_KEY || process.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || "";
       if (!apiKey) {
         return res.status(400).json({ error: "Google Maps API Key not configured." });
       }

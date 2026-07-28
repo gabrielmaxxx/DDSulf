@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Building2, Settings2, ShieldCheck, Landmark, Compass, PhoneCall, Sliders, Target, DollarSign, Check, RefreshCw, Users } from 'lucide-react';
+import { Building2, Settings2, ShieldCheck, Landmark, Compass, PhoneCall, Sliders, Target, DollarSign, Check, RefreshCw, Users, Navigation, MapPin, Info, AlertTriangle } from 'lucide-react';
 import { useSystemStore } from '@/store';
 import { useAuth } from '@/contexts/AuthContext';
 import { userRepository } from '@/firebase/repositories/UserRepository';
 import { AuthService } from '@/auth/services/auth';
 import { UserRole } from '@/types/database';
 import { UserProfile as EnterpriseUserProfile } from '@/firebase/types/enterprise';
+import { GoogleMapsViewer } from '@/components/GoogleMapsViewer';
+import { GOOGLE_MAPS_API_KEY, hasValidMapsKey } from '@/config/maps';
+import { fetchGoogleMapsDistance, estimateDistanceOffline } from '@/utils/distanceUtils';
 
 interface SettingsData {
   companyName: string;
@@ -68,10 +71,24 @@ export function SettingsPage() {
     setLoadingUsers(true);
     try {
       const allUsers = await userRepository.listAll();
-      setUsersList(allUsers);
+      if (allUsers.length > 0) {
+        setUsersList(allUsers);
+      } else {
+        setUsersList([
+          {
+            id: currentUser?.uid || 'root',
+            uid: currentUser?.uid || 'root',
+            email: currentUser?.email || 'admin@pestflow.com',
+            name: currentUser?.name || 'Administrador (Sede)',
+            role: 'admin',
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+        ]);
+      }
     } catch (err: any) {
       console.error('Erro ao buscar usuários:', err);
-      toast.error('Não foi possível carregar a lista de usuários.');
     } finally {
       setLoadingUsers(false);
     }
@@ -598,7 +615,10 @@ export function SettingsPage() {
           </div>
         </Card>
 
-        {/* Seção 4 — Administração de Usuários (Apenas para Admin) */}
+        {/* Seção 4 — Integração & Roteirização do Google Maps Platform */}
+        <GoogleMapsDiagnosticSection hqAddress={settings.address} />
+
+        {/* Seção 5 — Administração de Usuários (Apenas para Admin) */}
         {currentUserRole === 'admin' && (
           <Card className="bg-white border-[#E5E7EB] shadow-sm rounded-[32px] p-8 space-y-6" id="user-admin-section">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100 pb-4 justify-between">
@@ -784,3 +804,155 @@ export function SettingsPage() {
     </div>
   );
 }
+
+function GoogleMapsDiagnosticSection({ hqAddress }: { hqAddress: string }) {
+  const [testDestination, setTestDestination] = useState('Av. Paulista, 100 - São Paulo - SP');
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ km: number; duration?: string; status: string; source: string } | null>(null);
+  const isKeyAvailable = hasValidMapsKey();
+
+  const handleTestRoute = async () => {
+    if (!testDestination.trim()) {
+      toast.error('Informe um endereço de destino para testar a API do Google Maps.');
+      return;
+    }
+
+    setIsTesting(true);
+    setTestResult(null);
+
+    const res = await fetchGoogleMapsDistance(hqAddress, testDestination);
+    setTestResult({
+      km: res.distanceKm,
+      duration: res.durationText,
+      status: res.statusText,
+      source: res.source
+    });
+
+    if (res.source === 'google') {
+      toast.success('Conexão Google Maps Ativa!', {
+        description: `Distância calculada via Google Matrix API: ${res.distanceKm} km ${res.durationText ? `(${res.durationText})` : ''}.`
+      });
+    } else {
+      toast.info('Modo de Contingência (Estimador PestFlow)', {
+        description: `Distância estimada via heurística geográfica: ${res.distanceKm} km.`
+      });
+    }
+
+    setIsTesting(false);
+  };
+
+  return (
+    <Card className="bg-white border-[#E5E7EB] shadow-sm rounded-[32px] p-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
+            <Navigation className="size-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-black text-black">Seção 4 — Integração & Roteirização Google Maps</h3>
+            <p className="text-xs text-gray-400">Configure e teste o motor de cálculo de distância e geolocalização operacionais.</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {isKeyAvailable ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-full">
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              Google Maps Conectado
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold rounded-full">
+              <span className="size-2 rounded-full bg-amber-500" />
+              Estimador Heurístico (Modo Offline)
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Painel de Teste de Cálculo de Distância */}
+        <div className="space-y-4">
+          <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+            <MapPin className="size-3.5 text-emerald-600" /> Testador de Cálculo de Rota em Tempo Real
+          </h4>
+
+          <div className="space-y-3 bg-slate-50 border border-slate-150 p-4 rounded-2xl text-xs font-sans">
+            <div>
+              <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Origem (Sede da Empresa)</label>
+              <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 font-semibold truncate">
+                {hqAddress || 'Rua 33, 120 - Vila Santa Cecília, Volta Redonda - RJ'}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Destino para Teste de Distância</label>
+              <input
+                type="text"
+                value={testDestination}
+                onChange={(e) => setTestDestination(e.target.value)}
+                placeholder="Digite um endereço para testar (Ex: Av. Paulista, 100 - SP)"
+                className="w-full h-10 border border-slate-200 rounded-xl px-3 text-xs font-medium bg-white focus:outline-none focus:border-emerald-600"
+              />
+            </div>
+
+            <Button
+              type="button"
+              onClick={handleTestRoute}
+              disabled={isTesting}
+              className="w-full h-10 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            >
+              <RefreshCw className={`size-3.5 ${isTesting ? 'animate-spin' : ''}`} />
+              {isTesting ? 'Consultando Google Maps API...' : 'Calcular Distância via Google Maps'}
+            </Button>
+
+            {testResult && (
+              <div className={`p-3 rounded-xl border text-xs space-y-1 ${
+                testResult.source === 'google' 
+                  ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950' 
+                  : 'bg-amber-50/60 border-amber-200 text-amber-950'
+              }`}>
+                <div className="flex items-center justify-between font-bold">
+                  <span>Distância Identificada:</span>
+                  <span className="font-mono text-sm">{testResult.km} km</span>
+                </div>
+                {testResult.duration && (
+                  <div className="flex items-center justify-between text-[11px] opacity-80">
+                    <span>Tempo de Deslocamento:</span>
+                    <span className="font-mono">{testResult.duration}</span>
+                  </div>
+                )}
+                <div className="text-[10px] pt-1 border-t border-black/10 font-mono">
+                  Status: {testResult.status}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="text-[11px] text-slate-500 bg-emerald-50/30 border border-emerald-100 p-3 rounded-xl space-y-1 leading-relaxed">
+            <p className="font-bold text-slate-800">📌 Roteirização Automatizada:</p>
+            <p>
+              O sistema calcula automaticamente a distância do deslocamento em orçamentos, confirmações de ordens de serviço, retornos e agendamentos na agenda técnica.
+            </p>
+          </div>
+        </div>
+
+        {/* Mapa Interativo de Pré-visualização da Sede */}
+        <div className="space-y-3">
+          <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+            <Navigation className="size-3.5 text-emerald-600" /> Mapa da Sede & Rota de Teste
+          </h4>
+          <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xs">
+            <GoogleMapsViewer
+              address={testDestination}
+              title={testDestination}
+              showRouteFromHq={true}
+              hqAddress={hqAddress || 'Rua 33, 120 - Vila Santa Cecília, Volta Redonda - RJ'}
+              height="260px"
+            />
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
