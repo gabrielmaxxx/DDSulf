@@ -140,10 +140,11 @@ export function ServicoConfirmacaoPage() {
   const handleConfirmarAgendamento = (
     scheduledDate: string,
     scheduledTime: string,
-    technician: string
+    technician: string,
+    employeeId?: string
   ) => {
     if (!quoteToSchedule) return;
-    scheduleApprovedQuote(quoteToSchedule.id, scheduledDate, scheduledTime, technician);
+    scheduleApprovedQuote(quoteToSchedule.id, scheduledDate, scheduledTime, technician, employeeId);
     updateQuoteStatus(quoteToSchedule.id, 'aprovado');
     setIsAgendarModalOpen(false);
     setQuoteToSchedule(null);

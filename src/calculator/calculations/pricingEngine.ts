@@ -224,7 +224,7 @@ export function calcularPrecoPorMarkup(
   );
 
   const maoDeObra = inputs.technicians * estimatedTimeHours * settings.costPerHour;
-  const transporte = inputs.displacement * settings.costPerKm;
+  const transporte = (inputs.displacement * 2) * settings.costPerKm;
   const equipamentos = settings.baseEquipmentAmortization
     + (inputs.complexity === 'Complexo' ? 25 : 0);
 

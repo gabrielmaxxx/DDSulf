@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
+import { resolveCityFromAddress, haversineKm, getCityCoordinates } from '@/utils/geo';
 
 export interface FinancialMovement {
   id: string;
@@ -162,6 +163,7 @@ export interface DREBreakdown {
   totalCost: number;
   netMargin: number;
   netMarginPercent: number;
+  transportSavings?: number;
 }
 
 export interface Quote {
@@ -227,7 +229,7 @@ export interface Employee {
 }
 
 export const DEFAULT_EMPLOYEES: Employee[] = [
-  { id: 'emp-01', name: 'Carlos Barbosa', role: 'tecnico', phone: '(24) 99811-2020', active: true, specialties: ['Dedetização', 'Desratização'] },
+  { id: 'emp-01', name: 'Carlos Eduardo', role: 'tecnico', phone: '(24) 99811-2020', active: true, specialties: ['Dedetização', 'Desratização'] },
   { id: 'emp-02', name: 'Roberto Mendes', role: 'tecnico', phone: '(24) 99822-3030', active: true, specialties: ['Descupinização', 'Sanitização'] },
   { id: 'emp-03', name: 'Gabriel Silva', role: 'tecnico', phone: '(24) 99833-4040', active: true, specialties: ['Dedetização', 'Controle Integrado'] },
   { id: 'emp-04', name: 'Marcos Souza', role: 'vendedor', phone: '(24) 99844-5050', active: true, specialties: ['Comercial', 'Inspeção'] },
@@ -241,7 +243,7 @@ export interface AgendaEvent {
   time?: string;
   clientId?: string;
   clientName: string;
-  type: 'servico' | 'visita' | 'retorno' | 'recorrencia' | 'outro';
+  type: 'servico' | 'visita' | 'retorno' | 'recorrencia' | 'renovacao_contrato' | 'outro';
   quoteId?: string;
   employeeId?: string;
   technicianName?: string;
@@ -283,6 +285,17 @@ export interface SystemSettings {
   };
 }
 
+export interface AgendaRoute {
+  id: string;
+  date: string; // YYYY-MM-DD
+  cityKey: string;
+  employeeId?: string;
+  stopEventIds: string[];
+  totalDistanceKm: number;
+  totalTransportCost: number;
+  costPerStop: Record<string, number>;
+}
+
 export interface CompanyAccount {
   name: string;
   displayName: string;
@@ -296,6 +309,7 @@ export interface CompanyAccount {
   contracts: Contract[];
   agenda: AgendaEvent[];
   purchases: PurchaseRequisition[];
+  routes?: AgendaRoute[];
 }
 
 export interface SystemState {
@@ -309,6 +323,7 @@ export interface SystemState {
   agenda: AgendaEvent[];
   purchases: PurchaseRequisition[];
   employees: Employee[];
+  routes: AgendaRoute[];
   
   companies: Record<string, CompanyAccount>;
   currentCompany: string | null;
@@ -353,7 +368,8 @@ export interface SystemActions {
     quoteId: string,
     scheduledDate: string,
     scheduledTime: string,
-    technician: string
+    technician: string,
+    employeeId?: string
   ) => void;
   confirmServiceExecuted: (
     id: string,
@@ -384,10 +400,12 @@ export interface SystemActions {
   addContract: (contract: Contract) => void;
   updateContract: (id: string, data: Partial<Contract>) => void;
   removeContract: (id: string) => void;
+  checkContractRenewals: () => void;
 
   addAgendaEvent: (event: AgendaEvent) => void;
   updateAgendaEvent: (id: string, data: Partial<AgendaEvent>) => void;
   removeAgendaEvent: (id: string) => void;
+  recalculateRoutesForDate: (date: string) => void;
 
   addPurchaseRequisition: (req: PurchaseRequisition) => void;
   updatePurchaseStatus: (id: string, status: PurchaseRequisition['status']) => void;
@@ -478,8 +496,8 @@ const DEFAULT_QUOTES: Quote[] = [
     createdAt: `${defaultMonth}-05`,
     status: "executado",
     confirmedAt: `${defaultMonth}-05T14:30:00Z`,
-    confirmedBy: "Carlos Barbosa",
-    scheduledTechnician: "Carlos Barbosa",
+    confirmedBy: "Carlos Eduardo",
+    scheduledTechnician: "Carlos Eduardo",
     client: {
       name: "Grupo Pão Duro",
       address: "Av. Paulista, 100 - São Paulo - SP",
@@ -530,8 +548,8 @@ const DEFAULT_QUOTES: Quote[] = [
     createdAt: `${defaultMonth}-15`,
     status: "executado",
     confirmedAt: `${defaultMonth}-15T11:00:00Z`,
-    confirmedBy: "Carlos Barbosa",
-    scheduledTechnician: "Carlos Barbosa",
+    confirmedBy: "Carlos Eduardo",
+    scheduledTechnician: "Carlos Eduardo",
     client: {
       name: "Shopping das Flores",
       address: "Rua das Flores, 450 - Curitiba - PR",
@@ -731,6 +749,7 @@ const INITIAL_STATE: SystemState = {
     { id: "purch-02", productId: "prod-01", productName: "BIFENTOL 200SC", currentStock: 2500, minStock: 1000, idealStock: 5000, quantityToBuy: 2500, status: "Recebido", createdAt: "2026-05-02", updatedAt: "2026-05-05" }
   ],
   employees: DEFAULT_EMPLOYEES,
+  routes: [],
   settings: {
     companyName: 'DDSulf Dedetizadora',
     cnpj: '00.000.000/0001-00',
@@ -765,6 +784,7 @@ const updateCompanyData = (state: any, updates: Partial<SystemState>) => {
   const nextContracts = updates.contracts !== undefined ? updates.contracts : state.contracts;
   const nextAgenda = updates.agenda !== undefined ? updates.agenda : state.agenda;
   const nextPurchases = updates.purchases !== undefined ? updates.purchases : state.purchases;
+  const nextRoutes = updates.routes !== undefined ? updates.routes : (state.routes || []);
 
   const nextState: any = {
     ...updates,
@@ -772,6 +792,7 @@ const updateCompanyData = (state: any, updates: Partial<SystemState>) => {
     contracts: nextContracts,
     agenda: nextAgenda,
     purchases: nextPurchases,
+    routes: nextRoutes,
   };
 
   if (state.currentCompany && state.companies && state.companies[state.currentCompany]) {
@@ -788,12 +809,93 @@ const updateCompanyData = (state: any, updates: Partial<SystemState>) => {
         contracts: nextContracts,
         agenda: nextAgenda,
         purchases: nextPurchases,
+        routes: nextRoutes,
       }
     };
   }
 
   return nextState;
 };
+
+export function computeRoutesForDate(date: string, state: SystemState): AgendaRoute[] {
+  if (!date) return [];
+  const dateEvents = (state.agenda || []).filter(e => {
+    if (e.date !== date) return false;
+    const st = (e.status || '').toLowerCase();
+    return st !== 'cancelado' && st !== 'cancelled';
+  });
+
+  const getEventAddress = (ev: AgendaEvent): string => {
+    if (ev.quoteId) {
+      const quote = (state.quotes?.list || []).find(q => q.id === ev.quoteId);
+      if (quote?.client?.address) return quote.client.address;
+    }
+    if (ev.clientId) {
+      const client = (state.clients || []).find(c => c.id === ev.clientId);
+      if (client?.address) return client.address;
+    }
+    return ev.notes || ev.title || '';
+  };
+
+  const groupedByCity: Record<string, AgendaEvent[]> = {};
+  for (const ev of dateEvents) {
+    const addr = getEventAddress(ev);
+    const cityKey = resolveCityFromAddress(addr);
+    if (cityKey) {
+      if (!groupedByCity[cityKey]) groupedByCity[cityKey] = [];
+      groupedByCity[cityKey].push(ev);
+    }
+  }
+
+  const hqAddr = state.settings?.headquartersAddress || state.settings?.city || 'volta redonda';
+  const hqCoords: [number, number] = getCityCoordinates(hqAddr) || [-22.5231, -44.1041];
+  const costPerKm = state.settings?.operationalGoals?.costPerKm || 2.40;
+
+  const newRoutes: AgendaRoute[] = [];
+
+  for (const [cityKey, stops] of Object.entries(groupedByCity)) {
+    if (stops.length < 2) continue;
+
+    const stopEventIds = stops.map(s => s.id);
+    const stopCoordsList: [number, number][] = stops.map(ev => {
+      const addr = getEventAddress(ev);
+      return getCityCoordinates(addr) || getCityCoordinates(cityKey) || [-22.5442, -44.1800];
+    });
+
+    let totalDistanceKm = haversineKm(hqCoords, stopCoordsList[0]);
+    for (let i = 0; i < stopCoordsList.length - 1; i++) {
+      const seg = haversineKm(stopCoordsList[i], stopCoordsList[i + 1]);
+      totalDistanceKm += seg === 0 ? 2.0 : seg;
+    }
+    totalDistanceKm += haversineKm(stopCoordsList[stopCoordsList.length - 1], hqCoords);
+    totalDistanceKm = Math.round(totalDistanceKm * 100) / 100;
+
+    const totalTransportCost = Math.round(totalDistanceKm * costPerKm * 100) / 100;
+    const costPerStopVal = Math.round((totalTransportCost / stops.length) * 100) / 100;
+
+    const costPerStop: Record<string, number> = {};
+    stopEventIds.forEach(id => {
+      costPerStop[id] = costPerStopVal;
+    });
+
+    const commonEmpId = stops.every(s => s.employeeId && s.employeeId === stops[0].employeeId)
+      ? stops[0].employeeId
+      : undefined;
+
+    newRoutes.push({
+      id: `route-${date}-${cityKey.replace(/\s+/g, '_')}`,
+      date,
+      cityKey,
+      employeeId: commonEmpId,
+      stopEventIds,
+      totalDistanceKm,
+      totalTransportCost,
+      costPerStop
+    });
+  }
+
+  return newRoutes;
+}
 
 export const useSystemStore = create<SystemState & SystemActions>()(
   persist(
@@ -1165,10 +1267,12 @@ export const useSystemStore = create<SystemState & SystemActions>()(
         });
       }),
 
-      scheduleApprovedQuote: (quoteId, scheduledDate, scheduledTime, technician) =>
+      scheduleApprovedQuote: (quoteId, scheduledDate, scheduledTime, technician, employeeId) =>
         set((state) => {
           const quote = state.quotes.list.find(q => q.id === quoteId);
           if (!quote) return state;
+
+          const empId = employeeId || state.employees?.find(e => e.name.toLowerCase() === technician.toLowerCase())?.id;
 
           const updatedQuote = {
             ...quote,
@@ -1191,16 +1295,23 @@ export const useSystemStore = create<SystemState & SystemActions>()(
             clientName: quote.client.name,
             type: 'servico',
             quoteId: quoteId,
+            employeeId: empId,
             notes: `Técnico: ${technician} | ${quote.client.address}`,
             status: 'pendente'
           };
+
+          const newAgenda = [newEvent, ...cleanAgenda];
+          const nextState = { ...state, agenda: newAgenda };
+          const newRoutes = computeRoutesForDate(scheduledDate, nextState);
+          const otherRoutes = (state.routes || []).filter(r => r.date !== scheduledDate);
 
           return updateCompanyData(state, {
             quotes: {
               ...state.quotes,
               list: state.quotes.list.map(q => q.id === quoteId ? updatedQuote : q)
             },
-            agenda: [newEvent, ...cleanAgenda]
+            agenda: newAgenda,
+            routes: [...otherRoutes, ...newRoutes]
           });
         }),
 
@@ -1627,31 +1738,185 @@ export const useSystemStore = create<SystemState & SystemActions>()(
         const id = contract.id || `contr-${Math.random().toString(36).substring(2, 11)}`;
         const exists = (state.contracts || []).some(c => c.id === id);
         if (exists) return state;
+        const newContract = { ...contract, id };
+        const updatedContracts = [newContract, ...(state.contracts || [])];
+
+        const currentAgenda = state.agenda || [];
+        const nowMs = new Date().getTime();
+        let nextAgenda = currentAgenda;
+
+        if (newContract.endDate) {
+          const endDateMs = new Date(newContract.endDate + 'T00:00:00').getTime();
+          const diffDays = Math.ceil((endDateMs - nowMs) / (1000 * 60 * 60 * 24));
+          if (diffDays <= 30) {
+            const deterministicId = `renewal-${newContract.id}`;
+            const evExists = currentAgenda.some(
+              e => e.id === deterministicId || 
+                   (e.type === 'renovacao_contrato' && e.clientId === newContract.clientId && (e.id === deterministicId || e.notes?.includes(newContract.id)))
+            );
+            if (!evExists) {
+              nextAgenda = [{
+                id: deterministicId,
+                title: `Renovar contrato — ${newContract.clientName}`,
+                date: newContract.endDate,
+                time: '09:00',
+                clientId: newContract.clientId,
+                clientName: newContract.clientName,
+                type: 'renovacao_contrato',
+                status: 'pendente',
+                notes: `Alerta Comercial: Contrato "${newContract.title}" (ID: ${newContract.id}) vence em ${newContract.endDate}. Entre em contato com o cliente para renovação.`
+              }, ...currentAgenda];
+            }
+          }
+        }
+
         return updateCompanyData(state, {
-          contracts: [{ ...contract, id }, ...(state.contracts || [])]
+          contracts: updatedContracts,
+          agenda: nextAgenda
         });
       }),
-      updateContract: (id, data) => set((state) => updateCompanyData(state, {
-        contracts: (state.contracts || []).map(c => c.id === id ? { ...c, ...data } : c)
-      })),
+
+      updateContract: (id, data) => set((state) => {
+        const updatedContracts = (state.contracts || []).map(c => c.id === id ? { ...c, ...data } : c);
+        const updatedContract = updatedContracts.find(c => c.id === id);
+
+        let nextAgenda = state.agenda || [];
+        if (updatedContract && updatedContract.endDate) {
+          const nowMs = new Date().getTime();
+          const endDateMs = new Date(updatedContract.endDate + 'T00:00:00').getTime();
+          const diffDays = Math.ceil((endDateMs - nowMs) / (1000 * 60 * 60 * 24));
+          if (diffDays <= 30) {
+            const deterministicId = `renewal-${updatedContract.id}`;
+            const evExists = nextAgenda.some(
+              e => e.id === deterministicId || 
+                   (e.type === 'renovacao_contrato' && e.clientId === updatedContract.clientId && (e.id === deterministicId || e.notes?.includes(updatedContract.id)))
+            );
+            if (!evExists) {
+              nextAgenda = [{
+                id: deterministicId,
+                title: `Renovar contrato — ${updatedContract.clientName}`,
+                date: updatedContract.endDate,
+                time: '09:00',
+                clientId: updatedContract.clientId,
+                clientName: updatedContract.clientName,
+                type: 'renovacao_contrato',
+                status: 'pendente',
+                notes: `Alerta Comercial: Contrato "${updatedContract.title}" (ID: ${updatedContract.id}) vence em ${updatedContract.endDate}. Entre em contato com o cliente para renovação.`
+              }, ...nextAgenda];
+            }
+          }
+        }
+
+        return updateCompanyData(state, {
+          contracts: updatedContracts,
+          agenda: nextAgenda
+        });
+      }),
+
       removeContract: (id) => set((state) => updateCompanyData(state, {
         contracts: (state.contracts || []).filter(c => c.id !== id)
       })),
+
+      checkContractRenewals: () => set((state) => {
+        const contracts = state.contracts || [];
+        const currentAgenda = state.agenda || [];
+        const nowMs = new Date().getTime();
+        
+        const newEventsToAdd: AgendaEvent[] = [];
+
+        for (const contract of contracts) {
+          if (!contract.endDate) continue;
+
+          const endDateMs = new Date(contract.endDate + 'T00:00:00').getTime();
+          const diffDays = Math.ceil((endDateMs - nowMs) / (1000 * 60 * 60 * 24));
+
+          if (diffDays <= 30) {
+            const deterministicId = `renewal-${contract.id}`;
+            
+            const exists = currentAgenda.some(
+              e => e.id === deterministicId || 
+                   (e.type === 'renovacao_contrato' && e.clientId === contract.clientId && (e.id === deterministicId || e.notes?.includes(contract.id)))
+            );
+
+            if (!exists) {
+              newEventsToAdd.push({
+                id: deterministicId,
+                title: `Renovar contrato — ${contract.clientName}`,
+                date: contract.endDate,
+                time: '09:00',
+                clientId: contract.clientId,
+                clientName: contract.clientName,
+                type: 'renovacao_contrato',
+                status: 'pendente',
+                notes: `Alerta Comercial: Contrato "${contract.title}" (ID: ${contract.id}) vence em ${contract.endDate}. Entre em contato com o cliente para renovação.`
+              });
+            }
+          }
+        }
+
+        if (newEventsToAdd.length === 0) return state;
+
+        return updateCompanyData(state, {
+          agenda: [...newEventsToAdd, ...currentAgenda]
+        });
+      }),
 
       addAgendaEvent: (event) => set((state) => {
         const id = event.id || `ev-${Math.random().toString(36).substring(2, 11)}`;
         const exists = (state.agenda || []).some(e => e.id === id);
         if (exists) return state;
+        const newAgenda = [{ ...event, id }, ...(state.agenda || [])];
+        const nextState = { ...state, agenda: newAgenda };
+        const newRoutes = computeRoutesForDate(event.date, nextState);
+        const otherRoutes = (state.routes || []).filter(r => r.date !== event.date);
         return updateCompanyData(state, {
-          agenda: [{ ...event, id }, ...(state.agenda || [])]
+          agenda: newAgenda,
+          routes: [...otherRoutes, ...newRoutes]
         });
       }),
-      updateAgendaEvent: (id, data) => set((state) => updateCompanyData(state, {
-        agenda: (state.agenda || []).map(e => e.id === id ? { ...e, ...data } : e)
-      })),
-      removeAgendaEvent: (id) => set((state) => updateCompanyData(state, {
-        agenda: (state.agenda || []).filter(e => e.id !== id)
-      })),
+      updateAgendaEvent: (id, data) => set((state) => {
+        const targetEv = (state.agenda || []).find(e => e.id === id);
+        const newAgenda = (state.agenda || []).map(e => e.id === id ? { ...e, ...data } : e);
+        const nextState = { ...state, agenda: newAgenda };
+
+        const datesToRecalc = new Set<string>();
+        if (targetEv?.date) datesToRecalc.add(targetEv.date);
+        if (data.date) datesToRecalc.add(data.date);
+
+        let updatedRoutes = state.routes || [];
+        for (const d of datesToRecalc) {
+          const newR = computeRoutesForDate(d, nextState);
+          updatedRoutes = [...updatedRoutes.filter(r => r.date !== d), ...newR];
+        }
+
+        return updateCompanyData(state, {
+          agenda: newAgenda,
+          routes: updatedRoutes
+        });
+      }),
+      removeAgendaEvent: (id) => set((state) => {
+        const targetEv = (state.agenda || []).find(e => e.id === id);
+        const newAgenda = (state.agenda || []).filter(e => e.id !== id);
+        const nextState = { ...state, agenda: newAgenda };
+
+        let updatedRoutes = state.routes || [];
+        if (targetEv?.date) {
+          const newR = computeRoutesForDate(targetEv.date, nextState);
+          updatedRoutes = [...updatedRoutes.filter(r => r.date !== targetEv.date), ...newR];
+        }
+
+        return updateCompanyData(state, {
+          agenda: newAgenda,
+          routes: updatedRoutes
+        });
+      }),
+      recalculateRoutesForDate: (date: string) => set((state) => {
+        const newRoutesForDate = computeRoutesForDate(date, state);
+        const otherDateRoutes = (state.routes || []).filter(r => r.date !== date);
+        return updateCompanyData(state, {
+          routes: [...otherDateRoutes, ...newRoutesForDate]
+        });
+      }),
 
       addPurchaseRequisition: (req) => set((state) => {
         const id = req.id || `purch-${Math.random().toString(36).substring(2, 11)}`;
@@ -2185,7 +2450,25 @@ export function calcularDREPorOS(quote: Quote, state: SystemState): DREBreakdown
                           (Number(fc.other) || 0);
 
   const fixedCostShare = totalFixedCosts / serviceCount;
-  const variableCost = Number(quote.costs?.total) || 0;
+
+  // ROUTE DILUTION LOGIC FOR TRANSPORT COST
+  const matchingEvent = (state.agenda || []).find(e => e.quoteId === quote.id);
+  let effectiveTransportCost = Number(quote.costs?.transport) || 0;
+  let transportSavings: number | undefined = undefined;
+
+  if (matchingEvent && state.routes && state.routes.length > 0) {
+    const matchingRoute = state.routes.find(r => r.stopEventIds.includes(matchingEvent.id));
+    if (matchingRoute && matchingRoute.costPerStop && matchingRoute.costPerStop[matchingEvent.id] !== undefined) {
+      const dilutedCost = matchingRoute.costPerStop[matchingEvent.id];
+      const originalTransportCost = Number(quote.costs?.transport) || 0;
+      effectiveTransportCost = dilutedCost;
+      transportSavings = originalTransportCost - dilutedCost;
+    }
+  }
+
+  const originalTotalVariable = Number(quote.costs?.total) || 0;
+  const originalTransport = Number(quote.costs?.transport) || 0;
+  const variableCost = originalTotalVariable - originalTransport + effectiveTransportCost;
   const totalCost = fixedCostShare + variableCost;
 
   const finalPrice = Number(quote.pricing?.finalPrice) || 0;
@@ -2197,7 +2480,8 @@ export function calcularDREPorOS(quote: Quote, state: SystemState): DREBreakdown
     variableCost,
     totalCost,
     netMargin,
-    netMarginPercent
+    netMarginPercent,
+    transportSavings
   };
 }
 

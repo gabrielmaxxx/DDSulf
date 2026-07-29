@@ -136,12 +136,16 @@ export function FuncionariosPage() {
   const serviceCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     (agenda || []).forEach((ev: any) => {
-      const tech = (ev.scheduledTechnician || ev.technicianName || ev.confirmedBy || '').toLowerCase();
-      (employees || []).forEach(emp => {
-        if (emp.id === ev.employeeId || (tech && tech.includes(emp.name.toLowerCase()))) {
-          counts[emp.id] = (counts[emp.id] || 0) + 1;
-        }
-      });
+      if (ev.employeeId) {
+        counts[ev.employeeId] = (counts[ev.employeeId] || 0) + 1;
+      } else {
+        const tech = (ev.scheduledTechnician || ev.technicianName || ev.confirmedBy || ev.notes || '').toLowerCase();
+        (employees || []).forEach(emp => {
+          if (tech && tech.includes(emp.name.toLowerCase())) {
+            counts[emp.id] = (counts[emp.id] || 0) + 1;
+          }
+        });
+      }
     });
     return counts;
   }, [agenda, employees]);

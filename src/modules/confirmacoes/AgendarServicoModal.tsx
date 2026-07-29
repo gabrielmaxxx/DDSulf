@@ -15,13 +15,14 @@ interface AgendarServicoModalProps {
   quote: Quote;
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (scheduledDate: string, scheduledTime: string, technician: string) => void;
+  onConfirm: (scheduledDate: string, scheduledTime: string, technician: string, employeeId?: string) => void;
 }
 
 export function AgendarServicoModal({ quote, isOpen, onClose, onConfirm }: AgendarServicoModalProps) {
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('08:00');
   const [scheduledTechnician, setScheduledTechnician] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [notes, setNotes] = useState('');
 
   const { employees } = useSystemStore();
@@ -31,7 +32,9 @@ export function AgendarServicoModal({ quote, isOpen, onClose, onConfirm }: Agend
     if (isOpen) {
       setScheduledDate('');
       setScheduledTime('08:00');
-      setScheduledTechnician(activeTechnicians[0]?.name || '');
+      const defaultEmp = activeTechnicians[0];
+      setSelectedEmployeeId(defaultEmp?.id || '');
+      setScheduledTechnician(defaultEmp?.name || '');
       setNotes('');
     }
   }, [isOpen]);
@@ -75,7 +78,7 @@ export function AgendarServicoModal({ quote, isOpen, onClose, onConfirm }: Agend
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!scheduledDate || !scheduledTechnician.trim()) return;
-    onConfirm(scheduledDate, scheduledTime, scheduledTechnician.trim());
+    onConfirm(scheduledDate, scheduledTime, scheduledTechnician.trim(), selectedEmployeeId || undefined);
   };
 
   const isFormValid = scheduledDate !== '' && scheduledTechnician.trim() !== '';
@@ -202,14 +205,19 @@ export function AgendarServicoModal({ quote, isOpen, onClose, onConfirm }: Agend
                 </Label>
                 <select
                   id="scheduledTechnician"
-                  value={scheduledTechnician}
-                  onChange={(e) => setScheduledTechnician(e.target.value)}
+                  value={selectedEmployeeId}
+                  onChange={(e) => {
+                    const empId = e.target.value;
+                    setSelectedEmployeeId(empId);
+                    const emp = activeTechnicians.find(x => x.id === empId);
+                    setScheduledTechnician(emp ? emp.name : '');
+                  }}
                   className="w-full h-11 border border-[#EBEBE5] rounded-xl text-xs text-[#141410] px-4 outline-none focus:ring-2 focus:ring-[#2D6A4F]/10 focus:border-[#2D6A4F] bg-[#FAF9F5] transition-all cursor-pointer font-medium"
                   required
                 >
                   <option value="">Selecione o técnico responsável...</option>
                   {activeTechnicians.map((emp) => (
-                    <option key={emp.id} value={emp.name}>
+                    <option key={emp.id} value={emp.id}>
                       {emp.name} ({emp.role.toUpperCase()})
                     </option>
                   ))}

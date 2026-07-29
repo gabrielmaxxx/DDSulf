@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSystemStore, AgendaEvent, Quote } from '@/store/systemStore';
 import { GoogleMapsViewer } from '@/components/GoogleMapsViewer';
 import { 
@@ -18,10 +18,14 @@ import {
   CalendarDays,
   CheckCircle2,
   Phone,
-  HelpCircle
+  HelpCircle,
+  RefreshCw,
+  FileText,
+  Truck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
+import { formatBRL } from '@/utils/format';
 
 // Help helper to get the exact YYYY-MM-DD string from an event (handling both string, raw objects and custom format)
 const getEventDateString = (ev: any): string => {
@@ -48,6 +52,7 @@ const HOURS = [
 ];
 
 export function AgendaPage() {
+  const navigate = useNavigate();
   const { 
     agenda, 
     addAgendaEvent, 
@@ -56,7 +61,8 @@ export function AgendaPage() {
     quotes,
     employees,
     confirmServiceExecuted,
-    addQuote
+    addQuote,
+    routes = []
   } = useSystemStore();
 
   const [searchParams] = useSearchParams();
@@ -144,14 +150,17 @@ export function AgendaPage() {
         mappedStatus = 'cancelled';
       }
 
-      // type maps to 'Dedetização' | 'Desratização' | 'Descupinização' | 'Sanitização' | 'Manutenção (retorno)'
+      // type maps to 'Dedetização' | 'Desratização' | 'Descupinização' | 'Sanitização' | 'Manutenção (retorno)' | 'Renovação de Contrato (Comercial)'
       const rawType = ev.type || 'servico';
       let mappedType = ev.serviceType || 'Dedetização';
       if (rawType === 'retorno') {
         mappedType = 'Manutenção (retorno)';
+      } else if (rawType === 'renovacao_contrato') {
+        mappedType = 'Renovação de Contrato (Comercial)';
       } else if (ev.title) {
         const titleL = ev.title.toLowerCase();
-        if (titleL.includes('rato') || titleL.includes('roedor')) mappedType = 'Desratização';
+        if (titleL.includes('renovar') || titleL.includes('renovação')) mappedType = 'Renovação de Contrato (Comercial)';
+        else if (titleL.includes('rato') || titleL.includes('roedor')) mappedType = 'Desratização';
         else if (titleL.includes('cupim') || titleL.includes('madeira')) mappedType = 'Descupinização';
         else if (titleL.includes('sanit') || titleL.includes('sanitização')) mappedType = 'Sanitização';
       }
@@ -192,6 +201,7 @@ export function AgendaPage() {
         clientName,
         clientAddress,
         type: mappedType,
+        rawType,
         date: dateObj,
         dateStr,
         time: ev.time || '08:00',
@@ -206,12 +216,24 @@ export function AgendaPage() {
   const eventsInWeek = useMemo(() => {
     const rawInWeek = mappedEvents.filter(ev => weekDayStrings.includes(ev.dateStr));
     if (selectedEmployeeFilter === 'all') return rawInWeek;
+
+    const matchedEmployee = (employees || []).find(
+      e => e.id === selectedEmployeeFilter || e.name.toLowerCase() === selectedEmployeeFilter.toLowerCase()
+    );
+
     return rawInWeek.filter(ev => {
+      if (ev.employeeId) {
+        if (matchedEmployee) {
+          return ev.employeeId === matchedEmployee.id;
+        }
+        return ev.employeeId === selectedEmployeeFilter;
+      }
+      // Fallback for legacy events without employeeId
       const techName = (ev.scheduledTechnician || ev.technicianName || ev.confirmedBy || ev.notes || '').toLowerCase();
-      const filterLower = selectedEmployeeFilter.toLowerCase();
-      return ev.employeeId === selectedEmployeeFilter || techName.includes(filterLower);
+      const filterNameLower = matchedEmployee ? matchedEmployee.name.toLowerCase() : selectedEmployeeFilter.toLowerCase();
+      return techName.includes(filterNameLower);
     });
-  }, [mappedEvents, weekDayStrings, selectedEmployeeFilter]);
+  }, [mappedEvents, weekDayStrings, selectedEmployeeFilter, employees]);
 
   // Recalculates cards of summary BASED ONLY on the visible week range
   const summaryCounters = useMemo(() => {
@@ -236,6 +258,12 @@ export function AgendaPage() {
       return a.time.localeCompare(b.time);
     });
   }, [eventsInWeek]);
+
+  // Routes active during the current week view
+  const routesForCurrentWeek = useMemo(() => {
+    const weekDates = new Set(weekDays.map(d => d.toISOString().split('T')[0]));
+    return (routes || []).filter(r => weekDates.has(r.date));
+  }, [routes, weekDays]);
 
   // Active selected event details
   const selectedEvent = useMemo(() => {
@@ -274,9 +302,10 @@ export function AgendaPage() {
 
     if (targetQuoteId) {
       const quote = quotes?.list?.find(q => q.id === targetQuoteId);
+      const techName = quote?.scheduledTechnician || (originalEv as any)?.technicianName || (originalEv as any)?.scheduledTechnician || '';
       confirmServiceExecuted(
         targetQuoteId, 
-        quote?.scheduledTechnician || (originalEv as any)?.technicianName || 'Carlos Barbosa', 
+        techName, 
         originalEv?.notes || 'Executado e verificado no fluxo de agenda'
       );
     }
@@ -306,7 +335,9 @@ export function AgendaPage() {
       return;
     }
 
-    const techName = formTechnician || (employees?.find(e => e.active)?.name || 'Carlos Barbosa');
+    const selectedEmp = employees?.find(e => e.id === formTechnician || e.name === formTechnician);
+    const techName = selectedEmp ? selectedEmp.name : (formTechnician || employees?.find(e => e.active)?.name || '');
+    const empId = selectedEmp ? selectedEmp.id : employees?.find(e => e.active)?.id;
 
     const newQuote: Quote = {
       id: `q-ag-${Math.random().toString(36).substring(2, 11)}`,
@@ -348,6 +379,7 @@ export function AgendaPage() {
       seg: formSegment,
       scheduledTechnician: techName,
       technicianName: techName,
+      employeeId: empId,
       quoteId: newQuote.id,
       status: 'pendente',
       notes: formObs,
@@ -400,6 +432,56 @@ export function AgendaPage() {
         
         {/* COLUNA PRINCIPAL (ESQUERDA): CALENDÁRIO SEMANAL */}
         <div className="flex-1 space-y-4">
+
+          {/* Rotas Agrupadas Banner */}
+          {routesForCurrentWeek.length > 0 && (
+            <div className="bg-[#1B3A2D] text-white p-4 rounded-2xl space-y-3 shadow-sm border border-[#2D6A4F]">
+              <div className="flex items-center justify-between border-b border-[#2D6A4F] pb-2">
+                <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-emerald-300">
+                  <Truck className="size-4 text-emerald-400" /> Rotas do Dia / Semana ({routesForCurrentWeek.length})
+                </h3>
+                <span className="text-[10px] font-mono text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
+                  ⚡ Diluição Automática de Frete
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {routesForCurrentWeek.map(route => {
+                  const emp = employees?.find(e => e.id === route.employeeId);
+                  const stopCount = route.stopEventIds.length;
+                  const perStopCost = stopCount > 0 ? route.totalTransportCost / stopCount : 0;
+                  return (
+                    <div key={route.id} className="bg-emerald-950/60 border border-emerald-800/80 p-3 rounded-xl space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-white capitalize flex items-center gap-1">
+                          <MapPin className="size-3 text-emerald-400" /> {route.cityKey}
+                        </span>
+                        <span className="text-[10px] font-mono text-emerald-300 font-bold">
+                          {route.date}
+                        </span>
+                      </div>
+                      <div className="text-[10.5px] text-emerald-200/90 font-mono flex items-center justify-between">
+                        <span>{stopCount} Paradas Agrupadas</span>
+                        <span className="font-bold text-white">{route.totalDistanceKm} km tot.</span>
+                      </div>
+                      <div className="text-[10px] text-emerald-300/80 font-mono flex items-center justify-between pt-1 border-t border-emerald-900">
+                        <span>Custo Rota: {formatBRL(route.totalTransportCost)}</span>
+                        <span className="font-bold text-emerald-300 bg-emerald-900/80 px-1.5 py-0.5 rounded">
+                          Rateio: {formatBRL(perStopCost)}/serviço
+                        </span>
+                      </div>
+                      {emp && (
+                        <div className="text-[9.5px] text-emerald-300/70 pt-0.5 flex items-center gap-1">
+                          <User className="size-3 text-emerald-400" /> Técnico: {emp.name}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="bg-white border border-zinc-200 p-4.5 rounded-2xl shadow-xs space-y-4">
             
             {/* Calendar Navigation Bar */}
@@ -438,7 +520,7 @@ export function AgendaPage() {
                   >
                     <option value="all">Todos os Técnicos</option>
                     {(employees || []).filter(e => e.active).map(emp => (
-                      <option key={emp.id} value={emp.name}>
+                      <option key={emp.id} value={emp.id}>
                         {emp.name} ({emp.role.toUpperCase()})
                       </option>
                     ))}
@@ -512,9 +594,12 @@ export function AgendaPage() {
                           >
                             {cellEvents.map(ev => {
                               const isSelected = ev.id === selectedEventId;
+                              const isRenovacao = ev.rawType === 'renovacao_contrato' || ev.type === 'Renovação de Contrato (Comercial)';
                               
                               let statusClass = 'bg-amber-50 text-amber-900 border-[#EF9F27] border-l-4';
-                              if (ev.status === 'confirmed') {
+                              if (isRenovacao) {
+                                statusClass = 'bg-purple-50 text-purple-950 border-purple-600 border-l-4 shadow-2xs font-extrabold';
+                              } else if (ev.status === 'confirmed') {
                                 statusClass = 'bg-emerald-50 text-[#1D9E75] border-[#1D9E75] border-l-4';
                               } else if (ev.status === 'cancelled') {
                                 statusClass = 'bg-red-50 text-red-900 line-through';
@@ -527,10 +612,15 @@ export function AgendaPage() {
                                   onClick={() => setSelectedEventId(ev.id)}
                                   className={`w-full h-full p-1.5 rounded-lg text-left text-[9.5px] font-black leading-tight flex flex-col justify-between transition-all overflow-hidden select-none cursor-pointer
                                     ${statusClass}
-                                    ${isSelected ? 'ring-2 ring-emerald-600 shadow-xs scale-[0.98]' : 'hover:scale-[1.01] hover:shadow-2xs'}
+                                    ${isSelected ? (isRenovacao ? 'ring-2 ring-purple-600 shadow-xs scale-[0.98]' : 'ring-2 ring-emerald-600 shadow-xs scale-[0.98]') : 'hover:scale-[1.01] hover:shadow-2xs'}
                                   `}
                                 >
-                                  <span className="truncate font-black">{ev.clientName}</span>
+                                  <span className="truncate font-black flex items-center justify-between gap-1">
+                                    <span className="truncate">{ev.clientName}</span>
+                                    {isRenovacao && (
+                                      <span className="shrink-0 bg-purple-200 text-purple-900 text-[6.5px] font-black px-1 rounded uppercase">Comercial</span>
+                                    )}
+                                  </span>
                                   <span className="text-[8px] font-bold opacity-80 truncate block">{ev.time} — {ev.type}</span>
                                 </button>
                               );
@@ -585,9 +675,12 @@ export function AgendaPage() {
                 sortedWeekEvents.map(ev => {
                   const isSelected = ev.id === selectedEventId;
                   const dayName = getDayOfWeekName(ev.dateStr);
+                  const isRenovacao = ev.rawType === 'renovacao_contrato' || ev.type === 'Renovação de Contrato (Comercial)';
 
                   let statusBadgeColor = 'bg-amber-50 text-amber-800 border-amber-200';
-                  if (ev.status === 'confirmed') {
+                  if (isRenovacao) {
+                    statusBadgeColor = 'bg-purple-100 text-purple-900 border-purple-300 font-black';
+                  } else if (ev.status === 'confirmed') {
                     statusBadgeColor = 'bg-emerald-50 text-emerald-800 border-emerald-200';
                   } else if (ev.status === 'cancelled') {
                     statusBadgeColor = 'bg-red-50 text-red-800 border-red-200';
@@ -600,17 +693,20 @@ export function AgendaPage() {
                       onClick={() => setSelectedEventId(ev.id)}
                       className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all space-y-1.5 select-none
                         ${isSelected 
-                          ? 'bg-[#E8F4EE]/50 border-[#1D9E75] ring-1 ring-[#1D9E75]/30' 
+                          ? isRenovacao ? 'bg-purple-50/80 border-purple-500 ring-1 ring-purple-500/30' : 'bg-[#E8F4EE]/50 border-[#1D9E75] ring-1 ring-[#1D9E75]/30' 
                           : 'bg-white hover:bg-zinc-50 border-zinc-200'}`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-[9px] text-zinc-400 font-bold block">{dayName} — {ev.time}</span>
                         <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${statusBadgeColor}`}>
-                          {ev.status === 'confirmed' ? 'Confirmado' : ev.status === 'cancelled' ? 'Cancelado' : 'Pendente'}
+                          {isRenovacao ? 'Renovação' : ev.status === 'confirmed' ? 'Confirmado' : ev.status === 'cancelled' ? 'Cancelado' : 'Pendente'}
                         </span>
                       </div>
-                      <h4 className="text-[11px] font-bold text-zinc-900 truncate leading-tight">
-                        {ev.clientName}
+                      <h4 className="text-[11px] font-bold text-zinc-900 truncate leading-tight flex items-center justify-between">
+                        <span className="truncate">{ev.clientName}</span>
+                        {isRenovacao && (
+                          <span className="text-[8.5px] text-purple-700 font-black shrink-0 ml-1">📋 Comercial</span>
+                        )}
                       </h4>
                     </div>
                   );
@@ -635,6 +731,27 @@ export function AgendaPage() {
               </div>
             ) : (
               <div id="detalhes-conteudo" className="text-left space-y-3.5 text-xs">
+                {(selectedEvent.rawType === 'renovacao_contrato' || selectedEvent.type === 'Renovação de Contrato (Comercial)') && (
+                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 space-y-2">
+                    <div className="flex items-center gap-1.5 font-black text-xs text-purple-900">
+                      <RefreshCw className="size-4 text-purple-600 shrink-0" />
+                      <span>Alerta Comercial: Renovação</span>
+                    </div>
+                    <p className="text-[10.5px] text-purple-800 font-medium leading-relaxed">
+                      Este evento foi gerado automaticamente porque o contrato do cliente está vencendo ou vencido. Entre em contato para renegociar.
+                    </p>
+                    {selectedEvent.clientId && (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/calculator?clientId=${selectedEvent.clientId}`)}
+                        className="mt-1 flex items-center justify-center gap-1 w-full py-2 bg-purple-700 hover:bg-purple-800 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-2xs"
+                      >
+                        <Plus className="size-3.5" /> Gerar Proposta na Calculadora
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Cliente */}
                 <div className="space-y-0.5">
                   <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest block">Cliente</span>
@@ -879,7 +996,7 @@ export function AgendaPage() {
                   >
                     <option value="">Selecione o técnico responsável...</option>
                     {(employees || []).filter(e => e.active).map(emp => (
-                      <option key={emp.id} value={emp.name}>
+                      <option key={emp.id} value={emp.id}>
                         {emp.name} ({emp.role.toUpperCase()})
                       </option>
                     ))}

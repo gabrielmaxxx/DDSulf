@@ -4,11 +4,12 @@
  */
 
 // Vercel build fix
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { AppProvider } from './providers/AppProvider';
 import { AppShell } from '@/components/AppShell';
+import { useSystemStore } from '@/store/systemStore';
 
 // Pages - I'll create these files soon
 import { DashboardPage } from '@/modules/dashboard/DashboardPage';
@@ -26,6 +27,10 @@ import { FuncionariosPage } from '@/modules/funcionarios/FuncionariosPage';
 import { AuthGuard } from '@/auth/guards/AuthGuard';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    useSystemStore.getState().checkContractRenewals();
+  }, []);
+
   return (
     <AuthGuard>
       <AppShell>

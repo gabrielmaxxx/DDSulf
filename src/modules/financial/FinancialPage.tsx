@@ -252,7 +252,8 @@ export function FinancialPage() {
         custoVariavel,
         margemRs,
         margemPct,
-        breakdown
+        breakdown,
+        transportSavings: breakdown.transportSavings
       };
     });
 
@@ -1948,6 +1949,13 @@ export function FinancialPage() {
                               <div className="text-[9px] text-slate-400">
                                 Var: {formatBRL(item.custoVariavel)} | Fix: {formatBRL(item.custoFixo)}
                               </div>
+                              {item.transportSavings !== undefined && item.transportSavings > 0 && (
+                                <div className="mt-1">
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded border border-emerald-300" title="Economia por rota agrupada na mesma cidade">
+                                    ⚡ Frete Diluído: +{formatBRL(item.transportSavings)}
+                                  </span>
+                                </div>
+                              )}
                             </td>
 
                             {/* Margem (R$) */}

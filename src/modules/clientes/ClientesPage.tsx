@@ -142,9 +142,9 @@ export function ClientesPage() {
   const [quoteToSchedule, setQuoteToSchedule] = useState<Quote | null>(null);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
-  const handleConfirmScheduleFromClientPage = (scheduledDate: string, scheduledTime: string, technician: string) => {
+  const handleConfirmScheduleFromClientPage = (scheduledDate: string, scheduledTime: string, technician: string, employeeId?: string) => {
     if (!quoteToSchedule) return;
-    scheduleApprovedQuote(quoteToSchedule.id, scheduledDate, scheduledTime, technician);
+    scheduleApprovedQuote(quoteToSchedule.id, scheduledDate, scheduledTime, technician, employeeId);
     updateQuoteStatus(quoteToSchedule.id, 'aprovado');
     setIsScheduleModalOpen(false);
     setQuoteToSchedule(null);
@@ -152,7 +152,6 @@ export function ClientesPage() {
   };
 
   // New forms states (pre-filled client creations)
-  const [isNewServiceOpen, setIsNewServiceOpen] = useState(false);
   const [isNewReturnOpen, setIsNewReturnOpen] = useState(false);
 
   // Client form
@@ -170,12 +169,6 @@ export function ClientesPage() {
   const [formContractStart, setFormContractStart] = useState(SIMULATED_TODAY);
   const [formContractEnd, setFormContractEnd] = useState('2027-06-05');
   const [formContractStatus, setFormContractStatus] = useState<'ativo' | 'vencido' | 'cancelado'>('ativo');
-
-  // New Service Calendar Form
-  const [formServiceTitle, setFormServiceTitle] = useState('Dedetização e Pulverização');
-  const [formServiceDate, setFormServiceDate] = useState(SIMULATED_TODAY);
-  const [formServiceType, setFormServiceType] = useState<'servico' | 'visita' | 'retorno' | 'outro'>('servico');
-  const [formServiceNotes, setFormServiceNotes] = useState('Controle padrão de pragas residenciais.');
 
   // New Return Visit Form
   const [formReturnReason, setFormReturnReason] = useState('Reforço preventivo contra baratas');
@@ -682,66 +675,6 @@ export function ClientesPage() {
     setIsContractModalOpen(true);
   };
 
-  // Inline forms additions
-  const handleAddServiceSubmission = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeClient) return;
-
-    const newQuote: Quote = {
-      id: `q-cli-${Math.random().toString(36).substr(2, 7)}`,
-      createdAt: SIMULATED_TODAY,
-      status: 'aprovado',
-      client: {
-        name: activeClient.name,
-        address: activeClient.address,
-        phone: activeClient.phone
-      },
-      service: {
-        pestType: formServiceTitle,
-        serviceType: formServiceTitle,
-        areaM2: 100,
-        distanceKm: 10
-      },
-      costs: {
-        products: 100,
-        labor: 150,
-        transport: 50,
-        overhead: 30,
-        total: 330
-      },
-      pricing: {
-        suggestedPrice: 500,
-        marginPercent: 34,
-        finalPrice: 500
-      },
-      productsUsed: [
-        { productId: 'prod-01', productName: 'BIFENTOL 200SC', quantity: 150, unit: 'ml' }
-      ],
-      inventoryDeducted: false,
-      hasReturn: false,
-      scheduledDate: formServiceDate,
-      scheduledTime: '08:00'
-    };
-
-    addQuote(newQuote);
-
-    const newEvent: AgendaEvent = {
-      id: `ev-new-${Math.random().toString(36).substr(2, 7)}`,
-      title: `${formServiceTitle} - ${activeClient.name}`,
-      date: formServiceDate,
-      clientId: activeClient.id,
-      clientName: activeClient.name,
-      type: formServiceType,
-      quoteId: newQuote.id,
-      status: 'pendente',
-      notes: formServiceNotes
-    };
-
-    addAgendaEvent(newEvent);
-    setIsNewServiceOpen(false);
-    toast.success('Serviço programado!', { description: `Agendado no calendário técnico para ${formServiceDate}.` });
-  };
-
   const handleAddReturnSubmission = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeClient) return;
@@ -1138,20 +1071,9 @@ export function ClientesPage() {
                   <button
                     type="button"
                     onClick={() => navigate(`/calculator?clientId=${activeClient.id}`)}
-                    className="flex-1 md:flex-none justify-center flex items-center gap-1 px-3 py-1.5 bg-slate-50 border border-[#E8E6E1] text-[#141410] hover:bg-[#FAF9F6] text-[9px] font-black uppercase tracking-wider rounded-lg cursor-pointer"
+                    className="flex-1 md:flex-none justify-center flex items-center gap-1 px-3 py-1.5 bg-[#1B3A2D] text-white hover:bg-[#2D6A4F] text-[9px] font-black uppercase tracking-wider rounded-lg cursor-pointer shadow-xs transition-colors"
                   >
-                    <Plus className="size-3" /> Orçamento
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormServiceTitle('Tratamento preventivo geral pragas');
-                      setFormServiceType('servico');
-                      setIsNewServiceOpen(true);
-                    }}
-                    className="flex-1 md:flex-none justify-center flex items-center gap-1 px-3 py-1.5 bg-slate-50 border border-[#E8E6E1] text-[#141410] hover:bg-[#FAF9F6] text-[9px] font-black uppercase tracking-wider rounded-lg cursor-pointer"
-                  >
-                    <Plus className="size-3" /> ServiçoOS
+                    <Plus className="size-3" /> Novo Orçamento / Serviço (Calculadora)
                   </button>
                   <button
                     type="button"
@@ -2142,60 +2064,6 @@ export function ClientesPage() {
                   >
                     Salvar Compromisso
                   </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* 🔮 MODAL 4: REGISTRAR NOVO CHAMADO DESIGNADO (SERVIÇO OS) */}
-      <AnimatePresence>
-        {isNewServiceOpen && activeClient && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-[#E8E6E1] rounded-2xl max-w-sm w-full overflow-hidden shadow-xl text-left"
-            >
-              <div className="px-6 py-4 border-b border-[#FAF9F6] flex items-center justify-between">
-                <div>
-                  <h3 className="font-display font-black text-[#141410] text-xs uppercase tracking-wider">Novo Serviço: {activeClient.name}</h3>
-                  <p className="text-[10px] text-[#6B6B5F] mt-0.5">Criar Ordem na grade técnica.</p>
-                </div>
-                <button type="button" onClick={() => setIsNewServiceOpen(false)} className="p-1"><X className="size-4" /></button>
-              </div>
-
-              <form onSubmit={handleAddServiceSubmission} className="p-6 space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase">Título da Atividade</label>
-                  <input type="text" required value={formServiceTitle} onChange={(e) => setFormServiceTitle(e.target.value)} className="w-full bg-[#FAF9F6] border border-[#E8E6E1] rounded-lg px-3 py-2 text-xs" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Data Planejada</label>
-                    <input type="date" required value={formServiceDate} onChange={(e) => setFormServiceDate(e.target.value)} className="w-full bg-[#FAF9F6] border border-[#E8E6E1] rounded-lg px-3 py-2 text-xs text-slate-500" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase">Modalidade</label>
-                    <select value={formServiceType} onChange={(e) => setFormServiceType(e.target.value as any)} className="w-full bg-[#FAF9F6] border border-[#E8E6E1] rounded-lg px-3 py-2 text-xs">
-                      <option value="servico">Serviço Dedetização</option>
-                      <option value="visita">Visita Técnica</option>
-                      <option value="outro">Outros Monitoramentos</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-1 font-sans">
-                  <label className="text-[10px] font-black text-slate-500 uppercase">Indicações e Metas</label>
-                  <textarea rows={2} value={formServiceNotes} onChange={(e) => setFormServiceNotes(e.target.value)} className="w-full bg-[#FAF9F6] border border-[#E8E6E1] rounded-lg p-2.5 text-xs text-slate-700" />
-                </div>
-
-                <div className="pt-4 border-t border-[#FAF9F6] flex justify-end gap-2.5">
-                  <button type="button" onClick={() => setIsNewServiceOpen(false)} className="px-4 py-2 bg-slate-100 uppercase text-[9px] font-black rounded-lg">Cancelar</button>
-                  <button type="submit" className="px-5 py-2 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white uppercase text-[9px] font-black rounded-lg">Salvar na Agenda</button>
                 </div>
               </form>
             </motion.div>
