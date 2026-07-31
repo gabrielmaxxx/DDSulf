@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { dashboardService } from '@/services/dashboard/dashboard';
 import { logOperationalEvent } from '@/firebase/analytics';
+import { DEFAULT_EMPRESA_ID } from '@/tenant';
 
 /**
  * Hook to manage reactive dashboard aggregates offline-first
  */
-export function useDashboardMetrics() {
+export function useDashboardMetrics(empresaId: string = DEFAULT_EMPRESA_ID) {
   const [metrics, setMetrics] = useState({
     activeQuotesCount: 0,
     completedServicesCount: 0,
@@ -20,7 +21,7 @@ export function useDashboardMetrics() {
     async function fetchData() {
       try {
         setLoading(true);
-        const liveAggs = await dashboardService.computeLiveAggregates();
+        const liveAggs = await dashboardService.computeLiveAggregates(empresaId);
         if (active) {
           setMetrics(liveAggs);
         }
@@ -44,12 +45,12 @@ export function useDashboardMetrics() {
       active = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [empresaId]);
 
   const triggerManualRecalculation = async () => {
     logOperationalEvent('dashboard_metrics_manual_refresh', { triggeredBy: 'UI_Action' });
     try {
-      const liveAggs = await dashboardService.computeLiveAggregates();
+      const liveAggs = await dashboardService.computeLiveAggregates(empresaId);
       setMetrics(liveAggs);
     } catch (err: any) {
       console.warn('[useDashboardMetrics] Manual trigger aggregation error:', err);

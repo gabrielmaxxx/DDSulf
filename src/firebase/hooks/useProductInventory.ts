@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { productsService, stockMovementsService } from '@/services/inventory/inventory';
 import { Product, StockMovement } from '@/types/database';
+import { DEFAULT_EMPRESA_ID } from '@/tenant';
 
-export function useProductInventory() {
+export function useProductInventory(empresaId: string = DEFAULT_EMPRESA_ID) {
   const [products, setProducts] = useState<Product[]>([]);
   const [understockAlerts, setUnderstockAlerts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -11,8 +12,8 @@ export function useProductInventory() {
   async function loadInventory() {
     try {
       setLoading(true);
-      const allProducts = await productsService.list();
-      const alerts = await productsService.getUnderstockAlerts();
+      const allProducts = await productsService.list(empresaId);
+      const alerts = await productsService.getUnderstockAlerts(empresaId);
       setProducts(allProducts);
       setUnderstockAlerts(alerts);
     } catch (err: any) {
@@ -26,22 +27,22 @@ export function useProductInventory() {
     loadInventory();
 
     // Setup simple listener for product movements to trigger update
-    const unsubscribeMovement = stockMovementsService.subscribeList({}, () => {
+    const unsubscribeMovement = stockMovementsService.subscribeList(empresaId, {}, () => {
       loadInventory();
     });
 
     return () => {
       unsubscribeMovement();
     };
-  }, []);
+  }, [empresaId]);
 
   const executeMovement = async (movement: Omit<StockMovement, 'id' | 'createdAt'>) => {
-    await stockMovementsService.registerMovement(movement);
+    await stockMovementsService.registerMovement(empresaId, movement);
     await loadInventory();
   };
 
   const createNewProduct = async (product: Omit<Product, 'id' | 'updatedAt'>) => {
-    await productsService.create({
+    await productsService.create(empresaId, {
       ...product,
       updatedAt: new Date().toISOString()
     } as any);

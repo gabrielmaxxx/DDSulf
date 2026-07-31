@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { AIService, AISuggestionResponse } from '@/services/ai/ai';
+import { DEFAULT_EMPRESA_ID } from '@/tenant';
 
-export function useAIOpportunity() {
+export function useAIOpportunity(empresaId: string = DEFAULT_EMPRESA_ID) {
   const [suggestion, setSuggestion] = useState<AISuggestionResponse | null>(null);
   const [vulnerabilities, setVulnerabilities] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -16,7 +17,7 @@ export function useAIOpportunity() {
     try {
       setLoading(true);
       setError(null);
-      const adviceResult = await AIService.analyzeQuoteOpportunity(params);
+      const adviceResult = await AIService.analyzeQuoteOpportunity(empresaId, params);
       setSuggestion(adviceResult);
       return adviceResult;
     } catch (err: any) {
@@ -26,13 +27,13 @@ export function useAIOpportunity() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empresaId]);
 
   const runVulnerabilityAudit = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const auditResult = await AIService.getVulnerabilityAuditSummary();
+      const auditResult = await AIService.getVulnerabilityAuditSummary(empresaId);
       setVulnerabilities(auditResult);
       return auditResult;
     } catch (err: any) {
@@ -42,7 +43,7 @@ export function useAIOpportunity() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empresaId]);
 
   return {
     suggestion,

@@ -13,7 +13,7 @@ export class CostsService extends BaseFirestoreService<FinancialCost> {
   /**
    * Safe financial transaction registration logging
    */
-  async registerCost(cost: Omit<FinancialCost, 'id' | 'createdAt'>): Promise<FinancialCost> {
+  async registerCost(empresaId: string, cost: Omit<FinancialCost, 'id' | 'createdAt'>): Promise<FinancialCost> {
     logOperationalEvent('financial_cost_register_requested', { category: cost.category, amount: cost.amount });
     
     const inputPayload = {
@@ -21,7 +21,7 @@ export class CostsService extends BaseFirestoreService<FinancialCost> {
       createdAt: new Date().toISOString()
     };
 
-    const newCost = await this.create(inputPayload as any);
+    const newCost = await this.create(empresaId, inputPayload as any);
     logFinancialTx('expense', cost.amount, cost.category);
     logOperationalEvent('financial_cost_registered', { id: newCost.id });
     
@@ -31,13 +31,13 @@ export class CostsService extends BaseFirestoreService<FinancialCost> {
   /**
    * Aggregate total active costs partitioned by target Category
    */
-  async getAggregatedCostsPartition(startDateISO?: string): Promise<Record<string, number>> {
+  async getAggregatedCostsPartition(empresaId: string, startDateISO?: string): Promise<Record<string, number>> {
     const filters: any[] = [];
     if (startDateISO) {
       filters.push({ field: 'createdAt', operator: '>=', value: startDateISO });
     }
 
-    const costItems = await this.list({ filters });
+    const costItems = await this.list(empresaId, { filters });
     const totals: Record<string, number> = {
       Fixo: 0,
       Variável: 0,
@@ -68,7 +68,7 @@ export class RevenuesService extends BaseFirestoreService<Revenue> {
   /**
    * Symmetrically save incoming billing revenue slips
    */
-  async registerRevenue(revenue: Omit<Revenue, 'id' | 'createdAt'>): Promise<Revenue> {
+  async registerRevenue(empresaId: string, revenue: Omit<Revenue, 'id' | 'createdAt'>): Promise<Revenue> {
     logOperationalEvent('financial_revenue_register_requested', { amount: revenue.amount });
     
     const payload = {
@@ -76,7 +76,7 @@ export class RevenuesService extends BaseFirestoreService<Revenue> {
       createdAt: new Date().toISOString()
     };
 
-    const newRev = await this.create(payload as any);
+    const newRev = await this.create(empresaId, payload as any);
     logFinancialTx('receipt', revenue.amount, revenue.category);
     logOperationalEvent('financial_revenue_registered', { id: newRev.id });
     
@@ -86,13 +86,13 @@ export class RevenuesService extends BaseFirestoreService<Revenue> {
   /**
    * Sum total aggregate receipts
    */
-  async getTotalRevenue(startDateISO?: string): Promise<number> {
+  async getTotalRevenue(empresaId: string, startDateISO?: string): Promise<number> {
     const filters: any[] = [];
     if (startDateISO) {
       filters.push({ field: 'receivedAt', operator: '>=', value: startDateISO });
     }
 
-    const revenues = await this.list({ filters });
+    const revenues = await this.list(empresaId, { filters });
     return revenues.reduce((acc, rev) => acc + rev.amount, 0);
   }
 }

@@ -1,6 +1,6 @@
 import { BaseFirestoreService } from '../firestore/BaseFirestoreService';
 import { Product, StockMovement } from '@/types/database';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { logOperationalEvent } from '@/firebase/analytics';
 
@@ -12,8 +12,8 @@ export class ProductsService extends BaseFirestoreService<Product> {
   /**
    * Retrieves products with stocks lower than warning thresholds
    */
-  async getUnderstockAlerts(): Promise<Product[]> {
-    const allProducts = await this.list();
+  async getUnderstockAlerts(empresaId: string): Promise<Product[]> {
+    const allProducts = await this.list(empresaId);
     return allProducts.filter(p => p.quantityAvailable <= p.minimumStock);
   }
 }
@@ -27,7 +27,7 @@ export class StockMovementsService extends BaseFirestoreService<StockMovement> {
    * High consistency transaction to process a compound product movement
    * Validates available stock levels and commits changes atomically
    */
-  async registerMovement(movement: Omit<StockMovement, 'id' | 'createdAt'>): Promise<void> {
+  async registerMovement(empresaId: string, movement: Omit<StockMovement, 'id' | 'createdAt'>): Promise<void> {
     logOperationalEvent('stock_movement_requested', { 
       productId: movement.productId, 
       type: movement.type, 
@@ -39,9 +39,11 @@ export class StockMovementsService extends BaseFirestoreService<StockMovement> {
       createdAt: new Date().toISOString()
     };
 
+    const tenantProductsPath = this.getTenantPath(empresaId).replace('stock_movements', 'products');
+
     // Perform atomic transaction checking so stocks can never drop below zero
     await this.runAtomicTransaction(async (transaction) => {
-      const productRef = doc(db, 'products', movement.productId);
+      const productRef = doc(db, tenantProductsPath, movement.productId);
       const productSnap = await transaction.get(productRef);
 
       if (!productSnap.exists()) {
@@ -61,7 +63,7 @@ export class StockMovementsService extends BaseFirestoreService<StockMovement> {
       }
 
       // 1. Log the stock audit movement
-      const movementRef = doc(this.getCollectionRef());
+      const movementRef = doc(this.getCollectionRef(empresaId));
       transaction.set(movementRef, movementPayload);
 
       // 2. Adjust core quantity available
@@ -80,8 +82,8 @@ export class StockMovementsService extends BaseFirestoreService<StockMovement> {
   /**
    * Returns complete transaction logs for a specific product
    */
-  async getMovementHistory(productId: string): Promise<StockMovement[]> {
-    return this.list({
+  async getMovementHistory(empresaId: string, productId: string): Promise<StockMovement[]> {
+    return this.list(empresaId, {
       filters: [
         { field: 'productId', operator: '==', value: productId }
       ],

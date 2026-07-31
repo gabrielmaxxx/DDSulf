@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { AnalyticsService } from '@/services/analytics/analytics';
+import { DEFAULT_EMPRESA_ID } from '@/tenant';
 
-export function useOperationalMetrics() {
+export function useOperationalMetrics(empresaId: string = DEFAULT_EMPRESA_ID) {
   const [metrics, setMetrics] = useState({
     pipelines: {
       Rascunho: 0,
@@ -19,7 +20,7 @@ export function useOperationalMetrics() {
   async function calculate() {
     try {
       setLoading(true);
-      const res = await AnalyticsService.getOperationalAnalytics();
+      const res = await AnalyticsService.getOperationalAnalytics(empresaId);
       setMetrics(res);
     } catch (err: any) {
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -30,7 +31,7 @@ export function useOperationalMetrics() {
 
   useEffect(() => {
     calculate();
-  }, []);
+  }, [empresaId]);
 
   return {
     ...metrics,

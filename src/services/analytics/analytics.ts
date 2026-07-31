@@ -17,16 +17,16 @@ export class AnalyticsService {
   /**
    * Generates a structural overview of current financial health and operational outcomes
    */
-  static async getFinancialAnalytics(startDateISO?: string): Promise<{
+  static async getFinancialAnalytics(empresaId: string, startDateISO?: string): Promise<{
     revenueTotal: number;
     costsTotal: number;
     netMarginValue: number;
     marginPercent: number;
     ebitda: number;
   }> {
-    const endRevenues = await revenuesService.getTotalRevenue(startDateISO);
+    const endRevenues = await revenuesService.getTotalRevenue(empresaId, startDateISO);
     
-    const costMap = await costsService.getAggregatedCostsPartition(startDateISO);
+    const costMap = await costsService.getAggregatedCostsPartition(empresaId, startDateISO);
     const endCosts = Object.values(costMap).reduce((sum, val) => sum + val, 0);
 
     const netMarginValue = endRevenues - endCosts;
@@ -49,12 +49,12 @@ export class AnalyticsService {
   /**
    * Computes operational pipeline conversion metrics
    */
-  static async getOperationalAnalytics(): Promise<{
+  static async getOperationalAnalytics(empresaId: string): Promise<{
     pipelines: Record<string, number>;
     totalQuotesCount: number;
     clientConversionRatePercent: number;
   }> {
-    const quotes = await quotesService.list();
+    const quotes = await quotesService.list(empresaId);
     
     const pipelines: Record<string, number> = {
       Rascunho: 0,
@@ -87,13 +87,13 @@ export class AnalyticsService {
   /**
    * Generates productivity benchmarks comparing actual resource consumption against targets
    */
-  static async getProductivityAnalytics(): Promise<{
+  static async getProductivityAnalytics(empresaId: string): Promise<{
     chemicalEfficiencyPercent: number;
     understockAlertsCount: number;
     averageSOPComplianceRatingPercent: number;
   }> {
     // Cross-joins stock movements against minimum thresholds
-    const alerts = await productsService.getUnderstockAlerts();
+    const alerts = await productsService.getUnderstockAlerts(empresaId);
     
     return {
       chemicalEfficiencyPercent: 94, // Real-time calibrated base efficiency metric matching benchmark target
@@ -105,9 +105,9 @@ export class AnalyticsService {
   /**
    * Synthesizes automated system insights to support AI decisions
    */
-  static async generateOperationalInsightMappers(): Promise<HistoricalInsight[]> {
-    const financials = await this.getFinancialAnalytics();
-    const operations = await this.getOperationalAnalytics();
+  static async generateOperationalInsightMappers(empresaId: string): Promise<HistoricalInsight[]> {
+    const financials = await this.getFinancialAnalytics(empresaId);
+    const operations = await this.getOperationalAnalytics(empresaId);
 
     const mockInsights: HistoricalInsight[] = [];
 
@@ -141,7 +141,7 @@ export class AnalyticsService {
     // Attempt to persist generated insights asynchronously
     try {
       for (const ins of mockInsights) {
-        await historicalInsightsService.create(ins);
+        await historicalInsightsService.create(empresaId, ins);
       }
     } catch (e) {
       console.warn('[AnalyticsService] Caching system health insights failed: ', e);

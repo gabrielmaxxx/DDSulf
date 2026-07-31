@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { quotesService } from '@/services/calculator/quotes';
 import { Quote, QuoteStatus } from '@/types/database';
+import { DEFAULT_EMPRESA_ID } from '@/tenant';
 
-export function useQuoteCalculator() {
+export function useQuoteCalculator(empresaId: string = DEFAULT_EMPRESA_ID) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -10,7 +11,7 @@ export function useQuoteCalculator() {
   async function loadQuotes() {
     try {
       setLoading(true);
-      const list = await quotesService.list();
+      const list = await quotesService.list(empresaId);
       setQuotes(list);
     } catch (err: any) {
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -21,7 +22,7 @@ export function useQuoteCalculator() {
 
   useEffect(() => {
     loadQuotes();
-  }, []);
+  }, [empresaId]);
 
   const calculateEstimate = (params: {
     areaSize: number;
@@ -35,13 +36,13 @@ export function useQuoteCalculator() {
   };
 
   const createProposal = async (quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'status'>) => {
-    const newQuote = await quotesService.createQuote(quoteData);
+    const newQuote = await quotesService.createQuote(empresaId, quoteData);
     await loadQuotes();
     return newQuote;
   };
 
   const changeStatus = async (id: string, newStatus: QuoteStatus) => {
-    await quotesService.updateQuoteStatus(id, newStatus);
+    await quotesService.updateQuoteStatus(empresaId, id, newStatus);
     await loadQuotes();
   };
 

@@ -10,8 +10,8 @@ export class UsersService extends BaseFirestoreService<UserProfile> {
   /**
    * Retrieves all active users in the organization
    */
-  async getActiveUsers(): Promise<UserProfile[]> {
-    return this.list({
+  async getActiveUsers(empresaId: string): Promise<UserProfile[]> {
+    return this.list(empresaId, {
       filters: [
         { field: 'status', operator: '==', value: 'active' }
       ]
@@ -21,16 +21,16 @@ export class UsersService extends BaseFirestoreService<UserProfile> {
   /**
    * Safe check to update user profile information (e.g., name, phone, roles)
    */
-  async updateProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
+  async updateProfile(empresaId: string, uid: string, data: Partial<UserProfile>): Promise<void> {
     logOperationalEvent('user_profile_update_requested', { uid, fields: Object.keys(data) });
-    await this.update(uid, data);
+    await this.update(empresaId, uid, data);
     logOperationalEvent('user_profile_updated', { uid });
   }
 
   /**
    * Registers a brand new technician profile into the system
    */
-  async provisionTechnician(uid: string, email: string, name: string): Promise<UserProfile> {
+  async provisionTechnician(empresaId: string, uid: string, email: string, name: string): Promise<UserProfile> {
     const defaultProfile: UserProfile = {
       uid,
       email,
@@ -40,7 +40,7 @@ export class UsersService extends BaseFirestoreService<UserProfile> {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    await this.create({ id: uid, ...defaultProfile });
+    await this.create(empresaId, { id: uid, ...defaultProfile });
     logOperationalEvent('technician_profile_provisioned', { uid, email });
     return defaultProfile;
   }

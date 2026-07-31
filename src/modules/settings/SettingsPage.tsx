@@ -12,6 +12,7 @@ import { UserProfile as EnterpriseUserProfile } from '@/firebase/types/enterpris
 import { GoogleMapsViewer } from '@/components/GoogleMapsViewer';
 import { GOOGLE_MAPS_API_KEY, hasValidMapsKey } from '@/config/maps';
 import { fetchGoogleMapsDistance, estimateDistanceOffline } from '@/utils/distanceUtils';
+import { DEFAULT_EMPRESA_ID } from '@/tenant';
 
 interface SettingsData {
   companyName: string;
@@ -70,7 +71,8 @@ export function SettingsPage() {
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      const allUsers = await userRepository.listAll();
+      const activeEmpresaId = (currentUser as any)?.empresaId || DEFAULT_EMPRESA_ID;
+      const allUsers = await userRepository.listAll(activeEmpresaId);
       if (allUsers.length > 0) {
         setUsersList(allUsers);
       } else {

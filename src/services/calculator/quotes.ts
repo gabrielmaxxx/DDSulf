@@ -67,7 +67,7 @@ export class QuotesService extends BaseFirestoreService<Quote> {
   /**
    * Creating a validated Proposal with integrated business logic and safety checks
    */
-  async createQuote(quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'status'> & { id?: string }): Promise<Quote> {
+  async createQuote(empresaId: string, quoteData: Omit<Quote, 'id' | 'createdAt' | 'updatedAt' | 'status'> & { id?: string }): Promise<Quote> {
     logOperationalEvent('quote_creation_requested', { clientId: quoteData.clientId, pest: quoteData.pestType });
     
     const proposal = {
@@ -75,7 +75,7 @@ export class QuotesService extends BaseFirestoreService<Quote> {
       status: 'Rascunho' as QuoteStatus,
     };
 
-    const newQuote = await this.create(proposal as any);
+    const newQuote = await this.create(empresaId, proposal as any);
     logOperationalEvent('quote_created', { quoteId: newQuote.id, suggestedPrice: newQuote.suggestedPrice });
     return newQuote as Quote;
   }
@@ -83,10 +83,10 @@ export class QuotesService extends BaseFirestoreService<Quote> {
   /**
    * Secure state transitions for terminal quotes preventing modifications on approved files
    */
-  async updateQuoteStatus(id: string, newStatus: QuoteStatus): Promise<void> {
+  async updateQuoteStatus(empresaId: string, id: string, newStatus: QuoteStatus): Promise<void> {
     logOperationalEvent('quote_status_update_requested', { id, newStatus });
     
-    const quote = await this.getById(id);
+    const quote = await this.getById(empresaId, id);
     if (!quote) {
       throw new Error(`Quote with identity ${id} could not be located.`);
     }
@@ -97,15 +97,15 @@ export class QuotesService extends BaseFirestoreService<Quote> {
       throw new Error(`State Transition Blocked: Document ${id} represents terminal state ${quote.status} and cannot be modified.`);
     }
 
-    await this.update(id, { status: newStatus as any });
+    await this.update(empresaId, id, { status: newStatus as any });
     logOperationalEvent('quote_status_updated', { id, finalStatus: newStatus });
   }
 
   /**
    * Dynamic retrieval query filter for sales pipeline and active lists
    */
-  async listQuotesByStatus(status: QuoteStatus): Promise<Quote[]> {
-    return this.list({
+  async listQuotesByStatus(empresaId: string, status: QuoteStatus): Promise<Quote[]> {
+    return this.list(empresaId, {
       filters: [
         { field: 'status', operator: '==', value: status }
       ]
@@ -115,8 +115,8 @@ export class QuotesService extends BaseFirestoreService<Quote> {
   /**
    * Filter queries specifically mapped for client relationship dashboards
    */
-  async listQuotesByClient(clientId: string): Promise<Quote[]> {
-    return this.list({
+  async listQuotesByClient(empresaId: string, clientId: string): Promise<Quote[]> {
+    return this.list(empresaId, {
       filters: [
         { field: 'clientId', operator: '==', value: clientId }
       ]

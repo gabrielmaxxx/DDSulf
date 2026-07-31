@@ -17,6 +17,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function belongsToTenant(empresaId) {
+      return isSignedIn() && request.auth.token.empresaId == empresaId;
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -35,64 +39,64 @@ service cloud.firestore {
     // =========================================================================
     match /empresas/{empresaId} {
       // Tenant root document access
-      allow read, write: if isSignedIn();
+      allow read, write: if belongsToTenant(empresaId);
 
       // Subcollection permissions scoped to /empresas/{empresaId}/...
       match /users/{userId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if belongsToTenant(empresaId);
       }
 
       match /clients/{clientId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if belongsToTenant(empresaId);
       }
 
       match /quotes/{quoteId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if belongsToTenant(empresaId);
       }
 
       match /services/{serviceId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if belongsToTenant(empresaId);
       }
 
       match /financial_costs/{costId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if belongsToTenant(empresaId);
       }
 
       match /revenues/{revenueId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if belongsToTenant(empresaId);
       }
 
       match /financial_settings/{settingId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if belongsToTenant(empresaId);
       }
 
       match /products/{productId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if belongsToTenant(empresaId);
       }
 
       match /stock_movements/{movementId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if belongsToTenant(empresaId);
       }
 
       match /pops/{popId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if belongsToTenant(empresaId);
       }
 
       match /dashboard_metrics/{metricId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if belongsToTenant(empresaId);
       }
 
       match /historical_insights/{insightId} {
-        allow read, write: if isSignedIn();
+        allow read, write: if belongsToTenant(empresaId);
       }
 
       match /events/{eventId} {
-        allow read, create: if isSignedIn();
+        allow read, create: if belongsToTenant(empresaId);
         allow update, delete: if false;
       }
 
       match /audit_logs/{logId} {
-        allow read, create: if isSignedIn();
+        allow read, create: if belongsToTenant(empresaId);
         allow update, delete: if false;
       }
     }

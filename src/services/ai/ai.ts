@@ -14,7 +14,7 @@ export class AIService {
   /**
    * Analyzes an upcoming quote proposal constraints and provides calculated corrections
    */
-  static async analyzeQuoteOpportunity(params: {
+  static async analyzeQuoteOpportunity(empresaId: string, params: {
     areaSize: number;
     pestType: string;
     infestationLevel: 'Baixo' | 'Médio' | 'Alto' | 'Crítico';
@@ -23,11 +23,11 @@ export class AIService {
     logOperationalEvent('ai_quote_analysis_requested', { pest: params.pestType, size: params.areaSize });
 
     // 1. Check if there are active Procedures (POP) available
-    const procedures = await popsService.list();
+    const procedures = await popsService.list(empresaId);
     const matchingPOP = procedures.find(p => p.pestType === params.pestType);
 
     // 2. Fetch stock status for pesticides
-    const warnings = await productsService.getUnderstockAlerts();
+    const warnings = await productsService.getUnderstockAlerts(empresaId);
     const hasPesticideShortage = warnings.some(w => 
       w.name.toLowerCase().includes(params.pestType.toLowerCase()) || 
       (matchingPOP?.recommendedProducts?.some(p => w.name.toLowerCase().includes(p.toLowerCase())) ?? false)
@@ -72,15 +72,15 @@ export class AIService {
   /**
    * Autonomously flags operational vulnerabilities across business sectors
    */
-  static async getVulnerabilityAuditSummary(): Promise<string[]> {
+  static async getVulnerabilityAuditSummary(empresaId: string): Promise<string[]> {
     const alerts: string[] = [];
-    const minProducts = await productsService.getUnderstockAlerts();
+    const minProducts = await productsService.getUnderstockAlerts(empresaId);
     
     if (minProducts.length > 0) {
       alerts.push(`O estoque operacional está vulnerável. Há ${minProducts.length} produtos químicos operando abaixo do limite mínimo de segurança.`);
     }
 
-    const quotes = await quotesService.list();
+    const quotes = await quotesService.list(empresaId);
     const pendingHighComplexity = quotes.filter(q => 
       q.status === 'Enviado' && 
       q.operationalComplexity === 'Complexo' &&
