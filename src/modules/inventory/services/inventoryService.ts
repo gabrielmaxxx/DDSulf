@@ -6,17 +6,20 @@ import {
   orderBy, 
   where, 
   doc, 
-  updateDoc,
-  serverTimestamp,
   runTransaction
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { Product, StockMovement } from '@/types/database';
+import { getTenantCollectionPath, DEFAULT_EMPRESA_ID } from '@/tenant';
 
 export const inventoryService = {
-  async getProducts() {
+  async getProducts(arg1?: any): Promise<Product[]> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+    const empresaId = typeof arg1 === 'string' ? arg1 : DEFAULT_EMPRESA_ID;
+
     try {
-      const q = query(collection(db, 'products'), orderBy('name', 'asc'));
+      const path = getTenantCollectionPath(empresaId, 'products');
+      const q = query(collection(db, path), orderBy('name', 'asc'));
       const snapshot = await getDocs(q);
       const serverProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Product);
       localStorage.setItem('inventory_products', JSON.stringify(serverProducts));
@@ -25,7 +28,6 @@ export const inventoryService = {
       console.warn("Operating offline: retrieving products from local storage...", error);
       const localProducts = JSON.parse(localStorage.getItem('inventory_products') || '[]');
       if (localProducts.length === 0) {
-        // Return seed products for immediate user satisfaction if first load is offline
         const seedProducts: Product[] = [
           {
             id: 'prod_1',
@@ -75,9 +77,21 @@ export const inventoryService = {
     }
   },
 
-  async addProduct(product: Omit<Product, 'id'>) {
+  async addProduct(arg1: any, arg2?: any): Promise<any> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+    let empresaId = DEFAULT_EMPRESA_ID;
+    let product: Omit<Product, 'id'>;
+
+    if (typeof arg1 === 'string') {
+      empresaId = arg1;
+      product = arg2;
+    } else {
+      product = arg1;
+    }
+
     try {
-      return await addDoc(collection(db, 'products'), {
+      const path = getTenantCollectionPath(empresaId, 'products');
+      return await addDoc(collection(db, path), {
         ...product,
         updatedAt: new Date().toISOString()
       });
@@ -95,10 +109,35 @@ export const inventoryService = {
     }
   },
 
-  async updateStock(productId: string, quantityChange: number, type: 'Entrada' | 'Saída', userId: string, serviceId?: string) {
+  async updateStock(arg1: string, arg2: any, arg3?: any, arg4?: any, arg5?: any, arg6?: any): Promise<any> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+    let empresaId = DEFAULT_EMPRESA_ID;
+    let productId: string;
+    let quantityChange: number;
+    let type: 'Entrada' | 'Saída';
+    let userId: string;
+    let serviceId: string | undefined;
+
+    if (typeof arg3 === 'number') {
+      empresaId = arg1;
+      productId = arg2;
+      quantityChange = arg3;
+      type = arg4;
+      userId = arg5;
+      serviceId = arg6;
+    } else {
+      productId = arg1;
+      quantityChange = arg2;
+      type = arg3;
+      userId = arg4;
+      serviceId = arg5;
+    }
+
     try {
-      const productRef = doc(db, 'products', productId);
-      const movementRef = collection(db, 'stock_movements');
+      const productsPath = getTenantCollectionPath(empresaId, 'products');
+      const movementsPath = getTenantCollectionPath(empresaId, 'stock_movements');
+      const productRef = doc(db, productsPath, productId);
+      const movementRef = collection(db, movementsPath);
 
       return await runTransaction(db, async (transaction) => {
         const productSnap = await transaction.get(productRef);
@@ -109,13 +148,11 @@ export const inventoryService = {
 
         if (newStock < 0) throw new Error("Estoque insuficiente");
 
-        // Update product stock
         transaction.update(productRef, {
           quantityAvailable: newStock,
           updatedAt: new Date().toISOString()
         });
 
-        // Record movement
         const movementData: Omit<StockMovement, 'id'> = {
           productId,
           type,
@@ -131,7 +168,6 @@ export const inventoryService = {
     } catch (error) {
       console.warn("Operating offline: updating stock in local storage...", error);
       
-      // Local fallback sync
       const localProducts = JSON.parse(localStorage.getItem('inventory_products') || '[]');
       const productIdx = localProducts.findIndex((p: any) => p.id === productId);
       if (productIdx === -1) throw new Error("Produto não encontrado localmente");
@@ -145,7 +181,6 @@ export const inventoryService = {
       localProducts[productIdx].updatedAt = new Date().toISOString();
       localStorage.setItem('inventory_products', JSON.stringify(localProducts));
 
-      // Record local movement
       const localMovements = JSON.parse(localStorage.getItem('stock_movements') || '[]');
       const newMovement = {
         id: 'local_mov_' + Date.now(),
@@ -161,9 +196,21 @@ export const inventoryService = {
     }
   },
 
-  async getMovements(productId?: string) {
+  async getMovements(arg1?: any, arg2?: any): Promise<StockMovement[]> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+    let empresaId = DEFAULT_EMPRESA_ID;
+    let productId: string | undefined;
+
+    if (typeof arg2 === 'string' || (typeof arg1 === 'string' && arg1.startsWith('empresas/'))) {
+      empresaId = arg1;
+      productId = arg2;
+    } else if (typeof arg1 === 'string') {
+      productId = arg1;
+    }
+
     try {
-      let q = query(collection(db, 'stock_movements'), orderBy('createdAt', 'desc'));
+      const movementsPath = getTenantCollectionPath(empresaId, 'stock_movements');
+      let q = query(collection(db, movementsPath), orderBy('createdAt', 'desc'));
       if (productId) {
         q = query(q, where('productId', '==', productId));
       }

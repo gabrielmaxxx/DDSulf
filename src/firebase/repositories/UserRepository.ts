@@ -8,6 +8,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../config';
 import { handleFirestoreError } from '../utils/errorHandler';
 import { OperationType } from '../types';
+import { DEFAULT_EMPRESA_ID } from '../../tenant';
 
 export class UserRepository extends BaseRepository<UserProfile> {
   protected readonly collectionName = 'users';
@@ -15,11 +16,13 @@ export class UserRepository extends BaseRepository<UserProfile> {
   public static instance = new UserRepository();
 
   /**
-   * Helper to retrieve a single user by email address safely
+   * Helper to retrieve a single user by email address safely within tenant scope
    */
-  public async getByEmail(email: string): Promise<UserProfile | null> {
+  public async getByEmail(empresaId: string = DEFAULT_EMPRESA_ID, email: string): Promise<UserProfile | null> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
     try {
-      const q = query(collection(db, this.collectionName), where('email', '==', email));
+      const path = this.getTenantPath(empresaId);
+      const q = query(collection(db, path), where('email', '==', email));
       const snapshot = await getDocs(q);
       if (snapshot.empty) {
         return null;

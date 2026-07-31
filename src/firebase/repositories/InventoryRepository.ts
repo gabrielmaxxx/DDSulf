@@ -1,5 +1,5 @@
 /**
- * Domain-specific Repository class for Inventory items and Stock balances
+ * Domain-specific Repository class for Inventory items and Stock balances with multi-tenant support
  */
 
 import { BaseRepository } from './BaseRepository';
@@ -8,6 +8,7 @@ import { collection, query, where, getDocs, orderBy, limit } from 'firebase/fire
 import { db } from '../config';
 import { handleFirestoreError } from '../utils/errorHandler';
 import { OperationType } from '../types';
+import { getTenantCollectionPath, DEFAULT_EMPRESA_ID } from '../../tenant';
 
 export class InventoryRepository extends BaseRepository<Product> {
   protected readonly collectionName = 'products';
@@ -15,12 +16,13 @@ export class InventoryRepository extends BaseRepository<Product> {
   public static instance = new InventoryRepository();
 
   /**
-   * Retrieves all items that meet or are below minimum stock limits
+   * Retrieves all items that meet or are below minimum stock limits in tenant scope
    */
-  public async getDepletedStockProducts(): Promise<Product[]> {
+  public async getDepletedStockProducts(empresaId: string = DEFAULT_EMPRESA_ID): Promise<Product[]> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
     try {
-      // Return lists that require prompt supplier ordering
-      const colRef = collection(db, this.collectionName);
+      const path = this.getTenantPath(empresaId);
+      const colRef = collection(db, path);
       const snapshot = await getDocs(colRef);
       const allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Product);
       
@@ -32,12 +34,14 @@ export class InventoryRepository extends BaseRepository<Product> {
   }
 
   /**
-   * Stream stock movements for audit review
+   * Stream stock movements for audit review in tenant scope
    */
-  public async getStockMovements(productId: string, maxLimit = 50): Promise<StockMovement[]> {
+  public async getStockMovements(empresaId: string = DEFAULT_EMPRESA_ID, productId: string, maxLimit = 50): Promise<StockMovement[]> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
     try {
+      const movementsPath = getTenantCollectionPath(empresaId, 'stock_movements');
       const q = query(
-        collection(db, 'stock_movements'),
+        collection(db, movementsPath),
         where('productId', '==', productId),
         orderBy('createdAt', 'desc'),
         limit(maxLimit)

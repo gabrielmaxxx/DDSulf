@@ -3,7 +3,6 @@ import {
   getDocs, 
   query, 
   orderBy, 
-  where,
   limit 
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
@@ -11,19 +10,22 @@ import {
   Quote, 
   FinancialCost, 
   Revenue, 
-  HistoricalInsight,
-  DashboardMetric 
+  HistoricalInsight 
 } from '@/types/database';
+import { getTenantCollectionPath, DEFAULT_EMPRESA_ID } from '@/tenant';
 
 export const analyticsService = {
-  async getDashboardData() {
-    // In a real scenario, we might use a 云函数 or pre-aggregated metrics
-    // For now, we fetch and aggregate on client
+  async getDashboardData(empresaId: string = DEFAULT_EMPRESA_ID) {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
     try {
+      const quotesPath = getTenantCollectionPath(empresaId, 'quotes');
+      const costsPath = getTenantCollectionPath(empresaId, 'financial_costs');
+      const revenuesPath = getTenantCollectionPath(empresaId, 'revenues');
+
       const [quotesSnap, costsSnap, revenuesSnap] = await Promise.all([
-        getDocs(query(collection(db, 'quotes'), orderBy('createdAt', 'desc'), limit(50))),
-        getDocs(query(collection(db, 'financial_costs'), orderBy('createdAt', 'desc'), limit(50))),
-        getDocs(query(collection(db, 'revenues'), orderBy('receivedAt', 'desc'), limit(50)))
+        getDocs(query(collection(db, quotesPath), orderBy('createdAt', 'desc'), limit(50))),
+        getDocs(query(collection(db, costsPath), orderBy('createdAt', 'desc'), limit(50))),
+        getDocs(query(collection(db, revenuesPath), orderBy('receivedAt', 'desc'), limit(50)))
       ]);
 
       const quotes = quotesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Quote);
@@ -33,7 +35,6 @@ export const analyticsService = {
       return { quotes, costs, revenues };
     } catch (error) {
       console.error("Firestore fetch error, using mock data:", error);
-      // Return empty arrays or some mock data to avoid infinite loading
       return { 
         quotes: [], 
         costs: [], 
@@ -45,7 +46,6 @@ export const analyticsService = {
   generateInsights(quotes: Quote[], costs: FinancialCost[], revenues: Revenue[]): HistoricalInsight[] {
     const insights: HistoricalInsight[] = [];
 
-    // 1. Profitability Insight
     const avgMargin = quotes.length > 0 
       ? quotes.reduce((acc, q) => acc + q.estimatedMargin, 0) / quotes.length 
       : 0;
@@ -66,7 +66,6 @@ export const analyticsService = {
       });
     }
 
-    // 2. High Cost Region Insight
     const highDisplacementQuotes = quotes.filter(q => q.displacement > 40);
     if (highDisplacementQuotes.length > quotes.length * 0.3) {
       insights.push({
@@ -77,7 +76,6 @@ export const analyticsService = {
       });
     }
 
-    // 3. Pest Type Insight
     const pestCounts: Record<string, number> = {};
     quotes.forEach(q => {
       pestCounts[q.pestType] = (pestCounts[q.pestType] || 0) + 1;

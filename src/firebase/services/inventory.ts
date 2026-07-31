@@ -1,63 +1,67 @@
 import { 
   getDocument,
   createDocument,
-  updateExistingDocument, 
-  addDocument,
   queryDocuments, 
   subscribeCollection,
   executeBatchWrite
 } from '../firestore';
 import { Product, StockMovement } from '@/types';
+import { DEFAULT_EMPRESA_ID } from '../../tenant';
 
 const PRODUCTS_PATH = 'products';
 const MOVEMENTS_PATH = 'stock_movements';
 
 /**
- * Save or update product catalogue items
+ * Save or update product catalogue items in tenant scope
  */
-export async function saveProduct(id: string, product: Omit<Product, 'id' | 'updatedAt'>): Promise<void> {
-  await createDocument<Product>(PRODUCTS_PATH, id, product);
+export async function saveProduct(empresaId: string = DEFAULT_EMPRESA_ID, id: string, product: Omit<Product, 'id' | 'updatedAt'>): Promise<void> {
+  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  await createDocument<Product>(PRODUCTS_PATH, id, product, empresaId);
 }
 
 /**
- * Fetch a single product specifications
+ * Fetch a single product specifications in tenant scope
  */
-export async function getProduct(id: string): Promise<Product | null> {
-  return await getDocument<Product>(PRODUCTS_PATH, id);
+export async function getProduct(empresaId: string = DEFAULT_EMPRESA_ID, id: string): Promise<Product | null> {
+  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  return await getDocument<Product>(PRODUCTS_PATH, id, empresaId);
 }
 
 /**
- * Fetch entire catalog list
+ * Fetch entire catalog list in tenant scope
  */
-export async function getAllProducts(): Promise<Product[]> {
+export async function getAllProducts(empresaId: string = DEFAULT_EMPRESA_ID): Promise<Product[]> {
+  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
   return await queryDocuments<Product>(PRODUCTS_PATH, {
     orderByField: 'name',
     orderDirection: 'asc'
-  });
+  }, empresaId);
 }
 
 /**
- * Live stream of database chemical catalog
+ * Live stream of database chemical catalog in tenant scope
  */
-export function listenToProducts(onUpdate: (products: Product[]) => void): () => void {
+export function listenToProducts(empresaId: string = DEFAULT_EMPRESA_ID, onUpdate: (products: Product[]) => void): () => void {
+  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
   return subscribeCollection<Product>(PRODUCTS_PATH, {
     orderByField: 'name',
     orderDirection: 'asc'
-  }, onUpdate);
+  }, onUpdate, undefined, empresaId);
 }
 
 /**
- * Registers stock flow movement, performing atomic operations to adjust available quantity
+ * Registers stock flow movement, performing atomic operations to adjust available quantity in tenant scope
  */
 export async function registerStockMovement(
+  empresaId: string = DEFAULT_EMPRESA_ID,
   movement: Omit<StockMovement, 'id' | 'createdAt'>
 ): Promise<void> {
-  const product = await getProduct(movement.productId);
+  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  const product = await getProduct(empresaId, movement.productId);
   if (!product) {
     throw new Error(`[DDSulf Inventory] Error: Product ID ${movement.productId} not found.`);
   }
 
-  // Calculate new physical inventory balance
   let newQty = product.quantityAvailable;
   if (movement.type === 'Entrada') {
     newQty += movement.quantity;
@@ -68,10 +72,8 @@ export async function registerStockMovement(
     }
   }
 
-  // Define unique movement ID
   const movementId = `mov_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
-  // Mutate product stock level and movement ledger atomically using batch write
   await executeBatchWrite([
     {
       type: 'create',
@@ -85,13 +87,14 @@ export async function registerStockMovement(
       id: movement.productId,
       data: { quantityAvailable: newQty }
     }
-  ]);
+  ], empresaId);
 }
 
 /**
- * Retrieve logs for chemical or mechanical usage movements
+ * Retrieve logs for chemical or mechanical usage movements in tenant scope
  */
-export async function getStockMovements(productId?: string): Promise<StockMovement[]> {
+export async function getStockMovements(empresaId: string = DEFAULT_EMPRESA_ID, productId?: string): Promise<StockMovement[]> {
+  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
   const queryOps = productId ? {
     filters: [{ field: 'productId', operator: '==', value: productId }],
     orderByField: 'createdAt',
@@ -101,5 +104,5 @@ export async function getStockMovements(productId?: string): Promise<StockMoveme
     orderDirection: 'desc'
   };
 
-  return await queryDocuments<StockMovement>(MOVEMENTS_PATH, queryOps as any);
+  return await queryDocuments<StockMovement>(MOVEMENTS_PATH, queryOps as any, empresaId);
 }

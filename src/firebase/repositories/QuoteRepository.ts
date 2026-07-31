@@ -1,5 +1,5 @@
 /**
- * Domain-specific Repository class for central Business Quotes matching security standards
+ * Domain-specific Repository class for central Business Quotes matching security standards with multi-tenant support
  */
 
 import { BaseRepository } from './BaseRepository';
@@ -8,6 +8,7 @@ import { collection, query, where, getDocs, orderBy, limit } from 'firebase/fire
 import { db } from '../config';
 import { handleFirestoreError } from '../utils/errorHandler';
 import { OperationType } from '../types';
+import { DEFAULT_EMPRESA_ID } from '../../tenant';
 
 export class QuoteRepository extends BaseRepository<Quote> {
   protected readonly collectionName = 'quotes';
@@ -15,12 +16,14 @@ export class QuoteRepository extends BaseRepository<Quote> {
   public static instance = new QuoteRepository();
 
   /**
-   * Retrieves all quotes filtered by their current status for back-office overview
+   * Retrieves all quotes filtered by their current status in tenant scope
    */
-  public async getQuotesByStatus(status: QuoteStatus, maxCount = 50): Promise<Quote[]> {
+  public async getQuotesByStatus(empresaId: string = DEFAULT_EMPRESA_ID, status: QuoteStatus, maxCount = 50): Promise<Quote[]> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
     try {
+      const path = this.getTenantPath(empresaId);
       const q = query(
-        collection(db, this.collectionName), 
+        collection(db, path), 
         where('status', '==', status),
         orderBy('updatedAt', 'desc'),
         limit(maxCount)
@@ -34,12 +37,14 @@ export class QuoteRepository extends BaseRepository<Quote> {
   }
 
   /**
-   * Safe check: does a quote exist for the client?
+   * Safe check: does a quote exist for the client in tenant scope?
    */
-  public async getQuotesForClient(clientId: string): Promise<Quote[]> {
+  public async getQuotesForClient(empresaId: string = DEFAULT_EMPRESA_ID, clientId: string): Promise<Quote[]> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
     try {
+      const path = this.getTenantPath(empresaId);
       const q = query(
-        collection(db, this.collectionName), 
+        collection(db, path), 
         where('clientId', '==', clientId),
         orderBy('createdAt', 'desc')
       );

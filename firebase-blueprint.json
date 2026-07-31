@@ -1,5 +1,17 @@
 {
   "entities": {
+    "Empresa": {
+      "title": "Empresa",
+      "description": "Tenant company entity",
+      "type": "object",
+      "properties": {
+        "nome": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "criadoEm": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["ativa", "inativa", "trial"] }
+      },
+      "required": ["nome", "status"]
+    },
     "User": {
       "title": "User",
       "description": "System user with role-based access",
@@ -202,51 +214,55 @@
     }
   },
   "firestore": {
-    "/users/{userId}": {
+    "/empresas/{empresaId}": {
+      "schema": "Empresa",
+      "description": "Tenant company root document"
+    },
+    "/empresas/{empresaId}/users/{userId}": {
       "schema": "User",
       "description": "User profiles and roles"
     },
-    "/events/{eventId}": {
+    "/empresas/{empresaId}/events/{eventId}": {
       "schema": "Event",
       "description": "Central Event Bus and Audit Log"
     },
-    "/clients/{clientId}": {
+    "/empresas/{empresaId}/clients/{clientId}": {
       "schema": "Client",
       "description": "Customer registry"
     },
-    "/quotes/{quoteId}": {
+    "/empresas/{empresaId}/quotes/{quoteId}": {
       "schema": "Quote",
       "description": "Central entity for all business operations"
     },
-    "/services/{serviceId}": {
+    "/empresas/{empresaId}/services/{serviceId}": {
       "schema": "ServiceExecution",
       "description": "Operational execution records"
     },
-    "/financial_costs/{costId}": {
+    "/empresas/{empresaId}/financial_costs/{costId}": {
       "schema": "FinancialCost",
       "description": "Expenses and structural costs"
     },
-    "/revenues/{revenueId}": {
+    "/empresas/{empresaId}/revenues/{revenueId}": {
       "schema": "Revenue",
       "description": "Financial income records"
     },
-    "/products/{productId}": {
+    "/empresas/{empresaId}/products/{productId}": {
       "schema": "Product",
       "description": "Inventory and catalog"
     },
-    "/stock_movements/{movementId}": {
+    "/empresas/{empresaId}/stock_movements/{movementId}": {
       "schema": "StockMovement",
       "description": "Inventory flow history"
     },
-    "/pops/{popId}": {
+    "/empresas/{empresaId}/pops/{popId}": {
       "schema": "POP",
       "description": "Technical procedures wiki"
     },
-    "/dashboard_metrics/{metricId}": {
+    "/empresas/{empresaId}/dashboard_metrics/{metricId}": {
       "schema": "Metric",
       "description": "High-performance aggregated data"
     },
-    "/historical_insights/{insightId}": {
+    "/empresas/{empresaId}/historical_insights/{insightId}": {
       "schema": "HistoricalInsight",
       "description": "ML/Analytic patterns from execution history"
     }

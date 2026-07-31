@@ -2,20 +2,24 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { OperationalContext } from '../types';
 import { Quote, ServiceExecution, Product } from '@/types/database';
+import { getTenantCollectionPath, DEFAULT_EMPRESA_ID } from '@/tenant';
 
 export const analyticsEngine = {
-  async getOperationalContext(): Promise<OperationalContext> {
+  async getOperationalContext(empresaId: string = DEFAULT_EMPRESA_ID): Promise<OperationalContext> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
     try {
-      // Fetch data for context
-      const quotesSnap = await getDocs(collection(db, 'quotes'));
-      const servicesSnap = await getDocs(collection(db, 'services'));
-      const productsSnap = await getDocs(collection(db, 'products'));
+      const quotesPath = getTenantCollectionPath(empresaId, 'quotes');
+      const servicesPath = getTenantCollectionPath(empresaId, 'services');
+      const productsPath = getTenantCollectionPath(empresaId, 'products');
+
+      const quotesSnap = await getDocs(collection(db, quotesPath));
+      const servicesSnap = await getDocs(collection(db, servicesPath));
+      const productsSnap = await getDocs(collection(db, productsPath));
 
       const quotes = quotesSnap.docs.map(d => d.data() as Quote);
       const services = servicesSnap.docs.map(d => d.data() as ServiceExecution);
       const products = productsSnap.docs.map(d => d.data() as Product);
 
-      // Simple revenue/cost calc
       const totalRevenue = quotes.reduce((acc, q) => acc + (q.suggestedPrice || 0), 0);
       const totalCosts = quotes.reduce((acc, q) => acc + (q.estimatedCost || 0), 0);
       
@@ -44,7 +48,6 @@ export const analyticsEngine = {
       };
     } catch (error) {
       console.error("Error gathering context:", error);
-      // Return partial mock context if fails for demo safety
       return {
         financialSummary: { totalRevenue: 150000, totalCosts: 45000, profit: 105000, margin: 70 },
         serviceMetrics: { totalServices: 84, averageTicket: 1785, byCategory: { 'Baratas': 34, 'Ratos': 21, 'Cupins': 12 } }

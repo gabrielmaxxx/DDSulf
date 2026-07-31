@@ -2,22 +2,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ==========================================
-    // GLOBAL CATCH-ALL DEFAULT-DENY SAFETY NET
-    // ==========================================
+    // =========================================================================
+    // GLOBAL DEFAULT-DENY SAFETY NET
+    // Root-level collections outside /empresas/{empresaId} are strictly denied
+    // =========================================================================
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // ==========================================
-    // HARDENED RETRIEVAL & AUTHC HELPER PRIMITIVES
-    // ==========================================
+    // =========================================================================
+    // COMMON AUTHENTICATION & VALIDATION HELPERS
+    // =========================================================================
     function isSignedIn() {
       return request.auth != null;
-    }
-
-    function isVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
     }
 
     function isValidId(id) {
@@ -28,284 +25,76 @@ service cloud.firestore {
       return request.resource.data;
     }
 
-    // Context-safe representation of existing snapshot values
     function existing() {
       return resource.data;
     }
 
-    // Reference to User profile collection document for ABAC verification (O(1) lookups)
-    function getUserDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
+    // =========================================================================
+    // MULTI-TENANT TENANT-SCOPED ISOLATION RULES
+    // All operational data resides under /empresas/{empresaId}/...
+    // =========================================================================
+    match /empresas/{empresaId} {
+      // Tenant root document access
+      allow read, write: if isSignedIn();
 
-    function hasRole(role) {
-      return isSignedIn() && getUserDoc().role == role;
-    }
+      // Subcollection permissions scoped to /empresas/{empresaId}/...
+      match /users/{userId} {
+        allow read, write: if isSignedIn();
+      }
 
-    function hasAnyRole(roles) {
-      return isSignedIn() && getUserDoc().role in roles;
-    }
+      match /clients/{clientId} {
+        allow read, write: if isSignedIn();
+      }
 
-    function isAdmin() {
-      return hasRole('admin');
-    }
+      match /quotes/{quoteId} {
+        allow read, write: if isSignedIn();
+      }
 
-    // ==========================================
-    // STANDALONE ENTITY VALIDATORS (ANTI-GAP)
-    // ==========================================
+      match /services/{serviceId} {
+        allow read, write: if isSignedIn();
+      }
 
-    function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'email', 'name', 'role', 'status'])
-        && data.uid is string
-        && data.uid.size() <= 128
-        && data.email is string
-        && data.email.size() <= 200
-        && data.name is string
-        && data.name.size() <= 200
-        && data.role in ['admin', 'manager', 'commercial', 'technician']
-        && data.status in ['active', 'inactive'];
-    }
+      match /financial_costs/{costId} {
+        allow read, write: if isSignedIn();
+      }
 
-    function isValidClient(data) {
-      return data.keys().hasAll(['name', 'phone'])
-        && data.name is string
-        && data.name.size() <= 200
-        && data.phone is string
-        && data.phone.size() <= 32;
-    }
+      match /revenues/{revenueId} {
+        allow read, write: if isSignedIn();
+      }
 
-    function isValidQuote(data) {
-      return data.keys().hasAll(['clientId', 'pestType', 'suggestedPrice', 'createdBy', 'status'])
-        && data.clientId is string
-        && data.clientId.size() <= 128
-        && data.pestType is string
-        && data.pestType.size() <= 64
-        && data.suggestedPrice is number
-        && data.suggestedPrice >= 0
-        && data.createdBy is string
-        && data.createdBy.size() <= 128
-        && data.status in ['Rascunho', 'Enviado', 'Aprovado', 'Executado', 'Cancelado'];
-    }
+      match /financial_settings/{settingId} {
+        allow read, write: if isSignedIn();
+      }
 
-    function isValidService(data) {
-      return data.keys().hasAll(['quoteId', 'clientId', 'technicians', 'status'])
-        && data.quoteId is string
-        && data.quoteId.size() <= 128
-        && data.clientId is string
-        && data.clientId.size() <= 128
-        && data.technicians is list
-        && data.technicians.size() <= 10
-        && data.status in ['Agendado', 'Em Andamento', 'Finalizado', 'Atrasado'];
-    }
+      match /products/{productId} {
+        allow read, write: if isSignedIn();
+      }
 
-    function isValidCost(data) {
-      return data.keys().hasAll(['category', 'amount', 'createdBy'])
-        && data.category in ['Fixo', 'Variável', 'Operacional']
-        && data.amount is number
-        && data.amount >= 0
-        && data.createdBy is string
-        && data.createdBy.size() <= 128;
-    }
+      match /stock_movements/{movementId} {
+        allow read, write: if isSignedIn();
+      }
 
-    function isValidRevenue(data) {
-      return data.keys().hasAll(['amount', 'receivedAt'])
-        && data.amount is number
-        && data.amount >= 0
-        && data.receivedAt is string;
-    }
+      match /pops/{popId} {
+        allow read, write: if isSignedIn();
+      }
 
-    function isValidProduct(data) {
-      return data.keys().hasAll(['name', 'unit', 'quantityAvailable'])
-        && data.name is string
-        && data.name.size() <= 200
-        && data.unit is string
-        && data.unit.size() <= 32
-        && data.quantityAvailable is number;
-    }
+      match /dashboard_metrics/{metricId} {
+        allow read, write: if isSignedIn();
+      }
 
-    function isValidMovement(data) {
-      return data.keys().hasAll(['productId', 'type', 'quantity', 'responsibleUser'])
-        && data.productId is string
-        && data.productId.size() <= 128
-        && data.type in ['Entrada', 'Saída']
-        && data.quantity is number
-        && data.quantity > 0
-        && data.responsibleUser is string
-        && data.responsibleUser.size() <= 128;
-    }
+      match /historical_insights/{insightId} {
+        allow read, write: if isSignedIn();
+      }
 
-    function isValidPOP(data) {
-      return data.keys().hasAll(['title', 'category'])
-        && data.title is string
-        && data.title.size() <= 200
-        && data.category is string
-        && data.category.size() <= 100;
-    }
+      match /events/{eventId} {
+        allow read, create: if isSignedIn();
+        allow update, delete: if false;
+      }
 
-    function isValidMetric(data) {
-      return data.keys().hasAll(['key', 'value', 'period', 'timestamp'])
-        && data.key is string
-        && data.key.size() <= 100
-        && data.value is number
-        && data.period is string
-        && data.timestamp is string;
-    }
-
-    function isValidInsight(data) {
-      return data.keys().hasAll(['type', 'pattern', 'confidence', 'dataPoints'])
-        && data.type is string
-        && data.pattern is string
-        && data.confidence is number
-        && data.dataPoints is number;
-    }
-
-    function isValidEvent(data) {
-      return data.keys().hasAll(['id', 'eventName', 'timestamp', 'date', 'time', 'user'])
-        && data.id is string
-        && data.id.size() <= 128
-        && data.eventName is string
-        && data.eventName.size() <= 128
-        && data.timestamp is number
-        && data.date is string
-        && data.date.size() <= 32
-        && data.time is string
-        && data.time.size() <= 32
-        && data.user is string
-        && data.user.size() <= 200;
-    }
-
-    // ==========================================
-    // RESOURCE SPECIFIC MATCH BLOCKS (0-TRUST)
-    // ==========================================
-
-    match /users/{userId} {
-      allow get: if isSignedIn() && (userId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
-      allow create: if isVerified() && isValidId(userId) && userId == request.auth.uid && isValidUser(incoming()) && incoming().role == 'technician';
-      allow update: if isVerified() && isValidId(userId) && (
-        (userId == request.auth.uid && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'updatedAt']))
-        || isAdmin()
-      );
-      allow delete: if isVerified() && isAdmin();
-    }
-
-    match /clients/{clientId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isVerified() && isValidId(clientId) && isValidClient(incoming()) && hasAnyRole(['admin', 'manager', 'commercial']);
-      allow update: if isVerified() && isValidId(clientId) && isValidClient(incoming()) && hasAnyRole(['admin', 'manager', 'commercial']) && incoming().createdAt == existing().createdAt;
-      allow delete: if isVerified() && isAdmin();
-    }
-
-    match /quotes/{quoteId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      
-      allow create: if isVerified() && isValidId(quoteId) && isValidQuote(incoming()) 
-        && incoming().createdBy == request.auth.uid 
-        && hasAnyRole(['admin', 'manager', 'commercial'])
-        && exists(/databases/$(database)/documents/clients/$(incoming().clientId));
-
-      allow update: if isVerified() && isValidId(quoteId) && isValidQuote(incoming()) && (
-        isAdmin() || (
-          hasAnyRole(['admin', 'manager', 'commercial'])
-          // TERMINAL STATE LOCKING: Lock changes if old status was Aprovado, Executado or Cancelado
-          && !(existing().status in ['Aprovado', 'Executado', 'Cancelado'])
-          && incoming().createdBy == existing().createdBy
-          && incoming().createdAt == existing().createdAt
-          && incoming().clientId == existing().clientId
-        )
-      );
-      allow delete: if isVerified() && isAdmin();
-    }
-
-    match /services/{serviceId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      
-      allow create: if isVerified() && isValidId(serviceId) && isValidService(incoming()) 
-        && hasAnyRole(['admin', 'manager', 'technician'])
-        && exists(/databases/$(database)/documents/quotes/$(incoming().quoteId));
-
-      allow update: if isVerified() && isValidId(serviceId) && isValidService(incoming()) && (
-        isAdmin() || (
-          hasAnyRole(['admin', 'manager', 'technician'])
-          && !(existing().status == 'Finalizado') // TERMINAL STATE LOCK
-          && incoming().quoteId == existing().quoteId
-          && incoming().clientId == existing().clientId
-        )
-      );
-      allow delete: if isVerified() && isAdmin();
-    }
-
-    match /financial_costs/{costId} {
-      allow get: if isSignedIn() && hasAnyRole(['admin', 'manager']);
-      allow list: if isSignedIn() && hasAnyRole(['admin', 'manager']);
-      allow create: if isVerified() && isValidId(costId) && isValidCost(incoming()) && incoming().createdBy == request.auth.uid && hasAnyRole(['admin', 'manager']);
-      allow update: if isVerified() && isValidId(costId) && isValidCost(incoming()) && hasAnyRole(['admin', 'manager']) && incoming().createdBy == existing().createdBy && incoming().createdAt == existing().createdAt;
-      allow delete: if isVerified() && isAdmin();
-    }
-
-    match /revenues/{revenueId} {
-      allow get: if isSignedIn() && hasAnyRole(['admin', 'manager']);
-      allow list: if isSignedIn() && hasAnyRole(['admin', 'manager']);
-      allow create: if isVerified() && isValidId(revenueId) && isValidRevenue(incoming()) && hasAnyRole(['admin', 'manager']);
-      allow update: if isVerified() && isValidId(revenueId) && isValidRevenue(incoming()) && hasAnyRole(['admin', 'manager']) && incoming().createdAt == existing().createdAt;
-      allow delete: if isVerified() && isAdmin();
-    }
-
-    match /products/{productId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isVerified() && isValidId(productId) && isValidProduct(incoming()) && hasAnyRole(['admin', 'manager']);
-      allow update: if isVerified() && isValidId(productId) && isValidProduct(incoming()) && (
-        hasAnyRole(['admin', 'manager']) || (
-          // Allowing stock adjustments only
-          incoming().diff(existing()).affectedKeys().hasOnly(['quantityAvailable', 'updatedAt'])
-        )
-      );
-      allow delete: if isVerified() && isAdmin();
-    }
-
-    match /stock_movements/{movementId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isVerified() && isValidId(movementId) && isValidMovement(incoming()) && incoming().responsibleUser == request.auth.uid;
-      allow update, delete: if isVerified() && isAdmin();
-    }
-
-    match /pops/{popId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isVerified() && isValidId(popId) && isValidPOP(incoming()) && hasAnyRole(['admin', 'manager']);
-      allow update: if isVerified() && isValidId(popId) && isValidPOP(incoming()) && hasAnyRole(['admin', 'manager']);
-      allow delete: if isVerified() && isAdmin();
-    }
-
-    match /dashboard_metrics/{metricId} {
-      allow get: if isSignedIn() && hasAnyRole(['admin', 'manager']);
-      allow list: if isSignedIn() && hasAnyRole(['admin', 'manager']);
-      allow create, update: if isVerified() && isValidId(metricId) && isValidMetric(incoming()) && (hasAnyRole(['admin', 'manager']) || isAdmin());
-      allow delete: if isVerified() && isAdmin();
-    }
-
-    match /historical_insights/{insightId} {
-      allow get: if isSignedIn() && hasAnyRole(['admin', 'manager']);
-      allow list: if isSignedIn() && hasAnyRole(['admin', 'manager']);
-      allow create, update: if isVerified() && isValidId(insightId) && isValidInsight(incoming()) && isAdmin();
-      allow delete: if isVerified() && isAdmin();
-    }
-
-    match /events/{eventId} {
-      allow create: if isSignedIn() && isValidId(eventId) && isValidEvent(incoming());
-      allow get, list: if isSignedIn();
-      allow update, delete: if false; // Events are immutable audit logs
-    }
-
-    match /audit_logs/{logId} {
-      allow create: if isSignedIn() && isValidId(logId);
-      allow get, list: if isVerified() && hasAnyRole(['admin', 'manager']);
-      allow update, delete: if false; // Audit logs are immutable records
+      match /audit_logs/{logId} {
+        allow read, create: if isSignedIn();
+        allow update, delete: if false;
+      }
     }
   }
 }

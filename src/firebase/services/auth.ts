@@ -2,19 +2,21 @@ import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { auth } from '../config';
 import { getDocument, createDocument } from '../firestore';
 import { User } from '@/types';
+import { DEFAULT_EMPRESA_ID } from '../../tenant';
 
 export const googleProvider = new GoogleAuthProvider();
 
 /**
- * Perform login using Google authentication popup
+ * Perform login using Google authentication popup in tenant scope
  */
-export async function loginWithGoogle(): Promise<User> {
+export async function loginWithGoogle(empresaId: string = DEFAULT_EMPRESA_ID): Promise<User> {
+  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const firebaseUser = result.user;
     
-    // Check if user has an existing profiling document
-    let profile = await getDocument<User>('users', firebaseUser.uid);
+    // Check if user has an existing profiling document in tenant scope
+    let profile = await getDocument<User>('users', firebaseUser.uid, empresaId);
     if (!profile) {
       profile = {
         uid: firebaseUser.uid,
@@ -23,7 +25,7 @@ export async function loginWithGoogle(): Promise<User> {
         role: 'technician', // Default role
         createdAt: new Date().toISOString()
       };
-      await createDocument('users', firebaseUser.uid, profile);
+      await createDocument('users', firebaseUser.uid, profile, empresaId);
     }
     return profile;
   } catch (error) {
@@ -45,8 +47,9 @@ export async function logoutUser(): Promise<void> {
 }
 
 /**
- * Retrieve current user profile explicitly
+ * Retrieve current user profile explicitly in tenant scope
  */
-export async function getUserProfile(uid: string): Promise<User | null> {
-  return await getDocument<User>('users', uid);
+export async function getUserProfile(uid: string, empresaId: string = DEFAULT_EMPRESA_ID): Promise<User | null> {
+  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  return await getDocument<User>('users', uid, empresaId);
 }

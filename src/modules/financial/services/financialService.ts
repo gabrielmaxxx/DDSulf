@@ -4,21 +4,32 @@ import {
   getDocs, 
   query, 
   orderBy, 
-  where, 
   doc, 
   getDoc, 
   setDoc,
-  serverTimestamp,
-  Timestamp
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { FinancialCost, Revenue, FinancialSettings } from '@/types/database';
+import { getTenantCollectionPath, DEFAULT_EMPRESA_ID } from '@/tenant';
 
 export const financialService = {
   // Costs
-  async addCost(cost: Omit<FinancialCost, 'id'>) {
+  async addCost(arg1: any, arg2?: any): Promise<any> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+    let empresaId = DEFAULT_EMPRESA_ID;
+    let cost: Omit<FinancialCost, 'id'>;
+
+    if (typeof arg1 === 'string') {
+      empresaId = arg1;
+      cost = arg2;
+    } else {
+      cost = arg1;
+    }
+
     try {
-      return await addDoc(collection(db, 'financial_costs'), {
+      const path = getTenantCollectionPath(empresaId, 'financial_costs');
+      return await addDoc(collection(db, path), {
         ...cost,
         serverTimestamp: serverTimestamp()
       });
@@ -36,19 +47,29 @@ export const financialService = {
     }
   },
 
-  async getCosts(limitCount = 100) {
+  async getCosts(arg1?: any, arg2?: any): Promise<FinancialCost[]> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+    let empresaId = DEFAULT_EMPRESA_ID;
+    let limitCount = 100;
+
+    if (typeof arg1 === 'string') {
+      empresaId = arg1;
+      limitCount = arg2 || 100;
+    } else if (typeof arg1 === 'number') {
+      limitCount = arg1;
+    }
+
     try {
-      const q = query(collection(db, 'financial_costs'), orderBy('createdAt', 'desc'));
+      const path = getTenantCollectionPath(empresaId, 'financial_costs');
+      const q = query(collection(db, path), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
       const serverCosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as FinancialCost);
-      // Sync local changes if any as cached copy
       localStorage.setItem('financial_costs', JSON.stringify(serverCosts));
       return serverCosts;
     } catch (error) {
       console.warn("Operating offline: retrieving costs from local storage...", error);
       const localCosts = JSON.parse(localStorage.getItem('financial_costs') || '[]');
       if (localCosts.length === 0) {
-        // Return some nice initial seed data if nothing has been saved
         return [
           {
             id: 'cost_1',
@@ -73,9 +94,21 @@ export const financialService = {
   },
 
   // Revenues
-  async addRevenue(revenue: Omit<Revenue, 'id'>) {
+  async addRevenue(arg1: any, arg2?: any): Promise<any> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+    let empresaId = DEFAULT_EMPRESA_ID;
+    let revenue: Omit<Revenue, 'id'>;
+
+    if (typeof arg1 === 'string') {
+      empresaId = arg1;
+      revenue = arg2;
+    } else {
+      revenue = arg1;
+    }
+
     try {
-      return await addDoc(collection(db, 'revenues'), {
+      const path = getTenantCollectionPath(empresaId, 'revenues');
+      return await addDoc(collection(db, path), {
         ...revenue,
         serverTimestamp: serverTimestamp()
       });
@@ -93,9 +126,13 @@ export const financialService = {
     }
   },
 
-  async getRevenues() {
+  async getRevenues(arg1?: any): Promise<Revenue[]> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+    const empresaId = typeof arg1 === 'string' ? arg1 : DEFAULT_EMPRESA_ID;
+
     try {
-      const q = query(collection(db, 'revenues'), orderBy('receivedAt', 'desc'));
+      const path = getTenantCollectionPath(empresaId, 'revenues');
+      const q = query(collection(db, path), orderBy('receivedAt', 'desc'));
       const snapshot = await getDocs(q);
       const serverRevs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Revenue);
       localStorage.setItem('revenues', JSON.stringify(serverRevs));
@@ -130,9 +167,13 @@ export const financialService = {
   },
 
   // Settings
-  async getSettings(): Promise<FinancialSettings> {
+  async getSettings(arg1?: any): Promise<FinancialSettings> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+    const empresaId = typeof arg1 === 'string' ? arg1 : DEFAULT_EMPRESA_ID;
+
     try {
-      const docRef = doc(db, 'financial_settings', 'default');
+      const path = getTenantCollectionPath(empresaId, 'financial_settings');
+      const docRef = doc(db, path, 'default');
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data() as FinancialSettings;
@@ -150,7 +191,6 @@ export const financialService = {
       } catch (e) {}
     }
 
-    // Default fallback
     return {
       id: 'default',
       costPerHour: 45,
@@ -161,9 +201,21 @@ export const financialService = {
     };
   },
 
-  async updateSettings(settings: Partial<FinancialSettings>) {
+  async updateSettings(arg1: any, arg2?: any): Promise<FinancialSettings> {
+    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+    let empresaId = DEFAULT_EMPRESA_ID;
+    let settings: Partial<FinancialSettings>;
+
+    if (typeof arg1 === 'string') {
+      empresaId = arg1;
+      settings = arg2;
+    } else {
+      settings = arg1;
+    }
+
     try {
-      const docRef = doc(db, 'financial_settings', 'default');
+      const path = getTenantCollectionPath(empresaId, 'financial_settings');
+      const docRef = doc(db, path, 'default');
       await setDoc(docRef, {
         ...settings,
         updatedAt: new Date().toISOString()
@@ -172,8 +224,7 @@ export const financialService = {
       console.warn("Operating offline: updating settings in local storage...", error);
     }
     
-    // Always sync with localStorage
-    const current = await this.getSettings();
+    const current = await this.getSettings(empresaId);
     const updated = {
       ...current,
       ...settings,
