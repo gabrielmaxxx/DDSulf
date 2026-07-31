@@ -8,7 +8,7 @@ import { collection, query, where, getDocs, orderBy, limit } from 'firebase/fire
 import { db } from '../config';
 import { handleFirestoreError } from '../utils/errorHandler';
 import { OperationType } from '../types';
-import { getTenantCollectionPath, DEFAULT_EMPRESA_ID } from '../../tenant';
+import { getTenantCollectionPath } from '../../tenant';
 
 export class InventoryRepository extends BaseRepository<Product> {
   protected readonly collectionName = 'products';
@@ -18,8 +18,7 @@ export class InventoryRepository extends BaseRepository<Product> {
   /**
    * Retrieves all items that meet or are below minimum stock limits in tenant scope
    */
-  public async getDepletedStockProducts(empresaId: string = DEFAULT_EMPRESA_ID): Promise<Product[]> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  public async getDepletedStockProducts(empresaId: string): Promise<Product[]> {
     try {
       const path = this.getTenantPath(empresaId);
       const colRef = collection(db, path);
@@ -36,8 +35,7 @@ export class InventoryRepository extends BaseRepository<Product> {
   /**
    * Stream stock movements for audit review in tenant scope
    */
-  public async getStockMovements(empresaId: string = DEFAULT_EMPRESA_ID, productId: string, maxLimit = 50): Promise<StockMovement[]> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  public async getStockMovements(empresaId: string, productId: string, maxLimit = 50): Promise<StockMovement[]> {
     try {
       const movementsPath = getTenantCollectionPath(empresaId, 'stock_movements');
       const q = query(

@@ -10,12 +10,11 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { Product, StockMovement } from '@/types/database';
-import { getTenantCollectionPath, DEFAULT_EMPRESA_ID } from '@/tenant';
+import { getTenantCollectionPath, getActiveTenantId } from '@/tenant';
 
 export const inventoryService = {
   async getProducts(arg1?: any): Promise<Product[]> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-    const empresaId = typeof arg1 === 'string' ? arg1 : DEFAULT_EMPRESA_ID;
+    const empresaId = typeof arg1 === 'string' ? arg1 : getActiveTenantId();
 
     try {
       const path = getTenantCollectionPath(empresaId, 'products');
@@ -78,8 +77,7 @@ export const inventoryService = {
   },
 
   async addProduct(arg1: any, arg2?: any): Promise<any> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-    let empresaId = DEFAULT_EMPRESA_ID;
+    let empresaId = getActiveTenantId();
     let product: Omit<Product, 'id'>;
 
     if (typeof arg1 === 'string') {
@@ -110,8 +108,7 @@ export const inventoryService = {
   },
 
   async updateStock(arg1: string, arg2: any, arg3?: any, arg4?: any, arg5?: any, arg6?: any): Promise<any> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-    let empresaId = DEFAULT_EMPRESA_ID;
+    let empresaId = getActiveTenantId();
     let productId: string;
     let quantityChange: number;
     let type: 'Entrada' | 'Saída';
@@ -197,8 +194,7 @@ export const inventoryService = {
   },
 
   async getMovements(arg1?: any, arg2?: any): Promise<StockMovement[]> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-    let empresaId = DEFAULT_EMPRESA_ID;
+    let empresaId = getActiveTenantId();
     let productId: string | undefined;
 
     if (typeof arg2 === 'string' || (typeof arg1 === 'string' && arg1.startsWith('empresas/'))) {

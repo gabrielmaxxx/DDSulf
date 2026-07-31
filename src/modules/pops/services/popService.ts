@@ -9,13 +9,13 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { POP } from '@/types/database';
-import { getTenantCollectionPath, DEFAULT_EMPRESA_ID } from '@/tenant';
+import { getTenantCollectionPath, getActiveTenantId } from '@/tenant';
 
 export const popService = {
-  async getPops(empresaId: string = DEFAULT_EMPRESA_ID) {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  async getPops(empresaId?: string) {
+    const activeEmpresaId = empresaId || getActiveTenantId();
     try {
-      const path = getTenantCollectionPath(empresaId, 'pops');
+      const path = getTenantCollectionPath(activeEmpresaId, 'pops');
       const q = query(collection(db, path), orderBy('title', 'asc'));
       const snapshot = await getDocs(q);
       const serverPops = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as POP);
@@ -79,10 +79,10 @@ export const popService = {
     }
   },
 
-  async filterPops(empresaId: string = DEFAULT_EMPRESA_ID, category?: string, pestType?: string) {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  async filterPops(empresaId?: string, category?: string, pestType?: string) {
+    const activeEmpresaId = empresaId || getActiveTenantId();
     try {
-      const path = getTenantCollectionPath(empresaId, 'pops');
+      const path = getTenantCollectionPath(activeEmpresaId, 'pops');
       let q = query(collection(db, path));
       
       if (category) {
@@ -97,7 +97,7 @@ export const popService = {
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as POP);
     } catch (error) {
       console.warn("Operating offline: filtering POPs locally...");
-      const allPops = await this.getPops(empresaId);
+      const allPops = await this.getPops(activeEmpresaId);
       return allPops.filter(pop => {
         if (category && pop.category !== category) return false;
         if (pestType && pop.pestType !== pestType) return false;
@@ -106,11 +106,12 @@ export const popService = {
     }
   },
 
-  async getPopById(empresaId: string = DEFAULT_EMPRESA_ID, id: string) {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  async getPopById(empresaId: string | undefined, id?: string) {
+    const targetId = id || (empresaId as string);
+    const activeEmpresaId = id ? empresaId : getActiveTenantId();
     try {
-      const path = getTenantCollectionPath(empresaId, 'pops');
-      const docRef = doc(db, path, id);
+      const path = getTenantCollectionPath(activeEmpresaId, 'pops');
+      const docRef = doc(db, path, targetId);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() } as POP;
@@ -118,7 +119,7 @@ export const popService = {
     } catch (error) {
       console.warn("Operating offline: searching pop by ID locally...");
     }
-    const allPops = await this.getPops(empresaId);
-    return allPops.find(p => p.id === id) || null;
+    const allPops = await this.getPops(activeEmpresaId);
+    return allPops.find(p => p.id === targetId) || null;
   }
 };

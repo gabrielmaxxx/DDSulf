@@ -13,6 +13,7 @@ import { GoogleMapsViewer } from '@/components/GoogleMapsViewer';
 import { GOOGLE_MAPS_API_KEY, hasValidMapsKey } from '@/config/maps';
 import { fetchGoogleMapsDistance, estimateDistanceOffline } from '@/utils/distanceUtils';
 import { DEFAULT_EMPRESA_ID } from '@/tenant';
+import { ChangePasswordCard } from './ChangePasswordCard';
 
 interface SettingsData {
   companyName: string;
@@ -734,6 +735,9 @@ export function SettingsPage() {
             )}
           </Card>
         )}
+
+        {/* Seção 6 — Alteração de Senha */}
+        <ChangePasswordCard />
 
         {/* Zona de Perigo */}
         <Card className="border border-red-200 bg-red-50/10 rounded-3xl p-6 space-y-4">

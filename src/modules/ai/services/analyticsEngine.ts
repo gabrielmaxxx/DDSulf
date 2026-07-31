@@ -2,15 +2,15 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { OperationalContext } from '../types';
 import { Quote, ServiceExecution, Product } from '@/types/database';
-import { getTenantCollectionPath, DEFAULT_EMPRESA_ID } from '@/tenant';
+import { getTenantCollectionPath, getActiveTenantId } from '@/tenant';
 
 export const analyticsEngine = {
-  async getOperationalContext(empresaId: string = DEFAULT_EMPRESA_ID): Promise<OperationalContext> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  async getOperationalContext(empresaId?: string): Promise<OperationalContext> {
+    const activeEmpresaId = empresaId || getActiveTenantId();
     try {
-      const quotesPath = getTenantCollectionPath(empresaId, 'quotes');
-      const servicesPath = getTenantCollectionPath(empresaId, 'services');
-      const productsPath = getTenantCollectionPath(empresaId, 'products');
+      const quotesPath = getTenantCollectionPath(activeEmpresaId, 'quotes');
+      const servicesPath = getTenantCollectionPath(activeEmpresaId, 'services');
+      const productsPath = getTenantCollectionPath(activeEmpresaId, 'products');
 
       const quotesSnap = await getDocs(collection(db, quotesPath));
       const servicesSnap = await getDocs(collection(db, servicesPath));

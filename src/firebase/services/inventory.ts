@@ -1,12 +1,11 @@
 import { 
-  getDocument,
-  createDocument,
+  getDocument, 
+  createDocument, 
   queryDocuments, 
-  subscribeCollection,
-  executeBatchWrite
+  subscribeCollection, 
+  executeBatchWrite 
 } from '../firestore';
 import { Product, StockMovement } from '@/types';
-import { DEFAULT_EMPRESA_ID } from '../../tenant';
 
 const PRODUCTS_PATH = 'products';
 const MOVEMENTS_PATH = 'stock_movements';
@@ -14,24 +13,26 @@ const MOVEMENTS_PATH = 'stock_movements';
 /**
  * Save or update product catalogue items in tenant scope
  */
-export async function saveProduct(empresaId: string = DEFAULT_EMPRESA_ID, id: string, product: Omit<Product, 'id' | 'updatedAt'>): Promise<void> {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-  await createDocument<Product>(PRODUCTS_PATH, id, product, empresaId);
+export async function saveProduct(empresaId: string | undefined, id: string, product?: Omit<Product, 'id' | 'updatedAt'>): Promise<void> {
+  const targetId = product ? id : (empresaId as string);
+  const targetPayload = product || (id as any);
+  const targetEmpresa = product ? empresaId : undefined;
+  await createDocument<Product>(PRODUCTS_PATH, targetId, targetPayload, targetEmpresa);
 }
 
 /**
  * Fetch a single product specifications in tenant scope
  */
-export async function getProduct(empresaId: string = DEFAULT_EMPRESA_ID, id: string): Promise<Product | null> {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-  return await getDocument<Product>(PRODUCTS_PATH, id, empresaId);
+export async function getProduct(empresaId: string | undefined, id?: string): Promise<Product | null> {
+  const targetId = id || (empresaId as string);
+  const targetEmpresa = id ? empresaId : undefined;
+  return await getDocument<Product>(PRODUCTS_PATH, targetId, targetEmpresa);
 }
 
 /**
  * Fetch entire catalog list in tenant scope
  */
-export async function getAllProducts(empresaId: string = DEFAULT_EMPRESA_ID): Promise<Product[]> {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+export async function getAllProducts(empresaId?: string): Promise<Product[]> {
   return await queryDocuments<Product>(PRODUCTS_PATH, {
     orderByField: 'name',
     orderDirection: 'asc'
@@ -41,8 +42,11 @@ export async function getAllProducts(empresaId: string = DEFAULT_EMPRESA_ID): Pr
 /**
  * Live stream of database chemical catalog in tenant scope
  */
-export function listenToProducts(empresaId: string = DEFAULT_EMPRESA_ID, onUpdate: (products: Product[]) => void): () => void {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+export function listenToProducts(empresaId: string | undefined, onUpdate: (products: Product[]) => void): () => void;
+export function listenToProducts(onUpdate: (products: Product[]) => void): () => void;
+export function listenToProducts(arg1: any, arg2?: any): () => void {
+  const empresaId = typeof arg1 === 'string' ? arg1 : undefined;
+  const onUpdate = typeof arg1 === 'function' ? arg1 : arg2;
   return subscribeCollection<Product>(PRODUCTS_PATH, {
     orderByField: 'name',
     orderDirection: 'asc'
@@ -53,22 +57,24 @@ export function listenToProducts(empresaId: string = DEFAULT_EMPRESA_ID, onUpdat
  * Registers stock flow movement, performing atomic operations to adjust available quantity in tenant scope
  */
 export async function registerStockMovement(
-  empresaId: string = DEFAULT_EMPRESA_ID,
-  movement: Omit<StockMovement, 'id' | 'createdAt'>
+  empresaId: string | undefined,
+  movement?: Omit<StockMovement, 'id' | 'createdAt'>
 ): Promise<void> {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-  const product = await getProduct(empresaId, movement.productId);
+  const targetMovement = movement || (empresaId as any);
+  const targetEmpresa = movement ? empresaId : undefined;
+
+  const product = await getProduct(targetEmpresa, targetMovement.productId);
   if (!product) {
-    throw new Error(`[DDSulf Inventory] Error: Product ID ${movement.productId} not found.`);
+    throw new Error(`[PestFlow Inventory] Error: Product ID ${targetMovement.productId} not found.`);
   }
 
   let newQty = product.quantityAvailable;
-  if (movement.type === 'Entrada') {
-    newQty += movement.quantity;
+  if (targetMovement.type === 'Entrada') {
+    newQty += targetMovement.quantity;
   } else {
-    newQty -= movement.quantity;
+    newQty -= targetMovement.quantity;
     if (newQty < 0) {
-      console.warn(`[DDSulf Inventory] Alert: Product ${product.name} is in negative units (${newQty})`);
+      console.warn(`[PestFlow Inventory] Alert: Product ${product.name} is in negative units (${newQty})`);
     }
   }
 
@@ -79,22 +85,21 @@ export async function registerStockMovement(
       type: 'create',
       path: MOVEMENTS_PATH,
       id: movementId,
-      data: movement
+      data: targetMovement
     },
     {
       type: 'update',
       path: PRODUCTS_PATH,
-      id: movement.productId,
+      id: targetMovement.productId,
       data: { quantityAvailable: newQty }
     }
-  ], empresaId);
+  ], targetEmpresa);
 }
 
 /**
  * Retrieve logs for chemical or mechanical usage movements in tenant scope
  */
-export async function getStockMovements(empresaId: string = DEFAULT_EMPRESA_ID, productId?: string): Promise<StockMovement[]> {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+export async function getStockMovements(empresaId?: string, productId?: string): Promise<StockMovement[]> {
   const queryOps = productId ? {
     filters: [{ field: 'productId', operator: '==', value: productId }],
     orderByField: 'createdAt',

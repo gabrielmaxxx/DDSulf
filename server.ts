@@ -6,7 +6,9 @@ import dotenv from "dotenv";
 import { PromptOrchestrator } from "./src/ai/prompts";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 import { rateLimit } from "express-rate-limit";
+import { validateEmpresaId, buildSyntheticEmail } from "./src/utils/authUtils";
 
 dotenv.config();
 
@@ -35,7 +37,7 @@ function ensureFirebaseAdmin() {
   }
 }
 
-async function authMiddleware(req: express.Request, res: express.Response, next: express.NextFunction) {
+export async function verifyAuthToken(req: express.Request, res: express.Response, next: express.NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Cabeçalho de autorização inválido ou ausente. Use Bearer <token>." });
@@ -45,13 +47,28 @@ async function authMiddleware(req: express.Request, res: express.Response, next:
   try {
     ensureFirebaseAdmin();
     const decodedToken = await getAuth().verifyIdToken(idToken);
+
+    if (!decodedToken.empresaId || typeof decodedToken.empresaId !== 'string') {
+      return res.status(401).json({ error: "Token não possui o claim empresaId." });
+    }
+
+    const tenantContext = {
+      empresaId: decodedToken.empresaId,
+      role: (decodedToken.role as string) || 'technician',
+      uid: decodedToken.uid,
+      isSuperAdmin: Boolean(decodedToken.isSuperAdmin)
+    };
+
     (req as any).user = decodedToken;
+    (req as any).tenantContext = tenantContext;
     next();
   } catch (error: any) {
     console.error("Erro na validação do Token Firebase:", error);
     return res.status(401).json({ error: `Falha na autenticação do Firebase: ${error.message}` });
   }
 }
+
+const authMiddleware = verifyAuthToken;
 
 const aiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
@@ -77,6 +94,124 @@ async function startServer() {
   // Health check endpoint for SyncEngine latency check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Creation of users via Firebase Admin SDK with custom claims (Master / SuperAdmin only)
+  app.post("/api/admin/usuarios", verifyAuthToken, async (req, res) => {
+    try {
+      ensureFirebaseAdmin();
+      const tenantCtx = (req as any).tenantContext;
+      const isMaster = tenantCtx?.role === 'master';
+      const isSuperAdmin = Boolean(tenantCtx?.isSuperAdmin);
+
+      if (!isMaster && !isSuperAdmin) {
+        return res.status(403).json({ 
+          error: "Acesso negado: apenas usuários com perfil master ou superAdmin podem criar novos usuários." 
+        });
+      }
+
+      const { empresaId, login, senhaTemporaria, role, name, cargo } = req.body || {};
+
+      if (!login || !senhaTemporaria) {
+        return res.status(400).json({ error: "Campos 'login' e 'senhaTemporaria' são obrigatórios." });
+      }
+
+      const targetEmpresaId = empresaId || tenantCtx?.empresaId;
+      if (!validateEmpresaId(targetEmpresaId)) {
+        return res.status(400).json({ error: "Formato de 'empresaId' inválido. Use letras, números, hífen e underscore." });
+      }
+
+      // Master user can only create users within their own empresa
+      if (isMaster && !isSuperAdmin && targetEmpresaId !== tenantCtx?.empresaId) {
+        return res.status(403).json({ error: "Acesso negado: usuários master só podem criar contas na própria empresa." });
+      }
+
+      const syntheticEmail = buildSyntheticEmail(login, targetEmpresaId);
+      const assignedRole = role || 'technician';
+
+      // Create user in Firebase Auth via Admin SDK
+      const userRecord = await getAuth().createUser({
+        email: syntheticEmail,
+        password: senhaTemporaria,
+        displayName: name || login
+      });
+
+      // Set custom claims { empresaId, role }
+      await getAuth().setCustomUserClaims(userRecord.uid, {
+        empresaId: targetEmpresaId,
+        role: assignedRole
+      });
+
+      // Store profile document in Firestore at /empresas/{empresaId}/usuarios/{uid}
+      const db = getFirestore();
+      await db.doc(`empresas/${targetEmpresaId}/usuarios/${userRecord.uid}`).set({
+        uid: userRecord.uid,
+        login: login.trim().toLowerCase(),
+        email: syntheticEmail,
+        name: name || login,
+        cargo: cargo || 'Colaborador',
+        empresaId: targetEmpresaId,
+        role: assignedRole,
+        permissions: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      res.status(201).json({
+        success: true,
+        uid: userRecord.uid,
+        email: syntheticEmail,
+        empresaId: targetEmpresaId,
+        role: assignedRole
+      });
+    } catch (error: any) {
+      console.error("Erro ao criar usuário via Admin SDK:", error);
+      res.status(500).json({ error: error.message || "Erro interno ao criar usuário." });
+    }
+  });
+
+  // Bootstrap master account setup endpoint (for testing and initialization)
+  app.post("/api/admin/bootstrap-master", async (req, res) => {
+    try {
+      ensureFirebaseAdmin();
+      const { empresaId = "ddsulf", login = "master", senhaTemporaria = "123456", name = "Master DDSulf" } = req.body || {};
+      if (!validateEmpresaId(empresaId)) {
+        return res.status(400).json({ error: "Formato de empresaId inválido." });
+      }
+      const email = buildSyntheticEmail(login, empresaId);
+      let uid: string;
+      try {
+        const existingUser = await getAuth().getUserByEmail(email);
+        uid = existingUser.uid;
+        await getAuth().updateUser(uid, { password: senhaTemporaria, displayName: name });
+      } catch {
+        const newUser = await getAuth().createUser({ email, password: senhaTemporaria, displayName: name });
+        uid = newUser.uid;
+      }
+
+      const claims = { empresaId, role: "master", isSuperAdmin: true };
+      await getAuth().setCustomUserClaims(uid, claims);
+
+      const db = getFirestore();
+      await db.doc(`empresas/${empresaId}/usuarios/${uid}`).set({
+        uid,
+        login: login.trim().toLowerCase(),
+        email,
+        name,
+        cargo: "Gestor Master",
+        empresaId,
+        role: "master",
+        isSuperAdmin: true,
+        permissions: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      res.status(200).json({ success: true, uid, email, empresaId, claims });
+    } catch (error: any) {
+      console.error("Bootstrap Master error:", error);
+      res.status(500).json({ error: error.message || "Erro ao configurar usuário master inicial." });
+    }
   });
 
   // Google Maps Status check

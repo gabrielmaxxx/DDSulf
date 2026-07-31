@@ -11,13 +11,12 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { FinancialCost, Revenue, FinancialSettings } from '@/types/database';
-import { getTenantCollectionPath, DEFAULT_EMPRESA_ID } from '@/tenant';
+import { getTenantCollectionPath, getActiveTenantId } from '@/tenant';
 
 export const financialService = {
   // Costs
   async addCost(arg1: any, arg2?: any): Promise<any> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-    let empresaId = DEFAULT_EMPRESA_ID;
+    let empresaId = getActiveTenantId();
     let cost: Omit<FinancialCost, 'id'>;
 
     if (typeof arg1 === 'string') {
@@ -48,8 +47,7 @@ export const financialService = {
   },
 
   async getCosts(arg1?: any, arg2?: any): Promise<FinancialCost[]> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-    let empresaId = DEFAULT_EMPRESA_ID;
+    let empresaId = getActiveTenantId();
     let limitCount = 100;
 
     if (typeof arg1 === 'string') {
@@ -95,8 +93,7 @@ export const financialService = {
 
   // Revenues
   async addRevenue(arg1: any, arg2?: any): Promise<any> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-    let empresaId = DEFAULT_EMPRESA_ID;
+    let empresaId = getActiveTenantId();
     let revenue: Omit<Revenue, 'id'>;
 
     if (typeof arg1 === 'string') {
@@ -127,8 +124,7 @@ export const financialService = {
   },
 
   async getRevenues(arg1?: any): Promise<Revenue[]> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-    const empresaId = typeof arg1 === 'string' ? arg1 : DEFAULT_EMPRESA_ID;
+    const empresaId = typeof arg1 === 'string' ? arg1 : getActiveTenantId();
 
     try {
       const path = getTenantCollectionPath(empresaId, 'revenues');
@@ -168,8 +164,7 @@ export const financialService = {
 
   // Settings
   async getSettings(arg1?: any): Promise<FinancialSettings> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-    const empresaId = typeof arg1 === 'string' ? arg1 : DEFAULT_EMPRESA_ID;
+    const empresaId = typeof arg1 === 'string' ? arg1 : getActiveTenantId();
 
     try {
       const path = getTenantCollectionPath(empresaId, 'financial_settings');
@@ -202,8 +197,7 @@ export const financialService = {
   },
 
   async updateSettings(arg1: any, arg2?: any): Promise<FinancialSettings> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-    let empresaId = DEFAULT_EMPRESA_ID;
+    let empresaId = getActiveTenantId();
     let settings: Partial<FinancialSettings>;
 
     if (typeof arg1 === 'string') {

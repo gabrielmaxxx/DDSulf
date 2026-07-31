@@ -4,23 +4,22 @@ import {
   subscribeCollection 
 } from '../firestore';
 import { HistoricalInsight } from '@/types';
-import { DEFAULT_EMPRESA_ID } from '../../tenant';
 
 const PATH = 'historical_insights';
 
 /**
  * Register a newly calculated execution pattern or operational anomaly in tenant scope
  */
-export async function addHistoricalInsight(empresaId: string = DEFAULT_EMPRESA_ID, insight: Omit<HistoricalInsight, 'id'>): Promise<string> {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-  return await addDocument<HistoricalInsight>(PATH, insight, empresaId);
+export async function addHistoricalInsight(empresaId?: string, insight?: Omit<HistoricalInsight, 'id'>): Promise<string> {
+  const payload = insight || (empresaId as any);
+  const targetEmpresa = typeof empresaId === 'string' ? empresaId : undefined;
+  return await addDocument<HistoricalInsight>(PATH, payload, targetEmpresa);
 }
 
 /**
  * Fetch all registered analytical trends in tenant scope
  */
-export async function getHistoricalInsights(empresaId: string = DEFAULT_EMPRESA_ID): Promise<HistoricalInsight[]> {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+export async function getHistoricalInsights(empresaId?: string): Promise<HistoricalInsight[]> {
   return await queryDocuments<HistoricalInsight>(PATH, {
     orderByField: 'confidence',
     orderDirection: 'desc'
@@ -30,8 +29,11 @@ export async function getHistoricalInsights(empresaId: string = DEFAULT_EMPRESA_
 /**
  * Live updates of predictive performance metrics in tenant scope
  */
-export function listenToHistoricalInsights(empresaId: string = DEFAULT_EMPRESA_ID, onUpdate: (insights: HistoricalInsight[]) => void): () => void {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+export function listenToHistoricalInsights(empresaId: string | undefined, onUpdate: (insights: HistoricalInsight[]) => void): () => void;
+export function listenToHistoricalInsights(onUpdate: (insights: HistoricalInsight[]) => void): () => void;
+export function listenToHistoricalInsights(arg1: any, arg2?: any): () => void {
+  const empresaId = typeof arg1 === 'string' ? arg1 : undefined;
+  const onUpdate = typeof arg1 === 'function' ? arg1 : arg2;
   return subscribeCollection<HistoricalInsight>(PATH, {
     orderByField: 'confidence',
     orderDirection: 'desc'

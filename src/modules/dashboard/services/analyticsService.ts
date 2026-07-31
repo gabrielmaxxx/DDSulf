@@ -12,15 +12,15 @@ import {
   Revenue, 
   HistoricalInsight 
 } from '@/types/database';
-import { getTenantCollectionPath, DEFAULT_EMPRESA_ID } from '@/tenant';
+import { getTenantCollectionPath, getActiveTenantId } from '@/tenant';
 
 export const analyticsService = {
-  async getDashboardData(empresaId: string = DEFAULT_EMPRESA_ID) {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  async getDashboardData(empresaId?: string) {
+    const activeEmpresaId = empresaId || getActiveTenantId();
     try {
-      const quotesPath = getTenantCollectionPath(empresaId, 'quotes');
-      const costsPath = getTenantCollectionPath(empresaId, 'financial_costs');
-      const revenuesPath = getTenantCollectionPath(empresaId, 'revenues');
+      const quotesPath = getTenantCollectionPath(activeEmpresaId, 'quotes');
+      const costsPath = getTenantCollectionPath(activeEmpresaId, 'financial_costs');
+      const revenuesPath = getTenantCollectionPath(activeEmpresaId, 'revenues');
 
       const [quotesSnap, costsSnap, revenuesSnap] = await Promise.all([
         getDocs(query(collection(db, quotesPath), orderBy('createdAt', 'desc'), limit(50))),

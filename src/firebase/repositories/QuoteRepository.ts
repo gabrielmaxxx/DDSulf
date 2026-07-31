@@ -8,7 +8,6 @@ import { collection, query, where, getDocs, orderBy, limit } from 'firebase/fire
 import { db } from '../config';
 import { handleFirestoreError } from '../utils/errorHandler';
 import { OperationType } from '../types';
-import { DEFAULT_EMPRESA_ID } from '../../tenant';
 
 export class QuoteRepository extends BaseRepository<Quote> {
   protected readonly collectionName = 'quotes';
@@ -18,8 +17,7 @@ export class QuoteRepository extends BaseRepository<Quote> {
   /**
    * Retrieves all quotes filtered by their current status in tenant scope
    */
-  public async getQuotesByStatus(empresaId: string = DEFAULT_EMPRESA_ID, status: QuoteStatus, maxCount = 50): Promise<Quote[]> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  public async getQuotesByStatus(empresaId: string, status: QuoteStatus, maxCount = 50): Promise<Quote[]> {
     try {
       const path = this.getTenantPath(empresaId);
       const q = query(
@@ -39,8 +37,7 @@ export class QuoteRepository extends BaseRepository<Quote> {
   /**
    * Safe check: does a quote exist for the client in tenant scope?
    */
-  public async getQuotesForClient(empresaId: string = DEFAULT_EMPRESA_ID, clientId: string): Promise<Quote[]> {
-    // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+  public async getQuotesForClient(empresaId: string, clientId: string): Promise<Quote[]> {
     try {
       const path = this.getTenantPath(empresaId);
       const q = query(

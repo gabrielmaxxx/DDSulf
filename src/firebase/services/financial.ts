@@ -4,7 +4,6 @@ import {
   subscribeCollection 
 } from '../firestore';
 import { FinancialCost, Revenue } from '@/types';
-import { DEFAULT_EMPRESA_ID } from '../../tenant';
 
 const COSTS_PATH = 'financial_costs';
 const REVENUES_PATH = 'revenues';
@@ -12,24 +11,25 @@ const REVENUES_PATH = 'revenues';
 /**
  * Registers an operational expense or structural cost in tenant scope
  */
-export async function addCost(empresaId: string = DEFAULT_EMPRESA_ID, cost: Omit<FinancialCost, 'id' | 'createdAt'>): Promise<string> {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-  return await addDocument<FinancialCost>(COSTS_PATH, cost, empresaId);
+export async function addCost(empresaId?: string, cost?: Omit<FinancialCost, 'id' | 'createdAt'>): Promise<string> {
+  const payload = cost || (empresaId as any);
+  const targetEmpresa = typeof empresaId === 'string' ? empresaId : undefined;
+  return await addDocument<FinancialCost>(COSTS_PATH, payload, targetEmpresa);
 }
 
 /**
  * Registers a service execution revenue or client invoice receipt in tenant scope
  */
-export async function addRevenue(empresaId: string = DEFAULT_EMPRESA_ID, revenue: Omit<Revenue, 'id' | 'createdAt'>): Promise<string> {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
-  return await addDocument<Revenue>(REVENUES_PATH, revenue, empresaId);
+export async function addRevenue(empresaId?: string, revenue?: Omit<Revenue, 'id' | 'createdAt'>): Promise<string> {
+  const payload = revenue || (empresaId as any);
+  const targetEmpresa = typeof empresaId === 'string' ? empresaId : undefined;
+  return await addDocument<Revenue>(REVENUES_PATH, payload, targetEmpresa);
 }
 
 /**
  * Fetch all registered outlays in tenant scope
  */
-export async function getAllCosts(empresaId: string = DEFAULT_EMPRESA_ID): Promise<FinancialCost[]> {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+export async function getAllCosts(empresaId?: string): Promise<FinancialCost[]> {
   return await queryDocuments<FinancialCost>(COSTS_PATH, {
     orderByField: 'createdAt',
     orderDirection: 'desc'
@@ -39,8 +39,7 @@ export async function getAllCosts(empresaId: string = DEFAULT_EMPRESA_ID): Promi
 /**
  * Fetch all received and calculated revenues in tenant scope
  */
-export async function getAllRevenues(empresaId: string = DEFAULT_EMPRESA_ID): Promise<Revenue[]> {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+export async function getAllRevenues(empresaId?: string): Promise<Revenue[]> {
   return await queryDocuments<Revenue>(REVENUES_PATH, {
     orderByField: 'receivedAt',
     orderDirection: 'desc'
@@ -50,8 +49,11 @@ export async function getAllRevenues(empresaId: string = DEFAULT_EMPRESA_ID): Pr
 /**
  * Listen in realtime to active outlays in tenant scope
  */
-export function listenToCosts(empresaId: string = DEFAULT_EMPRESA_ID, onUpdate: (costs: FinancialCost[]) => void): () => void {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+export function listenToCosts(empresaId: string | undefined, onUpdate: (costs: FinancialCost[]) => void): () => void;
+export function listenToCosts(onUpdate: (costs: FinancialCost[]) => void): () => void;
+export function listenToCosts(arg1: any, arg2?: any): () => void {
+  const empresaId = typeof arg1 === 'string' ? arg1 : undefined;
+  const onUpdate = typeof arg1 === 'function' ? arg1 : arg2;
   return subscribeCollection<FinancialCost>(COSTS_PATH, {
     orderByField: 'createdAt',
     orderDirection: 'desc'
@@ -61,8 +63,11 @@ export function listenToCosts(empresaId: string = DEFAULT_EMPRESA_ID, onUpdate: 
 /**
  * Listen in realtime to received revenues in tenant scope
  */
-export function listenToRevenues(empresaId: string = DEFAULT_EMPRESA_ID, onUpdate: (revenues: Revenue[]) => void): () => void {
-  // TODO(fase-2): substituir por empresaId extraído do custom claim do token
+export function listenToRevenues(empresaId: string | undefined, onUpdate: (revenues: Revenue[]) => void): () => void;
+export function listenToRevenues(onUpdate: (revenues: Revenue[]) => void): () => void;
+export function listenToRevenues(arg1: any, arg2?: any): () => void {
+  const empresaId = typeof arg1 === 'string' ? arg1 : undefined;
+  const onUpdate = typeof arg1 === 'function' ? arg1 : arg2;
   return subscribeCollection<Revenue>(REVENUES_PATH, {
     orderByField: 'receivedAt',
     orderDirection: 'desc'
