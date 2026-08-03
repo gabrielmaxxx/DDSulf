@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { AnalyticsService } from '@/services/analytics/analytics';
-import { DEFAULT_EMPRESA_ID } from '@/tenant';
+import { useAuth } from '@/auth/hooks/useAuth';
 
-export function useOperationalMetrics(empresaId: string = DEFAULT_EMPRESA_ID) {
+export function useOperationalMetrics(passedEmpresaId?: string) {
+  const { empresaId: authEmpresaId } = useAuth();
+  const empresaId = passedEmpresaId || authEmpresaId || '';
+
   const [metrics, setMetrics] = useState({
     pipelines: {
       Rascunho: 0,
@@ -18,6 +21,7 @@ export function useOperationalMetrics(empresaId: string = DEFAULT_EMPRESA_ID) {
   const [error, setError] = useState<Error | null>(null);
 
   async function calculate() {
+    if (!empresaId) return;
     try {
       setLoading(true);
       const res = await AnalyticsService.getOperationalAnalytics(empresaId);

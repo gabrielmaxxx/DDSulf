@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { dashboardService } from '@/services/dashboard/dashboard';
 import { logOperationalEvent } from '@/firebase/analytics';
-import { DEFAULT_EMPRESA_ID } from '@/tenant';
+import { useAuth } from '@/auth/hooks/useAuth';
 
 /**
  * Hook to manage reactive dashboard aggregates offline-first
  */
-export function useDashboardMetrics(empresaId: string = DEFAULT_EMPRESA_ID) {
+export function useDashboardMetrics(passedEmpresaId?: string) {
+  const { empresaId: authEmpresaId } = useAuth();
+  const empresaId = passedEmpresaId || authEmpresaId || '';
+
   const [metrics, setMetrics] = useState({
     activeQuotesCount: 0,
     completedServicesCount: 0,
@@ -17,6 +20,11 @@ export function useDashboardMetrics(empresaId: string = DEFAULT_EMPRESA_ID) {
 
   useEffect(() => {
     let active = true;
+
+    if (!empresaId) {
+      setLoading(false);
+      return;
+    }
 
     async function fetchData() {
       try {
@@ -48,6 +56,7 @@ export function useDashboardMetrics(empresaId: string = DEFAULT_EMPRESA_ID) {
   }, [empresaId]);
 
   const triggerManualRecalculation = async () => {
+    if (!empresaId) return;
     logOperationalEvent('dashboard_metrics_manual_refresh', { triggeredBy: 'UI_Action' });
     try {
       const liveAggs = await dashboardService.computeLiveAggregates(empresaId);

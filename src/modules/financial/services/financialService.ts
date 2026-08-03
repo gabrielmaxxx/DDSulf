@@ -11,21 +11,12 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { FinancialCost, Revenue, FinancialSettings } from '@/types/database';
-import { getTenantCollectionPath, getActiveTenantId } from '@/tenant';
+import { getTenantCollectionPath } from '@/tenant';
 
 export const financialService = {
   // Costs
-  async addCost(arg1: any, arg2?: any): Promise<any> {
-    let empresaId = getActiveTenantId();
-    let cost: Omit<FinancialCost, 'id'>;
-
-    if (typeof arg1 === 'string') {
-      empresaId = arg1;
-      cost = arg2;
-    } else {
-      cost = arg1;
-    }
-
+  async addCost(empresaId: string, cost: Omit<FinancialCost, 'id'>): Promise<any> {
+    if (!empresaId) throw new Error('empresaId é obrigatório para addCost.');
     try {
       const path = getTenantCollectionPath(empresaId, 'financial_costs');
       return await addDoc(collection(db, path), {
@@ -46,17 +37,8 @@ export const financialService = {
     }
   },
 
-  async getCosts(arg1?: any, arg2?: any): Promise<FinancialCost[]> {
-    let empresaId = getActiveTenantId();
-    let limitCount = 100;
-
-    if (typeof arg1 === 'string') {
-      empresaId = arg1;
-      limitCount = arg2 || 100;
-    } else if (typeof arg1 === 'number') {
-      limitCount = arg1;
-    }
-
+  async getCosts(empresaId: string, limitCount: number = 100): Promise<FinancialCost[]> {
+    if (!empresaId) throw new Error('empresaId é obrigatório para getCosts.');
     try {
       const path = getTenantCollectionPath(empresaId, 'financial_costs');
       const q = query(collection(db, path), orderBy('createdAt', 'desc'));
@@ -92,17 +74,8 @@ export const financialService = {
   },
 
   // Revenues
-  async addRevenue(arg1: any, arg2?: any): Promise<any> {
-    let empresaId = getActiveTenantId();
-    let revenue: Omit<Revenue, 'id'>;
-
-    if (typeof arg1 === 'string') {
-      empresaId = arg1;
-      revenue = arg2;
-    } else {
-      revenue = arg1;
-    }
-
+  async addRevenue(empresaId: string, revenue: Omit<Revenue, 'id'>): Promise<any> {
+    if (!empresaId) throw new Error('empresaId é obrigatório para addRevenue.');
     try {
       const path = getTenantCollectionPath(empresaId, 'revenues');
       return await addDoc(collection(db, path), {
@@ -123,9 +96,8 @@ export const financialService = {
     }
   },
 
-  async getRevenues(arg1?: any): Promise<Revenue[]> {
-    const empresaId = typeof arg1 === 'string' ? arg1 : getActiveTenantId();
-
+  async getRevenues(empresaId: string): Promise<Revenue[]> {
+    if (!empresaId) throw new Error('empresaId é obrigatório para getRevenues.');
     try {
       const path = getTenantCollectionPath(empresaId, 'revenues');
       const q = query(collection(db, path), orderBy('receivedAt', 'desc'));
@@ -163,9 +135,8 @@ export const financialService = {
   },
 
   // Settings
-  async getSettings(arg1?: any): Promise<FinancialSettings> {
-    const empresaId = typeof arg1 === 'string' ? arg1 : getActiveTenantId();
-
+  async getSettings(empresaId: string): Promise<FinancialSettings> {
+    if (!empresaId) throw new Error('empresaId é obrigatório para getSettings.');
     try {
       const path = getTenantCollectionPath(empresaId, 'financial_settings');
       const docRef = doc(db, path, 'default');
@@ -196,17 +167,8 @@ export const financialService = {
     };
   },
 
-  async updateSettings(arg1: any, arg2?: any): Promise<FinancialSettings> {
-    let empresaId = getActiveTenantId();
-    let settings: Partial<FinancialSettings>;
-
-    if (typeof arg1 === 'string') {
-      empresaId = arg1;
-      settings = arg2;
-    } else {
-      settings = arg1;
-    }
-
+  async updateSettings(empresaId: string, settings: Partial<FinancialSettings>): Promise<FinancialSettings> {
+    if (!empresaId) throw new Error('empresaId é obrigatório para updateSettings.');
     try {
       const path = getTenantCollectionPath(empresaId, 'financial_settings');
       const docRef = doc(db, path, 'default');

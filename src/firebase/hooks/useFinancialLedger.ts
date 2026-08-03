@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import AnalyticsService from '@/services/analytics/analytics';
 import { costsService, revenuesService } from '@/services/financial/financial';
 import { FinancialCost, Revenue } from '@/types/database';
-import { DEFAULT_EMPRESA_ID } from '@/tenant';
+import { useAuth } from '@/auth/hooks/useAuth';
 
-export function useFinancialLedger(empresaId: string = DEFAULT_EMPRESA_ID) {
+export function useFinancialLedger(passedEmpresaId?: string) {
+  const { empresaId: authEmpresaId } = useAuth();
+  const empresaId = passedEmpresaId || authEmpresaId || '';
+
   const [analytics, setAnalytics] = useState({
     revenueTotal: 0,
     costsTotal: 0,
@@ -18,6 +21,7 @@ export function useFinancialLedger(empresaId: string = DEFAULT_EMPRESA_ID) {
   const [error, setError] = useState<Error | null>(null);
 
   async function loadFinancialData() {
+    if (!empresaId) return;
     try {
       setLoading(true);
       const metrics = await AnalyticsService.getFinancialAnalytics(empresaId);
@@ -39,11 +43,13 @@ export function useFinancialLedger(empresaId: string = DEFAULT_EMPRESA_ID) {
   }, [empresaId]);
 
   const addCost = async (payload: Omit<FinancialCost, 'id' | 'createdAt'>) => {
+    if (!empresaId) return;
     await costsService.registerCost(empresaId, payload);
     await loadFinancialData();
   };
 
   const addRevenue = async (payload: Omit<Revenue, 'id' | 'createdAt'>) => {
+    if (!empresaId) return;
     await revenuesService.registerRevenue(empresaId, payload);
     await loadFinancialData();
   };

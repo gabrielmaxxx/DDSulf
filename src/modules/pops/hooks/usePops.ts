@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { popService } from '../services/popService';
 import { POP } from '@/types/database';
+import { useAuth } from '@/auth/hooks/useAuth';
 
 export function usePops() {
+  const { empresaId } = useAuth();
   const [pops, setPops] = useState<POP[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -10,8 +12,10 @@ export function usePops() {
 
   useEffect(() => {
     async function load() {
+      if (!empresaId) return;
       try {
-        const data = await popService.getPops();
+        setLoading(true);
+        const data = await popService.getPops(empresaId);
         if (data.length > 0) {
           setPops(data);
         } else {
@@ -59,7 +63,7 @@ export function usePops() {
       }
     }
     load();
-  }, []);
+  }, [empresaId]);
 
   const filteredPops = useMemo(() => {
     return pops.filter(pop => {

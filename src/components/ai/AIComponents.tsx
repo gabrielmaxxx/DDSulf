@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Terminal, Info, ShieldAlert, CheckCircle, ArrowUpRight, Cpu, CornerDownLeft } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { DEFAULT_EMPRESA_ID } from '@/tenant';
+import { useAuth } from '@/auth/hooks/useAuth';
 
 // 1. Structural output recommendations card mapped from AI opportunity outputs
 interface AIRecommendationCardProps {
@@ -91,8 +90,8 @@ interface Message {
 }
 
 export function AIChat() {
-  const { user } = useAuth();
-  const empresaId = (user as any)?.empresaId || DEFAULT_EMPRESA_ID;
+  const { empresaId } = useAuth();
+  const activeEmpresaId = empresaId || '';
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', text: 'Olá Operador. Sou o Copiloto IA PestFlow. Insira detalhes da aplicação do orçamento ou estoques para diagnóstico operacional imediato.' }
   ]);
@@ -115,7 +114,7 @@ export function AIChat() {
       // Simulate/Trigger dynamic response
       let responseText = '';
       if (userMsg.toLowerCase().includes('estoque') || userMsg.toLowerCase().includes('suprimentos')) {
-        const audits = await AIService.getVulnerabilityAuditSummary(empresaId);
+        const audits = await AIService.getVulnerabilityAuditSummary(activeEmpresaId);
         responseText = audits.length > 0 
           ? `[DIAGNÓSTICO DIGITAL DE INSUMOS] Identifiquei inconformidades ativas de suprimento:\n${audits.join('\n')}`
           : 'Status de ativos químicos normatizado. Sem gargalos de suprimento ativos na data operacional.';

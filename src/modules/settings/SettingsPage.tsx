@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Building2, Settings2, ShieldCheck, Landmark, Compass, PhoneCall, Sliders, Target, DollarSign, Check, RefreshCw, Users, Navigation, MapPin, Info, AlertTriangle } from 'lucide-react';
 import { useSystemStore } from '@/store';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/hooks/useAuth';
 import { userRepository } from '@/firebase/repositories/UserRepository';
 import { AuthService } from '@/auth/services/auth';
 import { UserRole } from '@/types/database';
@@ -12,7 +12,6 @@ import { UserProfile as EnterpriseUserProfile } from '@/firebase/types/enterpris
 import { GoogleMapsViewer } from '@/components/GoogleMapsViewer';
 import { GOOGLE_MAPS_API_KEY, hasValidMapsKey } from '@/config/maps';
 import { fetchGoogleMapsDistance, estimateDistanceOffline } from '@/utils/distanceUtils';
-import { DEFAULT_EMPRESA_ID } from '@/tenant';
 import { ChangePasswordCard } from './ChangePasswordCard';
 
 interface SettingsData {
@@ -57,7 +56,7 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [showConfirmReset, setShowConfirmReset] = useState(false);
 
-  const { role: currentUserRole, user: currentUser } = useAuth();
+  const { role: currentUserRole, user: currentUser, empresaId } = useAuth();
   const [usersList, setUsersList] = useState<EnterpriseUserProfile[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [updatingUserUid, setUpdatingUserUid] = useState<string | null>(null);
@@ -72,7 +71,7 @@ export function SettingsPage() {
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      const activeEmpresaId = (currentUser as any)?.empresaId || DEFAULT_EMPRESA_ID;
+      const activeEmpresaId = empresaId || '';
       const allUsers = await userRepository.listAll(activeEmpresaId);
       if (allUsers.length > 0) {
         setUsersList(allUsers);

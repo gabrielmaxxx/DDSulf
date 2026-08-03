@@ -170,50 +170,6 @@ async function startServer() {
     }
   });
 
-  // Bootstrap master account setup endpoint (for testing and initialization)
-  app.post("/api/admin/bootstrap-master", async (req, res) => {
-    try {
-      ensureFirebaseAdmin();
-      const { empresaId = "ddsulf", login = "master", senhaTemporaria = "123456", name = "Master DDSulf" } = req.body || {};
-      if (!validateEmpresaId(empresaId)) {
-        return res.status(400).json({ error: "Formato de empresaId inválido." });
-      }
-      const email = buildSyntheticEmail(login, empresaId);
-      let uid: string;
-      try {
-        const existingUser = await getAuth().getUserByEmail(email);
-        uid = existingUser.uid;
-        await getAuth().updateUser(uid, { password: senhaTemporaria, displayName: name });
-      } catch {
-        const newUser = await getAuth().createUser({ email, password: senhaTemporaria, displayName: name });
-        uid = newUser.uid;
-      }
-
-      const claims = { empresaId, role: "master", isSuperAdmin: true };
-      await getAuth().setCustomUserClaims(uid, claims);
-
-      const db = getFirestore();
-      await db.doc(`empresas/${empresaId}/usuarios/${uid}`).set({
-        uid,
-        login: login.trim().toLowerCase(),
-        email,
-        name,
-        cargo: "Gestor Master",
-        empresaId,
-        role: "master",
-        isSuperAdmin: true,
-        permissions: {},
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-
-      res.status(200).json({ success: true, uid, email, empresaId, claims });
-    } catch (error: any) {
-      console.error("Bootstrap Master error:", error);
-      res.status(500).json({ error: error.message || "Erro ao configurar usuário master inicial." });
-    }
-  });
-
   // Google Maps Status check
   app.get("/api/maps/status", (req, res) => {
     const key = process.env.GOOGLE_MAPS_PLATFORM_KEY || process.env.VITE_GOOGLE_MAPS_PLATFORM_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || "";

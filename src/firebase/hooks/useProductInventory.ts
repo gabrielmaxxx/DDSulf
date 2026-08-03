@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { productsService, stockMovementsService } from '@/services/inventory/inventory';
 import { Product, StockMovement } from '@/types/database';
-import { DEFAULT_EMPRESA_ID } from '@/tenant';
+import { useAuth } from '@/auth/hooks/useAuth';
 
-export function useProductInventory(empresaId: string = DEFAULT_EMPRESA_ID) {
+export function useProductInventory(passedEmpresaId?: string) {
+  const { empresaId: authEmpresaId } = useAuth();
+  const empresaId = passedEmpresaId || authEmpresaId || '';
+
   const [products, setProducts] = useState<Product[]>([]);
   const [understockAlerts, setUnderstockAlerts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   async function loadInventory() {
+    if (!empresaId) return;
     try {
       setLoading(true);
       const allProducts = await productsService.list(empresaId);
@@ -24,9 +28,13 @@ export function useProductInventory(empresaId: string = DEFAULT_EMPRESA_ID) {
   }
 
   useEffect(() => {
+    if (!empresaId) {
+      setLoading(false);
+      return;
+    }
+
     loadInventory();
 
-    // Setup simple listener for product movements to trigger update
     const unsubscribeMovement = stockMovementsService.subscribeList(empresaId, {}, () => {
       loadInventory();
     });
@@ -37,11 +45,13 @@ export function useProductInventory(empresaId: string = DEFAULT_EMPRESA_ID) {
   }, [empresaId]);
 
   const executeMovement = async (movement: Omit<StockMovement, 'id' | 'createdAt'>) => {
+    if (!empresaId) return;
     await stockMovementsService.registerMovement(empresaId, movement);
     await loadInventory();
   };
 
   const createNewProduct = async (product: Omit<Product, 'id' | 'updatedAt'>) => {
+    if (!empresaId) return;
     await productsService.create(empresaId, {
       ...product,
       updatedAt: new Date().toISOString()

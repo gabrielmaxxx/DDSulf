@@ -2,15 +2,15 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { OperationalContext } from '../types';
 import { Quote, ServiceExecution, Product } from '@/types/database';
-import { getTenantCollectionPath, getActiveTenantId } from '@/tenant';
+import { getTenantCollectionPath } from '@/tenant';
 
 export const analyticsEngine = {
-  async getOperationalContext(empresaId?: string): Promise<OperationalContext> {
-    const activeEmpresaId = empresaId || getActiveTenantId();
+  async getOperationalContext(empresaId: string): Promise<OperationalContext> {
+    if (!empresaId) throw new Error('empresaId é obrigatório para getOperationalContext.');
     try {
-      const quotesPath = getTenantCollectionPath(activeEmpresaId, 'quotes');
-      const servicesPath = getTenantCollectionPath(activeEmpresaId, 'services');
-      const productsPath = getTenantCollectionPath(activeEmpresaId, 'products');
+      const quotesPath = getTenantCollectionPath(empresaId, 'quotes');
+      const servicesPath = getTenantCollectionPath(empresaId, 'services');
+      const productsPath = getTenantCollectionPath(empresaId, 'products');
 
       const quotesSnap = await getDocs(collection(db, quotesPath));
       const servicesSnap = await getDocs(collection(db, servicesPath));

@@ -5,7 +5,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { MobileNav } from '@/components/MobileNav';
 import { NotificationsMenu } from '@/components/NotificationsMenu';
 import { UserMenu } from '@/components/UserMenu';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/hooks/useAuth';
 import { useSystemStore } from '@/store/systemStore';
 import { Search, HelpCircle, ChevronRight, Users, Package, FileText, Calendar } from 'lucide-react';
 
@@ -17,13 +17,11 @@ export function AppShell({ children }: AppShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentCompany, companies, clients = [], inventory, agenda = [], pops } = useSystemStore();
+  const { clients = [], inventory, agenda = [], pops } = useSystemStore();
 
   const [globalSearchStr, setGlobalSearchStr] = useState('');
 
-  const currentCompanyName = currentCompany && companies?.[currentCompany]
-    ? companies[currentCompany].displayName
-    : (user?.name || 'PestFlow');
+  const currentCompanyName = user?.name || user?.empresaId || 'PestFlow';
 
   // Dynamic search results computation grouped by domain entity
   const searchResults = useMemo(() => {

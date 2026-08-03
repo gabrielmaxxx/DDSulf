@@ -1,8 +1,11 @@
 import { useState, useCallback } from 'react';
 import { AIService, AISuggestionResponse } from '@/services/ai/ai';
-import { DEFAULT_EMPRESA_ID } from '@/tenant';
+import { useAuth } from '@/auth/hooks/useAuth';
 
-export function useAIOpportunity(empresaId: string = DEFAULT_EMPRESA_ID) {
+export function useAIOpportunity(passedEmpresaId?: string) {
+  const { empresaId: authEmpresaId } = useAuth();
+  const empresaId = passedEmpresaId || authEmpresaId || '';
+
   const [suggestion, setSuggestion] = useState<AISuggestionResponse | null>(null);
   const [vulnerabilities, setVulnerabilities] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -14,6 +17,7 @@ export function useAIOpportunity(empresaId: string = DEFAULT_EMPRESA_ID) {
     infestationLevel: 'Baixo' | 'Médio' | 'Alto' | 'Crítico';
     city?: string;
   }) => {
+    if (!empresaId) throw new Error("empresaId ausente");
     try {
       setLoading(true);
       setError(null);
@@ -30,6 +34,7 @@ export function useAIOpportunity(empresaId: string = DEFAULT_EMPRESA_ID) {
   }, [empresaId]);
 
   const runVulnerabilityAudit = useCallback(async () => {
+    if (!empresaId) throw new Error("empresaId ausente");
     try {
       setLoading(true);
       setError(null);

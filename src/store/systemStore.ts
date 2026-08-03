@@ -296,22 +296,6 @@ export interface AgendaRoute {
   costPerStop: Record<string, number>;
 }
 
-export interface CompanyAccount {
-  name: string;
-  displayName: string;
-  password: string;
-  financial: FinancialCostConfig;
-  inventory: InventoryState;
-  pops: POPsState;
-  quotes: QuotesState;
-  settings: SystemSettings;
-  clients: Client[];
-  contracts: Contract[];
-  agenda: AgendaEvent[];
-  purchases: PurchaseRequisition[];
-  routes?: AgendaRoute[];
-}
-
 export interface SystemState {
   financial: FinancialCostConfig;
   inventory: InventoryState;
@@ -324,9 +308,6 @@ export interface SystemState {
   purchases: PurchaseRequisition[];
   employees: Employee[];
   routes: AgendaRoute[];
-  
-  companies: Record<string, CompanyAccount>;
-  currentCompany: string | null;
 }
 
 export interface IntelligenceAlert {
@@ -429,9 +410,6 @@ export interface SystemActions {
 
   getIntelligenceReport: () => IntelligenceReport;
 
-  registerCompany: (displayName: string, password: string) => { success: boolean; error?: string };
-  loginCompany: (displayName: string, password: string) => { success: boolean; error?: string };
-  logoutCompany: () => void;
   resetSystemData: () => void;
 }
 
@@ -769,52 +747,11 @@ const INITIAL_STATE: SystemState = {
       costPerHour: 0,
       equipmentAmortization: 0
     }
-  },
-  companies: {},
-  currentCompany: null
+  }
 };
 
-const updateCompanyData = (state: any, updates: Partial<SystemState>) => {
-  const nextFinancial = updates.financial !== undefined ? updates.financial : state.financial;
-  const nextInventory = updates.inventory !== undefined ? updates.inventory : state.inventory;
-  const nextPops = updates.pops !== undefined ? updates.pops : state.pops;
-  const nextQuotes = updates.quotes !== undefined ? updates.quotes : state.quotes;
-  const nextSettings = updates.settings !== undefined ? updates.settings : state.settings;
-  const nextClients = updates.clients !== undefined ? updates.clients : state.clients;
-  const nextContracts = updates.contracts !== undefined ? updates.contracts : state.contracts;
-  const nextAgenda = updates.agenda !== undefined ? updates.agenda : state.agenda;
-  const nextPurchases = updates.purchases !== undefined ? updates.purchases : state.purchases;
-  const nextRoutes = updates.routes !== undefined ? updates.routes : (state.routes || []);
-
-  const nextState: any = {
-    ...updates,
-    clients: nextClients,
-    contracts: nextContracts,
-    agenda: nextAgenda,
-    purchases: nextPurchases,
-    routes: nextRoutes,
-  };
-
-  if (state.currentCompany && state.companies && state.companies[state.currentCompany]) {
-    nextState.companies = {
-      ...state.companies,
-      [state.currentCompany]: {
-        ...state.companies[state.currentCompany],
-        financial: nextFinancial,
-        inventory: nextInventory,
-        pops: nextPops,
-        quotes: nextQuotes,
-        settings: nextSettings,
-        clients: nextClients,
-        contracts: nextContracts,
-        agenda: nextAgenda,
-        purchases: nextPurchases,
-        routes: nextRoutes,
-      }
-    };
-  }
-
-  return nextState;
+const updateCompanyData = (_state: any, updates: Partial<SystemState>) => {
+  return updates;
 };
 
 export function computeRoutesForDate(date: string, state: SystemState): AgendaRoute[] {
@@ -2033,101 +1970,6 @@ export const useSystemStore = create<SystemState & SystemActions>()(
         });
       }),
 
-      registerCompany: (displayName, password) => {
-        const nameKey = displayName.trim().toLowerCase();
-        if (!nameKey) return { success: false, error: 'O nome da empresa não pode ser vazio.' };
-        if (password.length < 3) return { success: false, error: 'A senha deve conter no mínimo 3 caracteres.' };
-
-        const currentCompanies = get().companies || {};
-        if (currentCompanies[nameKey]) {
-          return { success: false, error: 'Este nome de empresa já está cadastrado.' };
-        }
-
-        const emptyCompanyState = {
-          financial: {
-            fixedCosts: { vehicleRental: 0, salaries: 0, rent: 0, fuel: 0, insurance: 0, other: 0 },
-            variableCosts: { productsPerService: 0, laborPerHour: 0, equipmentDepreciation: 0 },
-            operational: { servicesPerMonth: 0, avgServiceDurationHours: 0, minimumMarginPercent: 35 },
-            revenueHistory: [],
-            costHistory: [],
-          },
-          inventory: { products: [], movements: [] },
-          pops: { procedures: [] },
-          quotes: { list: [] },
-          clients: [],
-          contracts: [],
-          agenda: [],
-          purchases: [],
-          settings: {
-            companyName: displayName,
-            cnpj: '',
-            headquartersAddress: '',
-            city: '',
-            state: '',
-            phone: '',
-            maxReturnRatePercent: 8,
-            operationalGoals: { targetServicesPerMonth: 0, minimumMarginPercent: 35, costPerKm: 0 },
-          }
-        };
-
-        const newCompany: CompanyAccount = {
-          name: nameKey,
-          displayName,
-          password,
-          ...emptyCompanyState
-        };
-
-        set((state) => ({
-          companies: {
-            ...(state.companies || {}),
-            [nameKey]: newCompany
-          },
-          currentCompany: nameKey,
-          // instantly load this company's empty state as the active state
-          ...emptyCompanyState
-        }));
-
-        return { success: true };
-      },
-
-      loginCompany: (displayName, password) => {
-        const nameKey = displayName.trim().toLowerCase();
-        const currentCompanies = get().companies || {};
-        const account = currentCompanies[nameKey];
-
-        if (!account) {
-          return { success: false, error: 'Empresa não encontrada.' };
-        }
-
-        if (account.password !== password) {
-          return { success: false, error: 'Senha incorreta para esta empresa.' };
-        }
-
-        // load this company's saved state into active state
-        set({
-          currentCompany: nameKey,
-          financial: account.financial,
-          inventory: account.inventory,
-          pops: account.pops,
-          quotes: account.quotes,
-          settings: account.settings,
-        });
-
-        return { success: true };
-      },
-
-      logoutCompany: () => {
-        set({
-          currentCompany: null,
-          // reset active state to generic values or empty
-          financial: INITIAL_STATE.financial,
-          inventory: INITIAL_STATE.inventory,
-          pops: INITIAL_STATE.pops,
-          quotes: INITIAL_STATE.quotes,
-          settings: INITIAL_STATE.settings,
-        });
-      },
-
       resetSystemData: () => set((state) => {
         const clearedFinancial = {
           ...state.financial,
@@ -2385,31 +2227,7 @@ export const useSystemStore = create<SystemState & SystemActions>()(
       }
     }),
     {
-      name: 'ddsulf_system_v2',
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          const companies = state.companies || {};
-          if (Object.keys(companies).length === 0) {
-            const defaultKey = 'ddsulf';
-            const defaultCompany: CompanyAccount = {
-              name: defaultKey,
-              displayName: state.settings?.companyName || 'DDSulf Dedetizadora',
-              password: 'admin',
-              financial: state.financial || INITIAL_STATE.financial,
-              inventory: state.inventory || INITIAL_STATE.inventory,
-              pops: state.pops || INITIAL_STATE.pops,
-              quotes: state.quotes || INITIAL_STATE.quotes,
-              settings: state.settings || INITIAL_STATE.settings,
-              clients: state.clients || INITIAL_STATE.clients || [],
-              contracts: state.contracts || INITIAL_STATE.contracts || [],
-              agenda: state.agenda || INITIAL_STATE.agenda || [],
-              purchases: state.purchases || INITIAL_STATE.purchases || [],
-            };
-            state.companies = { [defaultKey]: defaultCompany };
-            state.currentCompany = defaultKey;
-          }
-        }
-      }
+      name: 'ddsulf_system_v2'
     }
   )
 );

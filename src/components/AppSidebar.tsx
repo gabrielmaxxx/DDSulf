@@ -25,24 +25,25 @@ import {
   SidebarGroup,
   SidebarGroupContent,
 } from './ui/Sidebar';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/hooks/useAuth';
 import { useSystemStore } from '@/store/systemStore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function AppSidebar() {
   const location = useLocation();
-  const { user } = useAuth();
-  const { quotes, currentCompany, companies } = useSystemStore();
+  const { user, logout } = useAuth();
+  const { quotes } = useSystemStore();
   const pendingCount = (quotes?.list || []).filter(q => q.status === 'enviado' || q.status === 'aprovado').length;
 
-  const handleLogout = () => {
-    useSystemStore.getState().logoutCompany();
-    window.location.reload();
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (e) {
+      console.error("Error logging out:", e);
+    }
   };
 
-  const currentCompanyName = currentCompany && companies?.[currentCompany]
-    ? companies[currentCompany].displayName
-    : (user?.name || 'PestFlow');
+  const currentCompanyName = user?.name || user?.empresaId || 'PestFlow';
 
   const mainGroup = [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/' },

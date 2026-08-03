@@ -6,8 +6,10 @@ import { Label } from '@/components/ui/label';
 import { financialService } from '../services/financialService';
 import { Loader2, Save, Calculator, Clock, MapPin, Percent, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/auth/hooks/useAuth';
 
 export function OperationalSettings() {
+  const { empresaId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [values, setValues] = useState({
@@ -19,8 +21,12 @@ export function OperationalSettings() {
 
   useEffect(() => {
     async function load() {
+      if (!empresaId) {
+        setLoading(false);
+        return;
+      }
       try {
-        const settings = await financialService.getSettings();
+        const settings = await financialService.getSettings(empresaId);
         setValues({
           costPerHour: settings.costPerHour,
           costPerKm: settings.costPerKm,
@@ -34,12 +40,13 @@ export function OperationalSettings() {
       }
     }
     load();
-  }, []);
+  }, [empresaId]);
 
   const handleSave = async () => {
+    if (!empresaId) return;
     setSaving(true);
     try {
-      await financialService.updateSettings(values);
+      await financialService.updateSettings(empresaId, values);
       toast.success('Configurações operacionais atualizadas!');
     } catch (err) {
       toast.error('Erro ao salvar configurações.');

@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/auth/hooks/useAuth';
 import { analyticsEngine } from '../services/analyticsEngine';
 import { AiMessage, OperationalContext } from '../types';
 import { AIContextEngine, AIOrchestrationService, AIMemoryService } from '@/ai';
 
 export function useOperationalAi() {
-  const { user, role } = useAuth();
+  const { user, role, empresaId } = useAuth();
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [context, setContext] = useState<OperationalContext | null>(null);
@@ -26,7 +26,8 @@ export function useOperationalAi() {
 
   useEffect(() => {
     async function loadContext() {
-      const data = await analyticsEngine.getOperationalContext();
+      if (!empresaId) return;
+      const data = await analyticsEngine.getOperationalContext(empresaId);
       setContext(data);
 
       // Compile and caching into the unified enterprise context engine
@@ -54,7 +55,7 @@ export function useOperationalAi() {
       );
     }
     loadContext();
-  }, [user, role]);
+  }, [user, role, empresaId]);
 
   const ask = useCallback(async (text: string) => {
     if (!text.trim() || !context) return;
@@ -109,4 +110,3 @@ export function useOperationalAi() {
     context
   };
 }
-

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '@/auth/hooks/useAuth';
 import { 
   Package, 
   AlertCircle, 
@@ -103,15 +104,16 @@ export function ProductCard({ product, onUpdate }: { product: Product, onUpdate:
 }
 
 function MovementDialog({ product, type, onSuccess }: { product: Product, type: 'Entrada' | 'Saída', onSuccess: () => void }) {
+  const { empresaId, user } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
 
   const handleUpdate = async () => {
-    if (quantity <= 0) return;
+    if (quantity <= 0 || !empresaId) return;
     setLoading(true);
     try {
-      await inventoryService.updateStock(product.id!, quantity, type, 'sys-user');
+      await inventoryService.updateStock(empresaId, product.id!, quantity, type, user?.uid || 'sys-user');
       toast.success(`${type} de ${quantity}${product.unit} registrada!`);
       setOpen(false);
       onSuccess();

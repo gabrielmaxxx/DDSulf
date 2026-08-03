@@ -6,6 +6,7 @@ export interface UserProfile {
   name: string;
   role: UserRole;
   status: 'active' | 'inactive';
+  empresaId?: string;
   phone?: string;
   avatar?: string;
   createdAt: string;

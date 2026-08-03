@@ -13,6 +13,7 @@ export interface UserPermission {
 export interface AuthSession {
   user: UserProfile | null;
   role: Role | null;
+  empresaId: string | null;
   permissions: UserPermission[];
   isAuthenticated: boolean;
   isLoading: boolean;

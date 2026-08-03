@@ -20,98 +20,89 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<AuthSession>({
-    user: {
-      uid: 'root',
-      email: 'admin@pestflow.com',
-      name: 'Administrador',
-      role: 'admin',
-      status: 'active',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    role: 'admin',
-    permissions: defaultPermissions,
-    isAuthenticated: true,
-    isLoading: false,
-    isHydrated: true,
+    user: null,
+    role: null,
+    empresaId: null,
+    permissions: [],
+    isAuthenticated: false,
+    isLoading: true,
+    isHydrated: false,
   });
 
   useEffect(() => {
-    // Standard modular onAuthStateChanged subscription with safety failovers for offline testing
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
+          const idTokenResult = await firebaseUser.getIdTokenResult(true);
+          const claimEmpresaId = (idTokenResult.claims.empresaId as string) || '';
+
           const userRef = doc(db, 'users', firebaseUser.uid);
           
-          // Set up reactive listener for profile updates (e.g., changes in user role)
           const profileUnsubscribe = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
               const userData = docSnap.data() as UserProfile;
-              setSession(prev => ({
-                ...prev,
-                user: userData,
+              const activeEmpresaId = claimEmpresaId || userData.empresaId || '';
+              const fullUserData: UserProfile = { ...userData, empresaId: activeEmpresaId };
+              setSession({
+                user: fullUserData,
                 role: userData.role,
+                empresaId: activeEmpresaId,
                 permissions: ROLE_PERMISSIONS[userData.role] || [],
                 isAuthenticated: true,
                 isLoading: false,
                 isHydrated: true,
-              }));
+              });
             } else {
-              // Document not found - setup a default active technician profile
               const defaultProfile: UserProfile = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',
                 name: firebaseUser.displayName || 'Colaborador PestFlow',
                 role: 'technician',
                 status: 'active',
+                empresaId: claimEmpresaId,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
               };
-              setSession(prev => ({
-                ...prev,
+              setSession({
                 user: defaultProfile,
                 role: 'technician',
+                empresaId: claimEmpresaId,
                 permissions: ROLE_PERMISSIONS.technician,
                 isAuthenticated: true,
                 isLoading: false,
                 isHydrated: true,
-              }));
+              });
             }
           }, (err) => {
-            console.warn('[PestFlow AuthProvider] Profile state listener failed, falling back to static fetch:', err.message);
-            // Fallback to single static fetch
-            getDoc(userRef).then(docSnap => {
-              if (docSnap.exists()) {
-                const userData = docSnap.data() as UserProfile;
-                setSession(prev => ({
-                  ...prev,
-                  user: userData,
-                  role: userData.role,
-                  permissions: ROLE_PERMISSIONS[userData.role] || [],
-                  isAuthenticated: true,
-                  isLoading: false,
-                  isHydrated: true,
-                }));
-              }
-            }).catch(e => console.error(e));
+            console.warn('[PestFlow AuthProvider] Profile state listener failed, falling back to token claims:', err.message);
+            setSession({
+              user: {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || '',
+                name: firebaseUser.displayName || 'Usuário PestFlow',
+                role: 'admin',
+                status: 'active',
+                empresaId: claimEmpresaId,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+              role: 'admin',
+              empresaId: claimEmpresaId,
+              permissions: ROLE_PERMISSIONS.admin,
+              isAuthenticated: true,
+              isLoading: false,
+              isHydrated: true,
+            });
           });
 
           return () => profileUnsubscribe();
         } else {
-          // No user active - fallback to high-productivity Admin mock defaults so the app never blocks offline use
           setSession({
-            user: {
-              uid: 'root',
-              email: 'admin@pestflow.com',
-              name: 'Administrador',
-              role: 'admin',
-              status: 'active',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            role: 'admin',
-            permissions: defaultPermissions,
-            isAuthenticated: true,
+            user: null,
+            role: null,
+            empresaId: null,
+            permissions: [],
+            isAuthenticated: false,
             isLoading: false,
             isHydrated: true,
           });
@@ -158,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession({
         user: null,
         role: null,
+        empresaId: null,
         permissions: [],
         isAuthenticated: false,
         isLoading: false,

@@ -10,12 +10,11 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { Product, StockMovement } from '@/types/database';
-import { getTenantCollectionPath, getActiveTenantId } from '@/tenant';
+import { getTenantCollectionPath } from '@/tenant';
 
 export const inventoryService = {
-  async getProducts(arg1?: any): Promise<Product[]> {
-    const empresaId = typeof arg1 === 'string' ? arg1 : getActiveTenantId();
-
+  async getProducts(empresaId: string): Promise<Product[]> {
+    if (!empresaId) throw new Error('empresaId é obrigatório para getProducts.');
     try {
       const path = getTenantCollectionPath(empresaId, 'products');
       const q = query(collection(db, path), orderBy('name', 'asc'));
@@ -76,17 +75,8 @@ export const inventoryService = {
     }
   },
 
-  async addProduct(arg1: any, arg2?: any): Promise<any> {
-    let empresaId = getActiveTenantId();
-    let product: Omit<Product, 'id'>;
-
-    if (typeof arg1 === 'string') {
-      empresaId = arg1;
-      product = arg2;
-    } else {
-      product = arg1;
-    }
-
+  async addProduct(empresaId: string, product: Omit<Product, 'id'>): Promise<any> {
+    if (!empresaId) throw new Error('empresaId é obrigatório para addProduct.');
     try {
       const path = getTenantCollectionPath(empresaId, 'products');
       return await addDoc(collection(db, path), {
@@ -107,29 +97,15 @@ export const inventoryService = {
     }
   },
 
-  async updateStock(arg1: string, arg2: any, arg3?: any, arg4?: any, arg5?: any, arg6?: any): Promise<any> {
-    let empresaId = getActiveTenantId();
-    let productId: string;
-    let quantityChange: number;
-    let type: 'Entrada' | 'Saída';
-    let userId: string;
-    let serviceId: string | undefined;
-
-    if (typeof arg3 === 'number') {
-      empresaId = arg1;
-      productId = arg2;
-      quantityChange = arg3;
-      type = arg4;
-      userId = arg5;
-      serviceId = arg6;
-    } else {
-      productId = arg1;
-      quantityChange = arg2;
-      type = arg3;
-      userId = arg4;
-      serviceId = arg5;
-    }
-
+  async updateStock(
+    empresaId: string, 
+    productId: string, 
+    quantityChange: number, 
+    type: 'Entrada' | 'Saída', 
+    userId: string, 
+    serviceId?: string
+  ): Promise<any> {
+    if (!empresaId) throw new Error('empresaId é obrigatório para updateStock.');
     try {
       const productsPath = getTenantCollectionPath(empresaId, 'products');
       const movementsPath = getTenantCollectionPath(empresaId, 'stock_movements');
@@ -193,17 +169,8 @@ export const inventoryService = {
     }
   },
 
-  async getMovements(arg1?: any, arg2?: any): Promise<StockMovement[]> {
-    let empresaId = getActiveTenantId();
-    let productId: string | undefined;
-
-    if (typeof arg2 === 'string' || (typeof arg1 === 'string' && arg1.startsWith('empresas/'))) {
-      empresaId = arg1;
-      productId = arg2;
-    } else if (typeof arg1 === 'string') {
-      productId = arg1;
-    }
-
+  async getMovements(empresaId: string, productId?: string): Promise<StockMovement[]> {
+    if (!empresaId) throw new Error('empresaId é obrigatório para getMovements.');
     try {
       const movementsPath = getTenantCollectionPath(empresaId, 'stock_movements');
       let q = query(collection(db, movementsPath), orderBy('createdAt', 'desc'));

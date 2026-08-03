@@ -1,16 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import { inventoryService } from '../services/inventoryService';
 import { Product } from '@/types/database';
+import { useAuth } from '@/auth/hooks/useAuth';
 
 export function useInventory() {
+  const { empresaId } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
   const loadProducts = async () => {
+    if (!empresaId) return;
     setLoading(true);
     try {
-      const data = await inventoryService.getProducts();
+      const data = await inventoryService.getProducts(empresaId);
       if (data.length > 0) {
         setProducts(data);
       } else {
@@ -59,7 +62,7 @@ export function useInventory() {
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [empresaId]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => 

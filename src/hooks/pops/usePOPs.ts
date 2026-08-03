@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
 import { POP, PestType, EnvironmentType } from '@/types/database';
 import { popsService } from '@/services/pops/pops';
-import { DEFAULT_EMPRESA_ID } from '@/tenant';
+import { useAuth } from '@/auth/hooks/useAuth';
 
-export function usePOPs(empresaId: string = DEFAULT_EMPRESA_ID) {
+export function usePOPs(passedEmpresaId?: string) {
+  const { empresaId: authEmpresaId } = useAuth();
+  const empresaId = passedEmpresaId || authEmpresaId || '';
+
   const [pops, setPops] = useState<POP[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   async function loadPOPs() {
+    if (!empresaId) return;
     try {
       setLoading(true);
       const list = await popsService.list(empresaId);
@@ -25,6 +29,7 @@ export function usePOPs(empresaId: string = DEFAULT_EMPRESA_ID) {
   }, [empresaId]);
 
   const filterByPest = async (pest: PestType) => {
+    if (!empresaId) return;
     try {
       setLoading(true);
       const filtered = await popsService.listPOPsByPest(empresaId, pest);
@@ -37,6 +42,7 @@ export function usePOPs(empresaId: string = DEFAULT_EMPRESA_ID) {
   };
 
   const filterByEnvironment = async (env: EnvironmentType) => {
+    if (!empresaId) return;
     try {
       setLoading(true);
       const filtered = await popsService.listPOPsByEnvironment(empresaId, env);

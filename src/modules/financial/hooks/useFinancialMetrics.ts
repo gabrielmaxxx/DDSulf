@@ -1,29 +1,34 @@
 import { useState, useEffect, useMemo } from 'react';
 import { financialService } from '../services/financialService';
 import { FinancialCost, Revenue } from '@/types/database';
+import { useAuth } from '@/auth/hooks/useAuth';
 
 export function useFinancialMetrics() {
+  const { empresaId } = useAuth();
   const [costs, setCosts] = useState<FinancialCost[]>([]);
   const [revenues, setRevenues] = useState<Revenue[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [costsData, revenuesData] = await Promise.all([
-          financialService.getCosts(),
-          financialService.getRevenues()
-        ]);
-        setCosts(costsData);
-        setRevenues(revenuesData);
-      } catch (err) {
-        console.error('Error fetching financial data:', err);
-      } finally {
-        setLoading(false);
-      }
+  async function fetchData() {
+    if (!empresaId) return;
+    try {
+      setLoading(true);
+      const [costsData, revenuesData] = await Promise.all([
+        financialService.getCosts(empresaId),
+        financialService.getRevenues(empresaId)
+      ]);
+      setCosts(costsData);
+      setRevenues(revenuesData);
+    } catch (err) {
+      console.error('Error fetching financial data:', err);
+    } finally {
+      setLoading(false);
     }
+  }
+
+  useEffect(() => {
     fetchData();
-  }, []);
+  }, [empresaId]);
 
   const metrics = useMemo(() => {
     const totalRevenue = revenues.reduce((acc, rev) => acc + rev.amount, 0);
@@ -58,9 +63,6 @@ export function useFinancialMetrics() {
     costs,
     revenues,
     loading,
-    refresh: () => {
-      setLoading(true);
-      // Logic inside useEffect will run if we add a trigger, or just re-call the same function
-    }
+    refresh: fetchData
   };
 }

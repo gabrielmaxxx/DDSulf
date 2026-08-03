@@ -4,6 +4,7 @@ export function useAuth() {
   const { 
     user, 
     role, 
+    empresaId,
     isLoading, 
     isHydrated, 
     isAuthenticated,
@@ -16,6 +17,7 @@ export function useAuth() {
   return {
     user,
     role,
+    empresaId: empresaId || user?.empresaId || '',
     loading: isLoading,
     isHydrated,
     isAuthenticated,

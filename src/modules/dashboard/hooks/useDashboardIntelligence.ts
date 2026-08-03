@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { analyticsService } from '../services/analyticsService';
-import { Quote, FinancialCost, Revenue, HistoricalInsight } from '@/types/database';
+import { Quote, FinancialCost, Revenue } from '@/types/database';
+import { useAuth } from '@/auth/hooks/useAuth';
 
 export function useDashboardIntelligence() {
+  const { empresaId } = useAuth();
+
   const [data, setData] = useState<{
     quotes: Quote[];
     costs: FinancialCost[];
@@ -16,8 +19,10 @@ export function useDashboardIntelligence() {
 
   useEffect(() => {
     async function load() {
+      if (!empresaId) return;
       try {
-        const result = await analyticsService.getDashboardData();
+        setLoading(true);
+        const result = await analyticsService.getDashboardData(empresaId);
         setData(result);
       } catch (err) {
         console.error('Error loading dashboard data:', err);
@@ -26,7 +31,7 @@ export function useDashboardIntelligence() {
       }
     }
     load();
-  }, []);
+  }, [empresaId]);
 
   const metrics = useMemo(() => {
     const { quotes, costs, revenues } = data;

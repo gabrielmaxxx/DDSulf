@@ -12,15 +12,15 @@ import {
   Revenue, 
   HistoricalInsight 
 } from '@/types/database';
-import { getTenantCollectionPath, getActiveTenantId } from '@/tenant';
+import { getTenantCollectionPath } from '@/tenant';
 
 export const analyticsService = {
-  async getDashboardData(empresaId?: string) {
-    const activeEmpresaId = empresaId || getActiveTenantId();
+  async getDashboardData(empresaId: string) {
+    if (!empresaId) throw new Error('empresaId é obrigatório para getDashboardData.');
     try {
-      const quotesPath = getTenantCollectionPath(activeEmpresaId, 'quotes');
-      const costsPath = getTenantCollectionPath(activeEmpresaId, 'financial_costs');
-      const revenuesPath = getTenantCollectionPath(activeEmpresaId, 'revenues');
+      const quotesPath = getTenantCollectionPath(empresaId, 'quotes');
+      const costsPath = getTenantCollectionPath(empresaId, 'financial_costs');
+      const revenuesPath = getTenantCollectionPath(empresaId, 'revenues');
 
       const [quotesSnap, costsSnap, revenuesSnap] = await Promise.all([
         getDocs(query(collection(db, quotesPath), orderBy('createdAt', 'desc'), limit(50))),

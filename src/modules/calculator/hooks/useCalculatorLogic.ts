@@ -8,8 +8,11 @@ import {
   UrgencyLevel,
 } from '@/types/database';
 import { financialService } from '@/modules/financial/services/financialService';
+import { useAuth } from '@/auth/hooks/useAuth';
 
 export function useCalculatorLogic() {
+  const { empresaId } = useAuth();
+
   const [pestType, setPestType] = useState<PestType>('Baratas');
   const [environmentType, setEnvironmentType] = useState<EnvironmentType>('Residência');
   const [areaSize, setAreaSize] = useState<number>(50);
@@ -30,8 +33,9 @@ export function useCalculatorLogic() {
 
   useEffect(() => {
     async function loadSettings() {
+      if (!empresaId) return;
       try {
-        const settings = await financialService.getSettings();
+        const settings = await financialService.getSettings(empresaId);
         setFinancialSettings({
           costPerHour: settings.costPerHour,
           costPerKm: settings.costPerKm,
@@ -43,7 +47,7 @@ export function useCalculatorLogic() {
       }
     }
     loadSettings();
-  }, []);
+  }, [empresaId]);
 
   const pricing = useMemo(() => {
     // 1. Base Multipliers
@@ -136,4 +140,3 @@ export function useCalculatorLogic() {
     minMargin: financialSettings.minimumMargin
   };
 }
-
