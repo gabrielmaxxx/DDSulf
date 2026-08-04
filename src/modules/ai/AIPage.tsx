@@ -60,7 +60,8 @@ export function AIPage() {
     pops, 
     clients = [], 
     contracts = [], 
-    agenda = [] 
+    agenda = [],
+    settings
   } = useSystemStore();
 
   const [mainTab, setMainTab] = useState<'chat' | 'analises'>('chat');
@@ -307,9 +308,15 @@ export function AIPage() {
     return list.slice(0, 10);
   }, [unpaidIncomesCount, criticalProductsList, expiringContractsList, avgMargin, financial, pendingAgendaCount, costPerService, pops.procedures, totalRevenue, monthQuotes, clients]);
 
+  const companyName = settings?.companyName || 'Empresa';
+  const city = settings?.city || '';
+  const state = settings?.state || '';
+  const cityStateStr = city && state ? `${city}/${state}` : (city || state || '');
+  const locationStr = cityStateStr ? ` em ${cityStateStr}` : '';
+
   // System context string passed to Gemini
   const systemContext = useMemo(() => `
-Você é o assistente operacional de inteligência da DDSulf Dedetização, empresa de controle de pragas com 20 anos de mercado em Volta Redonda/RJ.
+Você é o assistente operacional de inteligência da ${companyName}, empresa de controle de pragas${locationStr}.
 Seu papel é atuar como um consultor estratégico, técnico e financeiro focado em otimização operacional e compliance sanitário.
 
 DADOS FINANCEIROS ATUAIS DA EMPRESA:
@@ -349,7 +356,7 @@ INSTRUÇÕES DE TOM DE VOZ E COMPORTAMENTO DA IA:
 3. Se o estoque estiver crítico para algum insumo, alerte o usuário.
 4. Apresente os dados estruturados com listas e formatação Markdown excelente e legível. 
 5. Se faltarem dados (por exemplo, faturamento zerado ou estoque vazio), oriente o usuário a cadastrá-los.
-`, [totalFixedCosts, financial, costPerService, monthQuotes, totalRevenue, avgMargin, avgTicket, inventory.products, pops.procedures, clients, contracts, currentMonth]);
+`, [totalFixedCosts, financial, costPerService, monthQuotes, totalRevenue, avgMargin, avgTicket, inventory.products, pops.procedures, clients, contracts, currentMonth, companyName, locationStr]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -461,7 +468,7 @@ INSTRUÇÕES DE TOM DE VOZ E COMPORTAMENTO DA IA:
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch('/api/ai/ddsulf-chat', {
+      const response = await fetch('/api/ai/pestflow-chat', {
         method: 'POST',
         headers,
         body: JSON.stringify({

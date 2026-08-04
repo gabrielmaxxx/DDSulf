@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSystemStore } from '@/store';
+import { auth } from '@/firebase/config';
 import { 
   Activity,
   Package,
@@ -312,12 +313,13 @@ export function POPsPage() {
   const [showQuizResult, setShowQuizResult] = useState(false);
   const [certifiedName, setCertifiedName] = useState('');
 
-  // AI Chat states (Local smart semantic query helper)
+  // AI Chat states (Real Gemini POP Assistant)
   const [aiChatQuery, setAiChatQuery] = useState('');
   const [aiChatLog, setAiChatLog] = useState<Array<{ sender: 'user' | 'ia'; text: string }>>([
-    { sender: 'ia', text: 'Olá! Sou o Assistente de Inteligência Conhecimento DDSulf. Digite uma praga ou serviço técnico e eu extrairei o guia prático, EPIs exigidos e os insumos do armazém agora mesmo!' }
+    { sender: 'ia', text: 'Olá! Sou o Assistente de Inteligência de POPs da PestFlow. Digite uma praga ou procedimento técnico e eu consultarei a base de conhecimentos em tempo real!' }
   ]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   // Form Field states for CRUD
   const [formName, setFormName] = useState('');
@@ -686,52 +688,116 @@ export function POPsPage() {
     toast.info('Sugestão de alteração recusada pelo Administrador.');
   };
 
-  // AI Knowledge Search (Local Chat Intelligence)
-  const submitAiQuestion = (e: React.FormEvent) => {
+  // Real Gemini AI Chat for POPs Knowledge
+  const submitAiQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!aiChatQuery.trim()) return;
+    if (!aiChatQuery.trim() || isAiLoading) return;
 
     const userText = aiChatQuery;
     setAiChatLog(prev => [...prev, { sender: 'user', text: userText }]);
     setAiChatQuery('');
     setIsAiLoading(true);
 
-    setTimeout(() => {
-      // Simple Keyword search through knowledge pieces
-      const queryLower = userText.toLowerCase();
-      let match = procedures.find(p => 
-        p.name.toLowerCase().includes(queryLower) || 
-        p.pestType.toLowerCase().includes(queryLower) ||
-        p.instructions.toLowerCase().includes(queryLower)
-      );
-
-      let answer = '';
-      if (match) {
-        // Strip markdown syntax for natural reading
-        const cleanedText = match.instructions
-          .replace(/[#*`_]/g, '')
-          .substring(0, 450) + '...';
-
-        const productsText = match.requiredProducts.length > 0 
-          ? match.requiredProducts.map(p => `• ${p.productName} (${p.quantityPer100m2}${p.unit}/100m²)`).join('\n')
-          : 'Não há insumos químicos vinculados.';
-
-        answer = `Com base na biblioteca oficial, localizei o **${match.name} (v${match.version})**. 
-        
-**Resumo Procedimental:**
-${cleanedText}
-
-**Materiais indicados por m²:**
-${productsText}
-
-*Aprovado em ${match.lastRevision} sob tutela de ${match.author}.*`;
-      } else {
-        answer = `Infelizmente não localizei um POP ou Diretriz específica sobre "Sua Busca" em nossa base de controle ativo. No entanto, recomendo o uso das técnicas padrão de barreiras líquidas piretróides simuladas ou inspecione a aba **Operacional** para validar os procedimentos contra baratas, formigas ou cupins já ratificados pela ANVISA.`;
+    try {
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
+      const popContext = `Você é o Assistente de Inteligência Especializado em POPs (Procedimentos Operacionais Padrão) da PestFlow.
+Atualmente, a biblioteca possui os seguintes POPs cadastrados na base:
+${procedures.map(p => `- POP: ${p.name} | Praga: ${p.pestType} | Versão: ${p.version} | Categoria: ${p.category}`).join('\n')}
+
+Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos, procedimentos e normas da Anvisa com precisão e clareza.`;
+
+      const response = await fetch('/api/ai/pestflow-chat', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message: userText,
+          systemContext: popContext,
+          history: aiChatLog.map(m => ({
+            role: m.sender === 'ia' ? 'model' : 'user',
+            content: m.text
+          }))
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao comunicar com o servidor de inteligência.');
+      }
+
+      const data = await response.json();
+      const answer = data.text || 'Não foi possível obter resposta da inteligência.';
       setAiChatLog(prev => [...prev, { sender: 'ia', text: answer }]);
+    } catch (err) {
+      setAiChatLog(prev => [...prev, { sender: 'ia', text: 'Desculpe, ocorreu um erro ao consultar o assistente de inteligência. Tente novamente.' }]);
+    } finally {
       setIsAiLoading(false);
-    }, 1100);
+    }
+  };
+
+  // Automated POP Generation with Gemini AI
+  const handleGenerateProcedureWithAI = async () => {
+    if (isGeneratingAI) return;
+    setIsGeneratingAI(true);
+    toast.info('Gerando POP com IA...');
+
+    try {
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch('/api/ai/generate-procedure', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          title: formName || 'Procedimento Técnico de Controle de Pragas',
+          description: formName || 'Controle de Pragas Urbana',
+          targetPests: [formPest],
+          allowedChemicalIds: []
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao gerar procedimento com IA');
+      }
+
+      const res = await response.json();
+
+      if (res.pestType) {
+        setFormPest(res.pestType);
+      }
+
+      const stepsText = Array.isArray(res.steps)
+        ? res.steps.map((s: any) => `### Etapa ${s.sequence || ''}: ${s.title || ''}\n${s.description || ''}`).join('\n\n')
+        : '';
+
+      const fullInstructions = `# ${formName || 'PROCEDIMENTO OPERACIONAL PADRÃO'}\n\n` +
+        `**Praga-Alvo:** ${res.pestType || formPest}\n` +
+        `**Princípios Ativos:** ${res.activeIngredients || 'A definir conforme praga-alvo'}\n` +
+        `**Diluição Recomendada:** ${res.dilutionRatio || res.recommendedChemicalVolume || 'Conforme rótulo do fabricante'}\n` +
+        `**Método de Aplicação:** ${res.applicationMethod || 'Pulverização / Pincelamento'}\n` +
+        `**EPIs Obrigatórios:** ${res.safetyEquipment || (res.requiredEPIs?.extraArmorText || 'Luvas de nitrila, máscara P2, óculos e botas')}\n` +
+        `**Tempo de Reentrada:** ${res.reentryInterval || '24 horas'}\n` +
+        `**Base Legal / Regulamentação:** ${res.legalFramework || 'RDC 52/2009 ANVISA / NR-31'}\n\n` +
+        `## PASSO A PASSO OPERACIONAL\n${stepsText || 'Siga as recomendações técnicas do fabricante e regras de segurança da Anvisa.'}`;
+
+      setFormInstructions(fullInstructions);
+      toast.success('POP gerado com IA com sucesso!');
+    } catch (err: any) {
+      console.error('Erro na geração de POP com IA:', err);
+      toast.error('Erro ao gerar POP com IA. Tente novamente.');
+    } finally {
+      setIsGeneratingAI(false);
+    }
   };
 
   // Filter and display calculations
@@ -1704,12 +1770,23 @@ ${productsText}
             >
               <div className="bg-[#1B3A2D] text-white px-6 py-4 flex items-center justify-between" id="create-modal-header">
                 <div>
-                  <span className="text-[9px] font-extrabold tracking-widest text-[#1b3a2d] bg-emerald-300 px-2.5 py-0.5 rounded leading-none uppercase">Homologador DDSulf</span>
+                  <span className="text-[9px] font-extrabold tracking-widest text-[#1b3a2d] bg-emerald-300 px-2.5 py-0.5 rounded leading-none uppercase">Homologador PestFlow</span>
                   <h3 className="font-bold text-white text-base font-sans tracking-tight pt-1">Cadastrar Nova Diretriz Técnica (POP)</h3>
                 </div>
-                <button onClick={() => setIsCreateOpen(false)} className="p-1 hover:bg-white/10 rounded-lg text-white/80 transition cursor-pointer">
-                  <X className="size-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGenerateProcedureWithAI}
+                    disabled={isGeneratingAI}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-400 hover:bg-emerald-300 text-[#1B3A2D] font-extrabold text-xs rounded-lg transition disabled:opacity-50 cursor-pointer shadow-sm"
+                  >
+                    <Sparkles className="size-3.5" />
+                    {isGeneratingAI ? 'Gerando POP...' : 'Gerar com IA'}
+                  </button>
+                  <button onClick={() => setIsCreateOpen(false)} className="p-1 hover:bg-white/10 rounded-lg text-white/80 transition cursor-pointer">
+                    <X className="size-5" />
+                  </button>
+                </div>
               </div>
 
               <form onSubmit={handleCreatePOP} className="p-6 space-y-5 text-left text-xs font-semibold text-slate-700" id="create-pop-form">

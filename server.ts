@@ -384,14 +384,21 @@ Responda APENAS com o JSON puro sem qualquer formatação markdown, livre de \`\
 
       const prompt = `Como um engenheiro agrônomo sênior e supervisor regulatório da Anvisa para a PestFlow, formule um POP (Procedimento Operacional Padrão) completo e ultra-polido.
 Retorne um objeto JSON contendo exatamente:
-- "recommendedChemicalVolume": Uma recomendação de dosagem precisa em volume de calda por metro quadrado.
-- "requiredEPIs": Objeto contendo booleanos: "hasMask", "hasGloves", "hasGoggles", "hasBoots", "hasApron" e uma string "extraArmorText".
+- "pestType": Tipo de praga alvo em formato curto (ex: "baratas", "formigas", "cupins", "ratos", "escorpioes", "outro")
+- "activeIngredients": Princípios Ativos indicados (ex: "Fipronil 0.05%, Bifentrina 200SC")
+- "dilutionRatio": Diluição Recomendada em calda (ex: "50ml de concentrado por 10L de água para 100m²")
+- "applicationMethod": Método de Aplicação (ex: "Pulverização de Alta Pressão e Barreira Residual")
+- "safetyEquipment": EPIs Obrigatórios resumidos (ex: "Máscara P2, Luvas de Nitrila, Óculos de Proteção, Botas de PVC")
+- "reentryInterval": Tempo de Reentrada (ex: "24 horas para ambientes fechados, 6 horas para áreas ventiladas")
+- "legalFramework": Base Legal / Regulamentação (ex: "RDC nº 52/2009 ANVISA / NR-31")
+- "recommendedChemicalVolume": Recomendação de dosagem precisa em volume de calda por metro quadrado.
+- "requiredEPIs": Objeto com booleanos: "hasMask", "hasGloves", "hasGoggles", "hasBoots", "hasApron" e string "extraArmorText".
 - "steps": Um array de no mínimo 3 etapas contendo:
   - "sequence": Inteiro (1, 2, 3...)
-  - "title": Nome curto da etapa (Ex: "Isolamento de Área")
-  - "description": Frase detalhando rigorosamente como executar a etapa e riscos de intoxicação sanitária e compliance da Anvisa.
-  - "isRequired": Booleano (sempre true exceto se opcional)
-  - "requiresPhotoProof": Booleano (indique se o operador precisa subir foto no pestflow para fins de inspeção)
+  - "title": Nome curto da etapa (Ex: "Isolamento e Vistoria da Área")
+  - "description": Frase detalhando como executar a etapa e riscos de intoxicação sanitária e compliance da Anvisa.
+  - "isRequired": Booleano (true)
+  - "requiresPhotoProof": Booleano (true ou false)
   - "estimatedDurationSeconds": Tempo sugerido de execução em segundos
 
 DADOS OPERACIONAIS:
@@ -422,20 +429,31 @@ Responda APENAS com o JSON de dados puro, sem blocos de código markdown ou text
   // Executive Decision Intelligence & Strategic Copilot Endpoint
   app.post("/api/executive-ai/query", authMiddleware, aiRateLimiter, async (req, res) => {
     try {
-      const { prompt, history, tenantId, context } = req.body;
+      const { prompt, history, context } = req.body;
+      const tenantContext = (req as any).tenantContext;
+      const empresaId = tenantContext?.empresaId || req.body.tenantId;
+
+      if (!empresaId) {
+        return res.status(400).json({ error: "empresaId é obrigatório para consultas executivas." });
+      }
+
       const ai = getAi();
 
-      const tenant = tenantId || "tenant_001_poa";
-      const board = context?.board || { mrrTotal: 96000, activeContractsRatio: 92, operationalEfficiencyCoefficient: 0.84, monthlySafetyIndexPercent: 98.7 };
+      // Extract real board variables directly from context without fake hardcoded fallbacks
+      const mrrTotal = Number(context?.board?.mrrTotal ?? context?.mrrTotal ?? 0);
+      const activeContractsRatio = Number(context?.board?.activeContractsRatio ?? context?.activeContractsRatio ?? 0);
+      const operationalEfficiencyCoefficient = Number(context?.board?.operationalEfficiencyCoefficient ?? context?.operationalEfficiencyCoefficient ?? 0);
+      const monthlySafetyIndexPercent = Number(context?.board?.monthlySafetyIndexPercent ?? context?.monthlySafetyIndexPercent ?? 0);
 
       const systemInstruction = `Você é o Principal Executive AI Architect e Strategic Operational Intelligence Engineer do PestFlow.
 Você é encarregado de prover relatórios e direcionamentos estratégicos de nível de Conselho / Board (Board-Level Reporting) e decisões operacionais rigorosas.
 Nunca aja como assistente genérico ou chatbot raso. Suas respostas devem ser precisas, com terminologia executiva qualificada em português.
 
-DADOS DE CONTEXTO STRATÉGICO DO TENANT ATIVO (${tenant}):
-- Receita Recorrente Mensal (MRR): R$ ${board.mrrTotal.toLocaleString("pt-BR")}
-- Coeficiente de Eficiência de Campo: ${(board.operationalEfficiencyCoefficient * 100).toFixed(1)}%
-- Índice de Conformidade e Segurança Física (Anvisa): ${board.monthlySafetyIndexPercent}%
+DADOS DE CONTEXTO ESTRATÉGICO DO TENANT ATIVO (${empresaId}):
+- Receita Recorrente Mensal (MRR): R$ ${mrrTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+- Taxa de Contratantes Ativos: ${activeContractsRatio.toFixed(1)}%
+- Coeficiente de Eficiência de Campo: ${(operationalEfficiencyCoefficient * 100).toFixed(1)}%
+- Índice de Conformidade e Segurança Física (Anvisa): ${monthlySafetyIndexPercent.toFixed(1)}%
 - Recomendações Ativas no Funil: ${context?.recommendationCount || 0}
 
 Instruções importantes:
