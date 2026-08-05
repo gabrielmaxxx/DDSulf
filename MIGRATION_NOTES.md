@@ -98,8 +98,20 @@ Endpoints que recebem/processam dados com escopo de tenant em `server.ts`:
 
 ---
 
-## 4. Premissas Single-Tenant Eliminadas
+## 5. Limpeza de Scaffolding e Testes de Regras do Firestore Emulator (Fechamento da Fase 2)
 
-1. **Acesso Global sem Escopo**: Eliminada qualquer referência direta a coleções de nível raiz como `collection(db, 'quotes')`.
-2. **Segurança por Padrão**: As regras em `firestore.rules` foram reestruturadas sob `match /empresas/{empresaId}` com verificação de `request.auth.token.empresaId == empresaId`.
-3. **Isolamento de Dados em Queries**: Todas as queries e buscas agora filtram e acessam estritamente o subcaminho do tenant especificado.
+### 5.1 Remoção do Subsistema Órfão `src/organization/`
+- **Motivação**: O diretório `src/organization/` (e subsistemas associados em `src/security/` e `src/contexts/AuthContext.tsx`) constituíam um scaffolding desconectado que gerenciava tenants e workspaces fictícios via `localStorage` com fallbacks hardcoded (`'ddsulf_matriz'`).
+- **Ações Executadas**:
+  1. Confirmado via busca em todo o repositório que nenhuma tela ou fluxo real de negócio dependia de `src/organization/`.
+  2. Removidos os diretórios `src/organization/`, `src/security/` e `src/contexts/`.
+  3. Atualizado o `src/providers/AppProvider.tsx` para manter unicamente o `AuthProvider` enterprise real (`@/auth/providers/AuthProvider`).
+
+### 5.2 Teste Real das Regras do Firestore via Emulador
+- **Arquivo Criado**: `tests/security/firestoreRules.emulator.test.ts`
+- **Dependências**: `@firebase/rules-unit-testing`
+- **Comando de Execução**: `npm run test:rules` (que executa `firebase emulators:exec --only firestore 'vitest run tests/security/firestoreRules.emulator.test.ts'`).
+- **Instruções para Execução Local**:
+  1. Certifique-se de possuir o Java Runtime (JRE 11+) e o `firebase-tools` instalados no ambiente local.
+  2. Execute `npm run test:rules`. O Firebase CLI inicializará o emulador na porta 8080, executará a suíte Vitest validando o isolamento entre tenants de `firestore.rules` e finalizará o emulador automaticamente.
+
