@@ -1,14 +1,25 @@
-export type UserRole = 'admin' | 'manager' | 'commercial' | 'technician' | 'operator';
+export type UserRole = 'master' | 'admin' | 'manager' | 'commercial' | 'technician' | 'operator' | 'funcionario' | string;
+
+export interface ModulePermissionActions {
+  view: boolean;
+  edit: boolean;
+  delete: boolean;
+}
+
+export type UserPermissionsSchema = Record<string, ModulePermissionActions>;
 
 export interface UserProfile {
   uid: string;
   email: string;
   name: string;
+  login?: string;
+  cargo?: string;
   role: UserRole;
   status: 'active' | 'inactive';
   empresaId?: string;
   phone?: string;
   avatar?: string;
+  permissions?: UserPermissionsSchema;
   createdAt: string;
   updatedAt: string;
   lastLogin?: string;

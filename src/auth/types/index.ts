@@ -1,20 +1,29 @@
-import { UserProfile, UserRole } from '@/types/database';
+import { UserProfile, UserRole, UserPermissionsSchema, ModulePermissionActions } from '@/types/database';
 
 export type Role = UserRole;
 
-export type PermissionAction = 'read' | 'write' | 'update' | 'delete' | 'admin';
-export type PermissionModule = 'dashboard' | 'calculator' | 'financial' | 'inventory' | 'pops' | 'ai' | 'clients' | 'quotes';
-
-export interface UserPermission {
-  module: PermissionModule;
-  actions: PermissionAction[];
-}
+export type PermissionAction = 'view' | 'edit' | 'delete' | 'read' | 'write' | 'update' | 'admin';
+export type PermissionModule = 
+  | 'agenda'
+  | 'orcamentos'
+  | 'estoque'
+  | 'pops'
+  | 'financeiro'
+  | 'ia'
+  | 'contratos'
+  | 'dashboard'
+  | 'calculator'
+  | 'financial'
+  | 'inventory'
+  | 'clients'
+  | 'quotes'
+  | string;
 
 export interface AuthSession {
   user: UserProfile | null;
   role: Role | null;
   empresaId: string | null;
-  permissions: UserPermission[];
+  permissions: UserPermissionsSchema;
   isAuthenticated: boolean;
   isLoading: boolean;
   isHydrated: boolean;

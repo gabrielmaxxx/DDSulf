@@ -1,98 +1,104 @@
-import { Role, UserPermission, PermissionAction, PermissionModule } from '../types';
+import { Role, PermissionAction, PermissionModule } from '../types';
+import { UserProfile, UserPermissionsSchema } from '@/types/database';
+
+export const PESTFLOW_MODULES = [
+  'agenda',
+  'orcamentos',
+  'estoque',
+  'pops',
+  'financeiro',
+  'ia',
+  'contratos'
+] as const;
 
 /**
- * Static mapping of roles to permissions (ABAC security configuration)
+ * Normalizes legacy or alternative module names to Phase 3 canonical names
  */
-export const ROLE_PERMISSIONS: Record<Role, UserPermission[]> = {
-  admin: [
-    { module: 'dashboard', actions: ['read', 'write', 'update', 'delete', 'admin'] },
-    { module: 'calculator', actions: ['read', 'write', 'update', 'delete', 'admin'] },
-    { module: 'financial', actions: ['read', 'write', 'update', 'delete', 'admin'] },
-    { module: 'inventory', actions: ['read', 'write', 'update', 'delete', 'admin'] },
-    { module: 'pops', actions: ['read', 'write', 'update', 'delete', 'admin'] },
-    { module: 'ai', actions: ['read', 'write', 'update', 'delete', 'admin'] },
-    { module: 'clients', actions: ['read', 'write', 'update', 'delete', 'admin'] },
-    { module: 'quotes', actions: ['read', 'write', 'update', 'delete', 'admin'] }
-  ],
-  manager: [
-    { module: 'dashboard', actions: ['read', 'write', 'update'] },
-    { module: 'calculator', actions: ['read', 'write', 'update', 'delete'] },
-    { module: 'financial', actions: ['read', 'write', 'update'] },
-    { module: 'inventory', actions: ['read', 'write', 'update', 'delete'] },
-    { module: 'pops', actions: ['read', 'write', 'update', 'delete'] },
-    { module: 'ai', actions: ['read', 'write', 'update'] },
-    { module: 'clients', actions: ['read', 'write', 'update', 'delete'] },
-    { module: 'quotes', actions: ['read', 'write', 'update', 'delete'] }
-  ],
-  commercial: [
-    { module: 'dashboard', actions: ['read'] },
-    { module: 'calculator', actions: ['read', 'write', 'update'] },
-    { module: 'financial', actions: [] }, // Financial completely restricted
-    { module: 'inventory', actions: ['read'] },
-    { module: 'pops', actions: ['read'] },
-    { module: 'ai', actions: ['read', 'write'] },
-    { module: 'clients', actions: ['read', 'write', 'update'] },
-    { module: 'quotes', actions: ['read', 'write', 'update'] }
-  ],
-  technician: [
-    { module: 'dashboard', actions: ['read'] },
-    { module: 'calculator', actions: ['read'] },
-    { module: 'financial', actions: [] }, // Financial completely restricted
-    { module: 'inventory', actions: ['read', 'write'] }, // Registering stock usage
-    { module: 'pops', actions: ['read'] }, // Operational instructions
-    { module: 'ai', actions: ['read', 'write'] }, // Operational assistance
-    { module: 'clients', actions: ['read'] },
-    { module: 'quotes', actions: ['read', 'update'] } // Executing, updating notes only
-  ],
-  operator: [
-    { module: 'dashboard', actions: ['read'] },
-    { module: 'calculator', actions: ['read', 'write'] },
-    { module: 'financial', actions: [] },
-    { module: 'inventory', actions: ['read'] },
-    { module: 'pops', actions: ['read'] },
-    { module: 'ai', actions: ['read'] },
-    { module: 'clients', actions: ['read', 'write'] },
-    { module: 'quotes', actions: ['read', 'write'] }
-  ]
-};
+export function normalizeModule(moduleName: string): string {
+  const lower = moduleName.toLowerCase();
+  switch (lower) {
+    case 'calculator':
+    case 'quotes':
+      return 'orcamentos';
+    case 'inventory':
+      return 'estoque';
+    case 'financial':
+      return 'financeiro';
+    case 'ai':
+      return 'ia';
+    case 'clients':
+      return 'contratos';
+    case 'dashboard':
+      return 'agenda';
+    default:
+      return lower;
+  }
+}
 
 /**
- * Checks if a role has permission to carry out an action inside a module
+ * Normalizes action names ('read', 'write', 'update' -> 'view', 'edit', 'delete')
  */
-export function hasPermission(
+export function normalizeAction(actionName: string): 'view' | 'edit' | 'delete' {
+  const lower = actionName.toLowerCase();
+  if (lower === 'read' || lower === 'view') return 'view';
+  if (lower === 'write' || lower === 'update' || lower === 'edit') return 'edit';
+  if (lower === 'delete') return 'delete';
+  return 'view';
+}
+
+/**
+ * Evaluates whether a user has permission for a specific module x action.
+ * Master role ALWAYS bypasses all module permission checks.
+ */
+export function evaluatePermission(
+  user: UserProfile | null,
   role: Role | null,
   module: PermissionModule,
   action: PermissionAction
 ): boolean {
-  if (!role) return false;
-  const permissions = ROLE_PERMISSIONS[role];
-  if (!permissions) return false;
+  const effectiveRole = user?.role || role;
 
-  const modulePerm = permissions.find(p => p.module === module);
-  if (!modulePerm) return false;
+  // Master role bypass (and admin fallback)
+  if (effectiveRole === 'master' || effectiveRole === 'admin') {
+    return true;
+  }
 
-  // Admin access bypass
-  if (modulePerm.actions.includes('admin')) return true;
+  if (!user || !user.permissions) {
+    return false; // Deny by default if permissions object is not present
+  }
 
-  return modulePerm.actions.includes(action);
+  const canonicalModule = normalizeModule(module);
+  const canonicalAction = normalizeAction(action);
+
+  const modulePerms = user.permissions[canonicalModule];
+  if (!modulePerms) {
+    return false; // Deny by default if module is missing
+  }
+
+  return modulePerms[canonicalAction] === true;
 }
 
-/**
- * Utility to verify multiple permissions (AND configuration)
- */
+export function hasPermission(
+  role: Role | null,
+  module: PermissionModule,
+  action: PermissionAction,
+  user?: UserProfile | null
+): boolean {
+  return evaluatePermission(user || null, role, module, action);
+}
+
 export function hasAllPermissions(
   role: Role | null,
-  checks: Array<{ module: PermissionModule; action: PermissionAction }>
+  checks: Array<{ module: PermissionModule; action: PermissionAction }>,
+  user?: UserProfile | null
 ): boolean {
-  return checks.every(check => hasPermission(role, check.module, check.action));
+  return checks.every(check => evaluatePermission(user || null, role, check.module, check.action));
 }
 
-/**
- * Utility to verify multiple permissions (OR configuration)
- */
 export function hasAnyPermission(
   role: Role | null,
-  checks: Array<{ module: PermissionModule; action: PermissionAction }>
+  checks: Array<{ module: PermissionModule; action: PermissionAction }>,
+  user?: UserProfile | null
 ): boolean {
-  return checks.some(check => hasPermission(role, check.module, check.action));
+  return checks.some(check => evaluatePermission(user || null, role, check.module, check.action));
 }

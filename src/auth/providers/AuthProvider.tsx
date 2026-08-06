@@ -3,8 +3,7 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/firebase/config';
 import { UserProfile, UserRole } from '@/types/database';
-import { ROLE_PERMISSIONS } from '../permissions';
-import { AuthSession, UserPermission } from '../types';
+import { AuthSession } from '../types';
 import { logOperationalEvent } from '@/firebase/analytics';
 
 interface AuthContextType extends AuthSession {
@@ -14,8 +13,6 @@ interface AuthContextType extends AuthSession {
   updateProfileState: (changes: Partial<UserProfile>) => void;
 }
 
-const defaultPermissions: UserPermission[] = ROLE_PERMISSIONS.admin;
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -23,7 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user: null,
     role: null,
     empresaId: null,
-    permissions: [],
+    permissions: {},
     isAuthenticated: false,
     isLoading: true,
     isHydrated: false,
@@ -35,39 +32,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (firebaseUser) {
           const idTokenResult = await firebaseUser.getIdTokenResult(true);
           const claimEmpresaId = (idTokenResult.claims.empresaId as string) || '';
+          const claimRole = (idTokenResult.claims.role as string) || '';
 
-          const userRef = doc(db, 'users', firebaseUser.uid);
+          const userRef = claimEmpresaId 
+            ? doc(db, 'empresas', claimEmpresaId, 'usuarios', firebaseUser.uid)
+            : doc(db, 'users', firebaseUser.uid);
           
           const profileUnsubscribe = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
               const userData = docSnap.data() as UserProfile;
               const activeEmpresaId = claimEmpresaId || userData.empresaId || '';
-              const fullUserData: UserProfile = { ...userData, empresaId: activeEmpresaId };
+              const activeRole = claimRole || userData.role || 'funcionario';
+              const fullUserData: UserProfile = { 
+                ...userData, 
+                role: activeRole, 
+                empresaId: activeEmpresaId 
+              };
+
               setSession({
                 user: fullUserData,
-                role: userData.role,
+                role: activeRole,
                 empresaId: activeEmpresaId,
-                permissions: ROLE_PERMISSIONS[userData.role] || [],
+                permissions: userData.permissions || {},
                 isAuthenticated: true,
                 isLoading: false,
                 isHydrated: true,
               });
             } else {
+              const activeRole = claimRole || 'funcionario';
               const defaultProfile: UserProfile = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',
                 name: firebaseUser.displayName || 'Colaborador PestFlow',
-                role: 'technician',
+                role: activeRole,
                 status: 'active',
                 empresaId: claimEmpresaId,
+                permissions: {},
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
               };
               setSession({
                 user: defaultProfile,
-                role: 'technician',
+                role: activeRole,
                 empresaId: claimEmpresaId,
-                permissions: ROLE_PERMISSIONS.technician,
+                permissions: {},
                 isAuthenticated: true,
                 isLoading: false,
                 isHydrated: true,
@@ -75,20 +83,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }, (err) => {
             console.warn('[PestFlow AuthProvider] Profile state listener failed, falling back to token claims:', err.message);
+            const activeRole = claimRole || 'master';
             setSession({
               user: {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',
                 name: firebaseUser.displayName || 'Usuário PestFlow',
-                role: 'admin',
+                role: activeRole,
                 status: 'active',
                 empresaId: claimEmpresaId,
+                permissions: {},
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
               },
-              role: 'admin',
+              role: activeRole,
               empresaId: claimEmpresaId,
-              permissions: ROLE_PERMISSIONS.admin,
+              permissions: {},
               isAuthenticated: true,
               isLoading: false,
               isHydrated: true,
@@ -101,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             user: null,
             role: null,
             empresaId: null,
-            permissions: [],
+            permissions: {},
             isAuthenticated: false,
             isLoading: false,
             isHydrated: true,
@@ -150,7 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: null,
         role: null,
         empresaId: null,
-        permissions: [],
+        permissions: {},
         isAuthenticated: false,
         isLoading: false,
         isHydrated: true,
@@ -166,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         user: updatedUser,
         role: updatedUser.role,
-        permissions: ROLE_PERMISSIONS[updatedUser.role] || []
+        permissions: updatedUser.permissions || prev.permissions || {}
       };
     });
   };

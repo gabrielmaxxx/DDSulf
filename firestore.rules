@@ -21,6 +21,10 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.empresaId == empresaId;
     }
 
+    function isMaster() {
+      return isSignedIn() && request.auth.token.role == 'master';
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -33,68 +37,116 @@ service cloud.firestore {
       return resource.data;
     }
 
+    // Check user profile document in /empresas/{empresaId}/usuarios/{uid} for module x action permission
+    function checkModulePermission(empresaId, modulo, acao) {
+      let userPath = /databases/$(database)/documents/empresas/$(empresaId)/usuarios/$(request.auth.uid);
+      let userData = exists(userPath) ? get(userPath).data : {};
+      return userData.get('permissions', {}).get(modulo, {}).get(acao, false) == true;
+    }
+
+    function hasPermission(empresaId, modulo, acao) {
+      return isMaster() || (belongsToTenant(empresaId) && checkModulePermission(empresaId, modulo, acao));
+    }
+
     // =========================================================================
-    // MULTI-TENANT TENANT-SCOPED ISOLATION RULES
+    // MULTI-TENANT TENANT-SCOPED ISOLATION & RBAC RULES
     // All operational data resides under /empresas/{empresaId}/...
     // =========================================================================
     match /empresas/{empresaId} {
       // Tenant root document access
       allow read, write: if belongsToTenant(empresaId);
 
-      // Subcollection permissions scoped to /empresas/{empresaId}/...
+      // Usuarios (user profiles inside tenant)
+      match /usuarios/{userId} {
+        allow read: if belongsToTenant(empresaId);
+        allow write: if isMaster() && belongsToTenant(empresaId);
+      }
+
       match /users/{userId} {
-        allow read, write: if belongsToTenant(empresaId);
+        allow read: if belongsToTenant(empresaId);
+        allow write: if isMaster() && belongsToTenant(empresaId);
       }
 
-      match /clients/{clientId} {
-        allow read, write: if belongsToTenant(empresaId);
-      }
-
-      match /quotes/{quoteId} {
-        allow read, write: if belongsToTenant(empresaId);
-      }
-
+      // Agenda (services, events)
       match /services/{serviceId} {
-        allow read, write: if belongsToTenant(empresaId);
-      }
-
-      match /financial_costs/{costId} {
-        allow read, write: if belongsToTenant(empresaId);
-      }
-
-      match /revenues/{revenueId} {
-        allow read, write: if belongsToTenant(empresaId);
-      }
-
-      match /financial_settings/{settingId} {
-        allow read, write: if belongsToTenant(empresaId);
-      }
-
-      match /products/{productId} {
-        allow read, write: if belongsToTenant(empresaId);
-      }
-
-      match /stock_movements/{movementId} {
-        allow read, write: if belongsToTenant(empresaId);
-      }
-
-      match /pops/{popId} {
-        allow read, write: if belongsToTenant(empresaId);
-      }
-
-      match /dashboard_metrics/{metricId} {
-        allow read, write: if belongsToTenant(empresaId);
-      }
-
-      match /historical_insights/{insightId} {
-        allow read, write: if belongsToTenant(empresaId);
+        allow read: if hasPermission(empresaId, 'agenda', 'view');
+        allow create, update: if hasPermission(empresaId, 'agenda', 'edit');
+        allow delete: if hasPermission(empresaId, 'agenda', 'delete');
       }
 
       match /events/{eventId} {
-        allow read, create: if belongsToTenant(empresaId);
-        allow update, delete: if false;
+        allow read: if hasPermission(empresaId, 'agenda', 'view');
+        allow create, update: if hasPermission(empresaId, 'agenda', 'edit');
+        allow delete: if hasPermission(empresaId, 'agenda', 'delete');
       }
 
+      // Orçamentos (quotes)
+      match /quotes/{quoteId} {
+        allow read: if hasPermission(empresaId, 'orcamentos', 'view');
+        allow create, update: if hasPermission(empresaId, 'orcamentos', 'edit');
+        allow delete: if hasPermission(empresaId, 'orcamentos', 'delete');
+      }
+
+      // Estoque (products, stock_movements)
+      match /products/{productId} {
+        allow read: if hasPermission(empresaId, 'estoque', 'view');
+        allow create, update: if hasPermission(empresaId, 'estoque', 'edit');
+        allow delete: if hasPermission(empresaId, 'estoque', 'delete');
+      }
+
+      match /stock_movements/{movementId} {
+        allow read: if hasPermission(empresaId, 'estoque', 'view');
+        allow create, update: if hasPermission(empresaId, 'estoque', 'edit');
+        allow delete: if hasPermission(empresaId, 'estoque', 'delete');
+      }
+
+      // POPs
+      match /pops/{popId} {
+        allow read: if hasPermission(empresaId, 'pops', 'view');
+        allow create, update: if hasPermission(empresaId, 'pops', 'edit');
+        allow delete: if hasPermission(empresaId, 'pops', 'delete');
+      }
+
+      // Financeiro (financial_costs, revenues, financial_settings)
+      match /financial_costs/{costId} {
+        allow read: if hasPermission(empresaId, 'financeiro', 'view');
+        allow create, update: if hasPermission(empresaId, 'financeiro', 'edit');
+        allow delete: if hasPermission(empresaId, 'financeiro', 'delete');
+      }
+
+      match /revenues/{revenueId} {
+        allow read: if hasPermission(empresaId, 'financeiro', 'view');
+        allow create, update: if hasPermission(empresaId, 'financeiro', 'edit');
+        allow delete: if hasPermission(empresaId, 'financeiro', 'delete');
+      }
+
+      match /financial_settings/{settingId} {
+        allow read: if hasPermission(empresaId, 'financeiro', 'view');
+        allow create, update: if hasPermission(empresaId, 'financeiro', 'edit');
+        allow delete: if hasPermission(empresaId, 'financeiro', 'delete');
+      }
+
+      // Contratos / Clientes
+      match /clients/{clientId} {
+        allow read: if hasPermission(empresaId, 'contratos', 'view');
+        allow create, update: if hasPermission(empresaId, 'contratos', 'edit');
+        allow delete: if hasPermission(empresaId, 'contratos', 'delete');
+      }
+
+      // IA / Analytics / Metrics
+      match /dashboard_metrics/{metricId} {
+        allow read: if hasPermission(empresaId, 'ia', 'view');
+        allow create, update: if hasPermission(empresaId, 'ia', 'edit');
+        allow delete: if hasPermission(empresaId, 'ia', 'delete');
+      }
+
+      match /historical_insights/{insightId} {
+        allow read: if hasPermission(empresaId, 'ia', 'view');
+        allow create, update: if hasPermission(empresaId, 'ia', 'edit');
+        allow delete: if hasPermission(empresaId, 'ia', 'delete');
+      }
+
+      // Audit logs
       match /audit_logs/{logId} {
         allow read, create: if belongsToTenant(empresaId);
         allow update, delete: if false;

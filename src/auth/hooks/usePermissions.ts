@@ -3,25 +3,26 @@ import { hasPermission, hasAllPermissions, hasAnyPermission } from '../permissio
 import { PermissionModule, PermissionAction } from '../types';
 
 export function usePermissions() {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
 
   const can = (module: PermissionModule, action: PermissionAction): boolean => {
-    return hasPermission(role, module, action);
+    return hasPermission(role, module, action, user);
   };
 
   const canAll = (checks: Array<{ module: PermissionModule; action: PermissionAction }>): boolean => {
-    return hasAllPermissions(role, checks);
+    return hasAllPermissions(role, checks, user);
   };
 
   const canAny = (checks: Array<{ module: PermissionModule; action: PermissionAction }>): boolean => {
-    return hasAnyPermission(role, checks);
+    return hasAnyPermission(role, checks, user);
   };
 
   return {
     can,
     canAll,
     canAny,
-    role
+    role,
+    user
   };
 }
 

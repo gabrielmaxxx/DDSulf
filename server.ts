@@ -70,6 +70,48 @@ export async function verifyAuthToken(req: express.Request, res: express.Respons
 
 const authMiddleware = verifyAuthToken;
 
+/**
+ * Express Middleware for Granular Module & Action RBAC enforcement.
+ * Layer 2 security - Backend Middleware.
+ */
+export function requirePermission(modulo: string, acao: 'view' | 'edit' | 'delete') {
+  return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    try {
+      const tenantCtx = (req as any).tenantContext;
+      if (!tenantCtx || !tenantCtx.empresaId || !tenantCtx.uid) {
+        return res.status(401).json({ error: "Sessão não autenticada ou sem contexto de empresa." });
+      }
+
+      // Master role or superAdmin bypasses all module permissions
+      if (tenantCtx.role === 'master' || tenantCtx.isSuperAdmin) {
+        return next();
+      }
+
+      ensureFirebaseAdmin();
+      const db = getFirestore();
+      const userDoc = await db.doc(`empresas/${tenantCtx.empresaId}/usuarios/${tenantCtx.uid}`).get();
+
+      if (!userDoc.exists) {
+        return res.status(403).json({ error: "Perfil de usuário não encontrado no sistema." });
+      }
+
+      const userData = userDoc.data();
+      const userPerms = userData?.permissions?.[modulo];
+
+      if (userPerms && userPerms[acao] === true) {
+        return next();
+      }
+
+      return res.status(403).json({
+        error: `Acesso negado: permissão de ${acao} no módulo '${modulo}' não concedida.`
+      });
+    } catch (err: any) {
+      console.error(`[PestFlow RBAC] Erro ao verificar permissão (${modulo}:${acao}):`, err);
+      return res.status(500).json({ error: "Erro interno ao validar permissões de acesso." });
+    }
+  };
+}
+
 const aiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 20, // limite de 20 requisições por usuário (UID) a cada 15 minutos
@@ -110,7 +152,7 @@ async function startServer() {
         });
       }
 
-      const { empresaId, login, senhaTemporaria, role, name, cargo } = req.body || {};
+      const { empresaId, login, senhaTemporaria, role, name, cargo, permissions } = req.body || {};
 
       if (!login || !senhaTemporaria) {
         return res.status(400).json({ error: "Campos 'login' e 'senhaTemporaria' são obrigatórios." });
@@ -127,7 +169,7 @@ async function startServer() {
       }
 
       const syntheticEmail = buildSyntheticEmail(login, targetEmpresaId);
-      const assignedRole = role || 'technician';
+      const assignedRole = role || 'funcionario';
 
       // Create user in Firebase Auth via Admin SDK
       const userRecord = await getAuth().createUser({
@@ -144,6 +186,8 @@ async function startServer() {
 
       // Store profile document in Firestore at /empresas/{empresaId}/usuarios/{uid}
       const db = getFirestore();
+      const initialPermissions = permissions && typeof permissions === 'object' ? permissions : {};
+
       await db.doc(`empresas/${targetEmpresaId}/usuarios/${userRecord.uid}`).set({
         uid: userRecord.uid,
         login: login.trim().toLowerCase(),
@@ -152,7 +196,7 @@ async function startServer() {
         cargo: cargo || 'Colaborador',
         empresaId: targetEmpresaId,
         role: assignedRole,
-        permissions: {},
+        permissions: initialPermissions,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -162,11 +206,96 @@ async function startServer() {
         uid: userRecord.uid,
         email: syntheticEmail,
         empresaId: targetEmpresaId,
-        role: assignedRole
+        role: assignedRole,
+        permissions: initialPermissions
       });
     } catch (error: any) {
       console.error("Erro ao criar usuário via Admin SDK:", error);
       res.status(500).json({ error: error.message || "Erro interno ao criar usuário." });
+    }
+  });
+
+  // Edit employee permissions (Master / SuperAdmin only)
+  app.patch("/api/admin/usuarios/:uid/permissions", verifyAuthToken, async (req, res) => {
+    try {
+      ensureFirebaseAdmin();
+      const tenantCtx = (req as any).tenantContext;
+      const isMaster = tenantCtx?.role === 'master';
+      const isSuperAdmin = Boolean(tenantCtx?.isSuperAdmin);
+
+      if (!isMaster && !isSuperAdmin) {
+        return res.status(403).json({ 
+          error: "Acesso negado: apenas perfil master ou superAdmin pode alterar permissões." 
+        });
+      }
+
+      const { uid } = req.params;
+      const { permissions } = req.body || {};
+
+      if (!uid) {
+        return res.status(400).json({ error: "Identificador do usuário (uid) é obrigatório." });
+      }
+
+      if (!permissions || typeof permissions !== 'object') {
+        return res.status(400).json({ error: "Objeto de permissões é obrigatório." });
+      }
+
+      // Rule: An employee cannot edit their own permissions
+      if (uid === tenantCtx?.uid) {
+        return res.status(403).json({ error: "Operação não permitida: você não pode alterar suas próprias permissões." });
+      }
+
+      const targetEmpresaId = tenantCtx?.empresaId;
+      const db = getFirestore();
+      const userRef = db.doc(`empresas/${targetEmpresaId}/usuarios/${uid}`);
+      const userSnap = await userRef.get();
+
+      if (!userSnap.exists) {
+        return res.status(404).json({ error: "Usuário não encontrado nesta empresa." });
+      }
+
+      await userRef.update({
+        permissions,
+        updatedAt: new Date().toISOString()
+      });
+
+      return res.json({
+        success: true,
+        uid,
+        empresaId: targetEmpresaId,
+        permissions
+      });
+    } catch (error: any) {
+      console.error("Erro ao atualizar permissões do usuário:", error);
+      return res.status(500).json({ error: error.message || "Erro interno ao atualizar permissões." });
+    }
+  });
+
+  // List company users (Master / SuperAdmin only)
+  app.get("/api/admin/usuarios", verifyAuthToken, async (req, res) => {
+    try {
+      ensureFirebaseAdmin();
+      const tenantCtx = (req as any).tenantContext;
+      const isMaster = tenantCtx?.role === 'master';
+      const isSuperAdmin = Boolean(tenantCtx?.isSuperAdmin);
+
+      if (!isMaster && !isSuperAdmin) {
+        return res.status(403).json({ error: "Acesso negado: apenas perfil master ou superAdmin pode listar usuários." });
+      }
+
+      const targetEmpresaId = tenantCtx?.empresaId;
+      const db = getFirestore();
+      const snapshot = await db.collection(`empresas/${targetEmpresaId}/usuarios`).get();
+
+      const users = snapshot.docs.map(doc => ({
+        uid: doc.id,
+        ...doc.data()
+      }));
+
+      return res.json({ users });
+    } catch (error: any) {
+      console.error("Erro ao listar usuários da empresa:", error);
+      return res.status(500).json({ error: error.message || "Erro interno ao listar usuários." });
     }
   });
 
@@ -243,7 +372,7 @@ async function startServer() {
   };
 
   // AI Chat Endpoint
-  app.post("/api/ai/chat", authMiddleware, aiRateLimiter, async (req, res) => {
+  app.post("/api/ai/chat", authMiddleware, requirePermission('ia', 'view'), aiRateLimiter, async (req, res) => {
     try {
       const { message, context, history } = req.body;
       const ai = getAi();
@@ -296,7 +425,7 @@ async function startServer() {
   });
 
   // Dedicated PestFlow Operational Client/Server Gemini API proxy
-  app.post("/api/ai/pestflow-chat", authMiddleware, aiRateLimiter, async (req, res) => {
+  app.post("/api/ai/pestflow-chat", authMiddleware, requirePermission('ia', 'view'), aiRateLimiter, async (req, res) => {
     try {
       const { message, systemContext, history } = req.body;
       const ai = getAi();
@@ -341,7 +470,7 @@ async function startServer() {
   });
 
   // AI Notification Intelligence (Summarization, Priority Assessment, Actionable Suggestions)
-  app.post("/api/ai/analyze-notification", authMiddleware, aiRateLimiter, async (req, res) => {
+  app.post("/api/ai/analyze-notification", authMiddleware, requirePermission('ia', 'view'), aiRateLimiter, async (req, res) => {
     try {
       const { title, message, category, severity } = req.body;
       const ai = getAi();
@@ -377,7 +506,7 @@ Responda APENAS com o JSON puro sem qualquer formatação markdown, livre de \`\
   });
 
   // AI Document / POP Generative Assistant Endpoint
-  app.post("/api/ai/generate-procedure", authMiddleware, aiRateLimiter, async (req, res) => {
+  app.post("/api/ai/generate-procedure", authMiddleware, requirePermission('ia', 'view'), aiRateLimiter, async (req, res) => {
     try {
       const { title, description, allowedChemicalIds, targetPests } = req.body;
       const ai = getAi();
@@ -427,7 +556,7 @@ Responda APENAS com o JSON de dados puro, sem blocos de código markdown ou text
   });
 
   // Executive Decision Intelligence & Strategic Copilot Endpoint
-  app.post("/api/executive-ai/query", authMiddleware, aiRateLimiter, async (req, res) => {
+  app.post("/api/executive-ai/query", authMiddleware, requirePermission('ia', 'view'), aiRateLimiter, async (req, res) => {
     try {
       const { prompt, history, context } = req.body;
       const tenantContext = (req as any).tenantContext;

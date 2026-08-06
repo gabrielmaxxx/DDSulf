@@ -13,6 +13,7 @@ import { GoogleMapsViewer } from '@/components/GoogleMapsViewer';
 import { GOOGLE_MAPS_API_KEY, hasValidMapsKey } from '@/config/maps';
 import { fetchGoogleMapsDistance, estimateDistanceOffline } from '@/utils/distanceUtils';
 import { ChangePasswordCard } from './ChangePasswordCard';
+import { UserPermissionsManager } from './UserPermissionsManager';
 
 interface SettingsData {
   companyName: string;
@@ -620,119 +621,9 @@ export function SettingsPage() {
         {/* Seção 4 — Integração & Roteirização do Google Maps Platform */}
         <GoogleMapsDiagnosticSection hqAddress={settings.address} />
 
-        {/* Seção 5 — Administração de Usuários (Apenas para Admin) */}
-        {currentUserRole === 'admin' && (
-          <Card className="bg-white border-[#E5E7EB] shadow-sm rounded-[32px] p-8 space-y-6" id="user-admin-section">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b border-gray-100 pb-4 justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-slate-100 rounded-xl">
-                  <Users className="size-5 text-black" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-black">Seção 4 — Controle de Usuários e Permissões</h3>
-                  <p className="text-xs text-gray-400">Gerencie os papéis operacionais e permissões de acesso dos colaboradores.</p>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={fetchUsers}
-                disabled={loadingUsers}
-                className="h-9 px-4 rounded-xl text-xs font-semibold flex items-center gap-2 border-slate-200"
-              >
-                <RefreshCw className={`size-3.5 ${loadingUsers ? 'animate-spin' : ''}`} />
-                Atualizar Lista
-              </Button>
-            </div>
-
-            {loadingUsers ? (
-              <div className="py-8 text-center text-xs text-slate-400 font-mono">
-                Carregando colaboradores...
-              </div>
-            ) : usersList.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400">
-                Nenhum colaborador encontrado no sistema.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[600px]">
-                  <thead>
-                    <tr className="border-b border-slate-100">
-                      <th className="py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Nome / E-mail</th>
-                      <th className="py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Papel Atual</th>
-                      <th className="py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
-                      <th className="py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Alterar Papel</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {usersList.map((usr) => (
-                      <tr key={usr.uid} className="hover:bg-slate-50/40 transition-colors">
-                        <td className="py-4">
-                          <div className="font-semibold text-slate-900 text-xs">{usr.name}</div>
-                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">{usr.email}</div>
-                        </td>
-                        <td className="py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            usr.role === 'admin' 
-                              ? 'bg-red-50 text-red-700 border border-red-100' 
-                              : usr.role === 'manager'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                              : usr.role === 'commercial'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-100'
-                              : 'bg-slate-50 text-slate-700 border border-slate-100'
-                          }`}>
-                            {usr.role === 'admin' 
-                              ? 'Administrador' 
-                              : usr.role === 'manager'
-                              ? 'Gerente'
-                              : usr.role === 'commercial'
-                              ? 'Comercial'
-                              : usr.role === 'technician'
-                              ? 'Técnico'
-                              : usr.role === 'operator'
-                              ? 'Operador'
-                              : usr.role}
-                          </span>
-                        </td>
-                        <td className="py-4">
-                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold ${
-                            usr.status === 'active' ? 'text-emerald-600' : 'text-slate-400'
-                          }`}>
-                            <span className={`size-1.5 rounded-full ${
-                              usr.status === 'active' ? 'bg-emerald-600' : 'bg-slate-400'
-                            }`} />
-                            {usr.status === 'active' ? 'Ativo' : 'Inativo'}
-                          </span>
-                        </td>
-                        <td className="py-4 text-right">
-                          <div className="inline-flex gap-1.5 justify-end">
-                            {(['admin', 'manager', 'commercial', 'technician'] as UserRole[]).map((roleOption) => (
-                              <Button
-                                key={roleOption}
-                                type="button"
-                                disabled={updatingUserUid !== null || usr.uid === currentUser?.uid}
-                                onClick={() => handlePromoteRole(usr.uid, roleOption)}
-                                className={`h-7 px-2.5 text-[10px] font-bold rounded-lg transition-all border shrink-0 ${
-                                  usr.role === roleOption
-                                    ? 'bg-black text-white border-black cursor-default'
-                                    : 'bg-white text-slate-600 hover:bg-slate-50 border-slate-200'
-                                }`}
-                              >
-                                {roleOption === 'admin' ? 'Admin' : roleOption === 'manager' ? 'Gerente' : roleOption === 'commercial' ? 'Comercial' : 'Técnico'}
-                              </Button>
-                            ))}
-                          </div>
-                          {usr.uid === currentUser?.uid && (
-                            <span className="text-[9px] text-slate-400 block mt-1">Você não pode alterar seu próprio papel</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
+        {/* Seção 5 — Administração de Usuários e Permissões (Apenas para Master / Admin) */}
+        {(currentUserRole === 'master' || currentUserRole === 'admin') && (
+          <UserPermissionsManager />
         )}
 
         {/* Seção 6 — Alteração de Senha */}
