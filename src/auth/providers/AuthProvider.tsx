@@ -33,6 +33,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const idTokenResult = await firebaseUser.getIdTokenResult(true);
           const claimEmpresaId = (idTokenResult.claims.empresaId as string) || '';
           const claimRole = (idTokenResult.claims.role as string) || '';
+          const isSuperAdmin = Boolean(idTokenResult.claims.isSuperAdmin);
+
+          let empresaSuspensa = false;
+          if (claimEmpresaId && !isSuperAdmin) {
+            try {
+              const empresaSnap = await getDoc(doc(db, 'empresas', claimEmpresaId));
+              if (empresaSnap.exists()) {
+                const empData = empresaSnap.data();
+                if (empData?.ativa === false) {
+                  empresaSuspensa = true;
+                }
+              }
+            } catch (empErr) {
+              console.warn('[PestFlow AuthProvider] Erro ao verificar status da empresa:', empErr);
+            }
+          }
 
           const userRef = claimEmpresaId 
             ? doc(db, 'empresas', claimEmpresaId, 'usuarios', firebaseUser.uid)
@@ -46,13 +62,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const fullUserData: UserProfile = { 
                 ...userData, 
                 role: activeRole, 
-                empresaId: activeEmpresaId 
+                empresaId: activeEmpresaId,
+                isSuperAdmin
               };
 
               setSession({
                 user: fullUserData,
                 role: activeRole,
                 empresaId: activeEmpresaId,
+                isSuperAdmin,
+                empresaSuspensa,
                 permissions: userData.permissions || {},
                 isAuthenticated: true,
                 isLoading: false,
@@ -67,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: activeRole,
                 status: 'active',
                 empresaId: claimEmpresaId,
+                isSuperAdmin,
                 permissions: {},
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -75,6 +95,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 user: defaultProfile,
                 role: activeRole,
                 empresaId: claimEmpresaId,
+                isSuperAdmin,
+                empresaSuspensa,
                 permissions: {},
                 isAuthenticated: true,
                 isLoading: false,
@@ -92,12 +114,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 role: activeRole,
                 status: 'active',
                 empresaId: claimEmpresaId,
+                isSuperAdmin,
                 permissions: {},
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
               },
               role: activeRole,
               empresaId: claimEmpresaId,
+              isSuperAdmin,
+              empresaSuspensa,
               permissions: {},
               isAuthenticated: true,
               isLoading: false,
@@ -111,6 +136,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             user: null,
             role: null,
             empresaId: null,
+            isSuperAdmin: false,
+            empresaSuspensa: false,
             permissions: {},
             isAuthenticated: false,
             isLoading: false,

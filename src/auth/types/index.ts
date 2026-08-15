@@ -23,6 +23,8 @@ export interface AuthSession {
   user: UserProfile | null;
   role: Role | null;
   empresaId: string | null;
+  isSuperAdmin?: boolean;
+  empresaSuspensa?: boolean;
   permissions: UserPermissionsSchema;
   isAuthenticated: boolean;
   isLoading: boolean;

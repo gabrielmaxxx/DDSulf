@@ -10,7 +10,8 @@ import {
   BrainCircuit, 
   CheckSquare, 
   CalendarDays, 
-  Users 
+  Users,
+  ShieldAlert
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -31,9 +32,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function AppSidebar() {
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, isSuperAdmin } = useAuth();
   const { quotes } = useSystemStore();
   const pendingCount = (quotes?.list || []).filter(q => q.status === 'enviado' || q.status === 'aprovado').length;
+  const hasSuperAdminPrivileges = Boolean(isSuperAdmin || user?.isSuperAdmin);
 
   const handleLogout = async () => {
     try {
@@ -178,6 +180,44 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* GRUPO SUPER-ADMIN PLATAFORMA (Exclusivo isSuperAdmin) */}
+        {hasSuperAdminPrivileges && (
+          <>
+            <div className="h-px bg-amber-500/30 mx-2" />
+            <SidebarGroup className="p-0 space-y-2">
+              <div className="px-3 flex items-center justify-between">
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider font-sans flex items-center gap-1.5">
+                  <ShieldAlert className="size-3 text-amber-400" />
+                  Super-Admin
+                </span>
+                <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Global
+                </span>
+              </div>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1.5">
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      render={<Link to="/superadmin" />}
+                      isActive={location.pathname === '/superadmin'}
+                      className={cn(
+                        "transition-all duration-200 h-12 w-full flex items-center px-4 rounded-xl cursor-pointer border font-semibold tracking-wide text-sm select-none",
+                        location.pathname === '/superadmin'
+                          ? "bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/30 hover:bg-amber-400 border-amber-400"
+                          : "bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border-amber-500/20 hover:text-white"
+                      )}
+                      tooltip="Painel Super-Admin"
+                    >
+                      <ShieldAlert className={cn("size-5 shrink-0 transition-colors", location.pathname === '/superadmin' ? "text-slate-950" : "text-amber-400")} />
+                      <span className="ml-3 text-sm truncate">Painel Global</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
       </SidebarContent>
 
       {/* Footer Slack-style */}

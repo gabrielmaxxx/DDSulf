@@ -9,12 +9,23 @@ export interface TenantContext {
   isSuperAdmin?: boolean;
 }
 
+export interface EmpresaFinanceiro {
+  status: 'em_dia' | 'atrasado';
+  dataVencimento?: string;
+  dataUltimoPagamento?: string;
+  observacoes?: string;
+}
+
 export interface Empresa {
+  empresaId: string;
   id?: string;
   nome: string;
   cnpj?: string;
   criadoEm?: string;
-  status: 'ativa' | 'inativa' | 'trial';
+  ativa: boolean;
+  financeiro?: EmpresaFinanceiro;
+  plano?: string;
+  status?: 'ativa' | 'inativa' | 'trial';
 }
 
 /**
@@ -41,3 +52,15 @@ export function getTenantCollectionPath(empresaId: string, collectionName: strin
   }
   return `empresas/${empresaId.trim()}/${collectionName.trim()}`;
 }
+
+/**
+ * Valida se um identificador de tenant segue o padrão seguro de identificador (apenas letras, números, hífens e underscores)
+ */
+export function validateEmpresaId(empresaId: string): boolean {
+  if (!empresaId || typeof empresaId !== 'string') return false;
+  const trimmed = empresaId.trim();
+  if (trimmed.length < 2 || trimmed.length > 64) return false;
+  // Bloquear path traversal e caracteres perigosos
+  return /^[a-zA-Z0-9_-]+$/.test(trimmed);
+}
+

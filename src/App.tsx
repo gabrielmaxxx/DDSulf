@@ -23,8 +23,10 @@ import { ServicoConfirmacaoPage } from '@/modules/confirmacoes/ServicoConfirmaca
 import { AgendaPage } from '@/modules/agenda/AgendaPage';
 import { ClientesPage } from '@/modules/clientes/ClientesPage';
 import { FuncionariosPage } from '@/modules/funcionarios/FuncionariosPage';
+import { SuperAdminPage } from '@/modules/superadmin/SuperAdminPage';
 
 import { AuthGuard } from '@/auth/guards/AuthGuard';
+import { SuperAdminGuard } from '@/auth/guards/SuperAdminGuard';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -60,6 +62,18 @@ export default function App() {
           <Route path="/funcionarios" element={<ProtectedLayout><FuncionariosPage /></ProtectedLayout>} />
           <Route path="/ai" element={<ProtectedLayout><AIPage /></ProtectedLayout>} />
           <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
+          
+          {/* Super-Admin Platform Console */}
+          <Route 
+            path="/superadmin" 
+            element={
+              <AuthGuard>
+                <SuperAdminGuard>
+                  <SuperAdminPage />
+                </SuperAdminGuard>
+              </AuthGuard>
+            } 
+          />
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

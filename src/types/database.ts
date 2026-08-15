@@ -17,12 +17,33 @@ export interface UserProfile {
   role: UserRole;
   status: 'active' | 'inactive';
   empresaId?: string;
+  isSuperAdmin?: boolean;
   phone?: string;
   avatar?: string;
   permissions?: UserPermissionsSchema;
   createdAt: string;
   updatedAt: string;
   lastLogin?: string;
+}
+
+export type FinancialStatus = 'em_dia' | 'atrasado';
+
+export interface EmpresaFinanceiro {
+  status: FinancialStatus;
+  dataVencimento?: string;
+  dataUltimoPagamento?: string;
+  observacoes?: string;
+}
+
+export interface EmpresaMetadata {
+  empresaId: string;
+  nome: string;
+  cnpj?: string;
+  criadoEm: string;
+  ativa: boolean;
+  financeiro: EmpresaFinanceiro;
+  plano?: string;
+  updatedAt?: string;
 }
 
 export interface Client {
