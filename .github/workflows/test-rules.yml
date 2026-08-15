@@ -1,0 +1,33 @@
+name: Testes de Isolamento Multi-Tenant
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-firestore-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar Java (necessário para o emulador do Firestore)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Instalar dependências do projeto
+        run: npm install
+
+      - name: Instalar Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Rodar testes de isolamento entre tenants (Firestore Emulator)
+        run: npm run test:rules
