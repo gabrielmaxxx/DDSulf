@@ -27,6 +27,7 @@ import { SuperAdminPage } from '@/modules/superadmin/SuperAdminPage';
 
 import { AuthGuard } from '@/auth/guards/AuthGuard';
 import { SuperAdminGuard } from '@/auth/guards/SuperAdminGuard';
+import { LoginPage } from '@/auth/LoginPage';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -49,7 +50,7 @@ export default function App() {
     <AppProvider>
       <Router>
         <Routes>
-          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/login" element={<LoginPage />} />
           
           <Route path="/" element={<ProtectedLayout><DashboardPage /></ProtectedLayout>} />
           <Route path="/calculator" element={<ProtectedLayout><CalculatorPage /></ProtectedLayout>} />

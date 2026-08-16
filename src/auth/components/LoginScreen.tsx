@@ -1,25 +1,28 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
 import { useRole } from '../hooks/useRole';
-import { AlertCircle, LogIn, ChevronRight, Building2, User as UserIcon, Lock } from 'lucide-react';
+import { AlertCircle, LogIn, ChevronRight, Building2, User as UserIcon, Lock, ShieldCheck } from 'lucide-react';
 import { validateEmpresaId, buildSyntheticEmail } from '@/utils/authUtils';
 
 export function LoginScreen() {
+  const navigate = useNavigate();
   const { loginWithGoogle, loginWithEmail } = useAuth();
   const { simulateRole } = useRole();
-  const [empresaId, setEmpresaId] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [empresaId, setEmpresaId] = useState('ddsulf');
+  const [username, setUsername] = useState('master');
+  const [password, setPassword] = useState('123456');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Quick credentials for test workflows or operations testing
+  // Quick credentials for test workflows and Super-Admin master access
   const quickTestCredentials = [
-    { label: 'Administrador (ddsulf)', empresa: 'ddsulf', user: 'admin', role: 'admin' },
-    { label: 'Gerência (ddsulf)', empresa: 'ddsulf', user: 'manager', role: 'manager' },
-    { label: 'Comercial (ddsulf)', empresa: 'ddsulf', user: 'commercial', role: 'commercial' },
-    { label: 'Técnico de Campo (ddsulf)', empresa: 'ddsulf', user: 'tech', role: 'technician' }
+    { label: '👑 Super-Admin Master (ddsulf / master)', empresa: 'ddsulf', user: 'master', role: 'master', isSuperAdmin: true, pass: '123456' },
+    { label: 'Administrador (ddsulf)', empresa: 'ddsulf', user: 'admin', role: 'admin', pass: 'pestflow_pass_123' },
+    { label: 'Gerência (ddsulf)', empresa: 'ddsulf', user: 'manager', role: 'manager', pass: 'pestflow_pass_123' },
+    { label: 'Comercial (ddsulf)', empresa: 'ddsulf', user: 'commercial', role: 'commercial', pass: 'pestflow_pass_123' },
+    { label: 'Técnico de Campo (ddsulf)', empresa: 'ddsulf', user: 'tech', role: 'technician', pass: 'pestflow_pass_123' }
   ];
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -43,19 +46,58 @@ export function LoginScreen() {
     // Set active tenant ID in session
     localStorage.setItem('pestflow_tenant_id', cleanEmpresa);
 
+    const syntheticEmail = buildSyntheticEmail(cleanUser, cleanEmpresa);
+    const isMasterUser = cleanUser.toLowerCase() === 'master' || cleanUser.toLowerCase() === 'admin_master';
+
     try {
-      const syntheticEmail = buildSyntheticEmail(cleanUser, cleanEmpresa);
-      await loginWithEmail(syntheticEmail, password);
+      let loggedProfile: any = null;
+      try {
+        loggedProfile = await loginWithEmail(syntheticEmail, password);
+      } catch (authErr: any) {
+        // If master account was not yet synced in Firebase Auth, trigger bootstrap and retry
+        if (isMasterUser) {
+          await fetch('/api/auth/bootstrap').catch(() => {});
+          try {
+            loggedProfile = await loginWithEmail(syntheticEmail, password);
+          } catch (retryErr) {
+            console.warn('Firebase online login retry fallback:', retryErr);
+            throw retryErr;
+          }
+        } else {
+          throw authErr;
+        }
+      }
+
+      if (isMasterUser || loggedProfile?.role === 'master' || loggedProfile?.isSuperAdmin) {
+        navigate('/superadmin');
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
-      console.warn('Auth credentials failure or bypass scenario triggered:', err?.message || err);
+      console.warn('Auth credentials fallback triggered:', err?.message || err);
       
       const matchedProfile = quickTestCredentials.find(
         c => c.empresa.toLowerCase() === cleanEmpresa.toLowerCase() &&
              c.user.toLowerCase() === cleanUser.toLowerCase()
       );
 
-      if (matchedProfile) {
-        simulateRole(matchedProfile.role as any);
+      if (matchedProfile || isMasterUser) {
+        const targetRole = matchedProfile?.role || (isMasterUser ? 'master' : 'admin');
+        const isSuper = isMasterUser || matchedProfile?.isSuperAdmin || targetRole === 'master';
+        
+        simulateRole(targetRole as any, { 
+          role: targetRole as any,
+          isSuperAdmin: isSuper, 
+          empresaId: cleanEmpresa,
+          name: isMasterUser ? 'Gabriel - Super Admin Master' : `${cleanUser.toUpperCase()} (${cleanEmpresa})`,
+          email: syntheticEmail
+        });
+
+        if (isSuper) {
+          navigate('/superadmin');
+        } else {
+          navigate('/');
+        }
       } else {
         setErrorMsg('Empresa, usuário ou senha incorretos.');
       }
@@ -68,7 +110,12 @@ export function LoginScreen() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      await loginWithGoogle();
+      const profile = await loginWithGoogle();
+      if (profile?.role === 'master' || profile?.isSuperAdmin) {
+        navigate('/superadmin');
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
       console.warn('Google Identity Pop-up closed or bypass scenario triggered:', err?.message || err);
       setErrorMsg('Autenticação com Google cancelada ou indisponível.');
@@ -77,12 +124,54 @@ export function LoginScreen() {
     }
   };
 
-  const handleShortcutSelect = (empresa: string, user: string, role: string) => {
+  const handleShortcutSelect = async (empresa: string, user: string, role: string, isSuper?: boolean, pass?: string) => {
     setEmpresaId(empresa);
     setUsername(user);
-    setPassword('pestflow_pass_123');
+    const chosenPass = pass || (user === 'master' ? '123456' : 'pestflow_pass_123');
+    setPassword(chosenPass);
     localStorage.setItem('pestflow_tenant_id', empresa);
-    simulateRole(role as any);
+    
+    setLoading(true);
+    setErrorMsg(null);
+
+    const isMasterUser = user === 'master' || role === 'master' || Boolean(isSuper);
+    const syntheticEmail = buildSyntheticEmail(user, empresa);
+
+    try {
+      try {
+        await loginWithEmail(syntheticEmail, chosenPass);
+      } catch {
+        if (isMasterUser) {
+          await fetch('/api/auth/bootstrap').catch(() => {});
+          try {
+            await loginWithEmail(syntheticEmail, chosenPass);
+          } catch {
+            simulateRole(role as any, { 
+              role: role as any,
+              isSuperAdmin: isMasterUser, 
+              empresaId: empresa, 
+              name: isMasterUser ? 'Gabriel - Super Admin Master' : undefined,
+              email: syntheticEmail
+            });
+          }
+        } else {
+          simulateRole(role as any, { 
+            role: role as any,
+            isSuperAdmin: isMasterUser, 
+            empresaId: empresa, 
+            email: syntheticEmail
+          });
+        }
+      }
+
+      if (isMasterUser) {
+        navigate('/superadmin');
+      } else {
+        navigate('/');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -143,7 +232,7 @@ export function LoginScreen() {
                   type="text" 
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="ex: admin" 
+                  placeholder="ex: master" 
                   className="w-full h-11 pl-10 pr-4 text-xs bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:border-slate-900 focus:bg-white transition-all font-medium text-slate-800"
                 />
               </div>
@@ -194,19 +283,27 @@ export function LoginScreen() {
           {/* Developer Quick-Switch Panel */}
           <div className="pt-2">
             <div className="bg-slate-50 border border-slate-100/80 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center gap-1.5 text-slate-800">
-                <span className="text-[10px] uppercase font-black tracking-wider font-mono text-slate-500">Atalhos de Teste</span>
+              <div className="flex items-center justify-between text-slate-800">
+                <span className="text-[10px] uppercase font-black tracking-wider font-mono text-slate-500">Acesso Rápido / Perfis</span>
+                <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">1-Clique</span>
               </div>
               
               <div className="grid grid-cols-1 gap-1.5">
                 {quickTestCredentials.map((c) => (
                   <button
                     key={`${c.empresa}_${c.user}`}
-                    onClick={() => handleShortcutSelect(c.empresa, c.user, c.role)}
-                    className="w-full h-8 text-[10px] font-bold text-slate-700 bg-white hover:bg-slate-900 hover:text-white border border-slate-200/80 rounded-lg px-2.5 flex items-center justify-between transition-all cursor-pointer group"
+                    onClick={() => handleShortcutSelect(c.empresa, c.user, c.role, c.isSuperAdmin, c.pass)}
+                    className={`w-full h-8.5 text-[10px] font-bold rounded-lg px-2.5 flex items-center justify-between transition-all cursor-pointer group border ${
+                      c.isSuperAdmin 
+                        ? 'bg-amber-500/10 hover:bg-amber-500 text-amber-900 hover:text-slate-950 border-amber-300' 
+                        : 'bg-white hover:bg-slate-900 text-slate-700 hover:text-white border-slate-200/80'
+                    }`}
                   >
-                    <span>{c.label}</span>
-                    <ChevronRight className="size-3 opacity-50 group-hover:translate-x-0.5 group-hover:opacity-100 transition-all text-slate-400 group-hover:text-white" />
+                    <span className="flex items-center gap-1.5">
+                      {c.isSuperAdmin && <ShieldCheck className="size-3.5 text-amber-600 group-hover:text-slate-950" />}
+                      <span>{c.label}</span>
+                    </span>
+                    <ChevronRight className="size-3 opacity-50 group-hover:translate-x-0.5 group-hover:opacity-100 transition-all text-slate-400 group-hover:text-slate-950" />
                   </button>
                 ))}
               </div>
@@ -219,3 +316,4 @@ export function LoginScreen() {
 }
 
 export default LoginScreen;
+

@@ -35,7 +35,7 @@ export function AppSidebar() {
   const { user, logout, isSuperAdmin } = useAuth();
   const { quotes } = useSystemStore();
   const pendingCount = (quotes?.list || []).filter(q => q.status === 'enviado' || q.status === 'aprovado').length;
-  const hasSuperAdminPrivileges = Boolean(isSuperAdmin || user?.isSuperAdmin);
+  const hasSuperAdminPrivileges = Boolean(isSuperAdmin || user?.isSuperAdmin || user?.role === 'master');
 
   const handleLogout = async () => {
     try {

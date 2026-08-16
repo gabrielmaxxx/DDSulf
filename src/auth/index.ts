@@ -12,3 +12,4 @@ export * from './guards/RoleGuard';
 export * from './guards/PermissionGuard';
 export * from './components/LoginScreen';
 export * from './components/AuthLoading';
+export * from './LoginPage';

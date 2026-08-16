@@ -12,13 +12,15 @@ interface SuperAdminGuardProps {
  * Ensures the logged in account possesses the isSuperAdmin custom claim.
  */
 export function SuperAdminGuard({ children }: SuperAdminGuardProps) {
-  const { isAuthenticated, loading, isSuperAdmin } = useAuth();
+  const { isAuthenticated, loading, isSuperAdmin, user, role } = useAuth();
 
   if (loading) {
     return <AuthLoading />;
   }
 
-  if (!isAuthenticated || !isSuperAdmin) {
+  const isAuthorized = isSuperAdmin || user?.isSuperAdmin || role === 'master' || user?.role === 'master';
+
+  if (!isAuthenticated || !isAuthorized) {
     return <Navigate to="/" replace />;
   }
 

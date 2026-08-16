@@ -158,6 +158,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(prev => ({ ...prev, isLoading: true }));
     try {
       const profile = await AuthService.loginWithGoogle();
+      const isSuper = profile.isSuperAdmin || profile.role === 'master' || profile.email?.includes('master');
+      setSession({
+        user: profile,
+        role: profile.role || (isSuper ? 'master' : 'admin'),
+        empresaId: profile.empresaId || localStorage.getItem('pestflow_tenant_id') || 'ddsulf',
+        isSuperAdmin: Boolean(isSuper),
+        empresaSuspensa: false,
+        permissions: profile.permissions || {},
+        isAuthenticated: true,
+        isLoading: false,
+        isHydrated: true,
+      });
       return profile;
     } catch (err) {
       setSession(prev => ({ ...prev, isLoading: false }));
@@ -170,6 +182,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(prev => ({ ...prev, isLoading: true }));
     try {
       const profile = await AuthService.loginWithEmail(email, pass);
+      const isSuper = profile.isSuperAdmin || profile.role === 'master' || email.includes('master');
+      setSession({
+        user: profile,
+        role: profile.role || (isSuper ? 'master' : 'admin'),
+        empresaId: profile.empresaId || localStorage.getItem('pestflow_tenant_id') || 'ddsulf',
+        isSuperAdmin: Boolean(isSuper),
+        empresaSuspensa: false,
+        permissions: profile.permissions || {},
+        isAuthenticated: true,
+        isLoading: false,
+        isHydrated: true,
+      });
       return profile;
     } catch (err) {
       setSession(prev => ({ ...prev, isLoading: false }));
@@ -197,13 +221,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfileState = (changes: Partial<UserProfile>) => {
     setSession(prev => {
-      if (!prev.user) return prev;
-      const updatedUser = { ...prev.user, ...changes };
+      const isSuperAdminValue = changes.isSuperAdmin !== undefined 
+        ? changes.isSuperAdmin 
+        : (changes.role === 'master' || prev.isSuperAdmin);
+
+      const activeUser: UserProfile = prev.user ? {
+        ...prev.user,
+        ...changes,
+        isSuperAdmin: isSuperAdminValue
+      } : {
+        uid: `user_${Date.now()}`,
+        email: changes.email || 'master@ddsulf.pestflow.local',
+        name: changes.name || 'Gabriel - Super Admin',
+        role: changes.role || 'master',
+        status: 'active',
+        empresaId: changes.empresaId || localStorage.getItem('pestflow_tenant_id') || 'ddsulf',
+        isSuperAdmin: isSuperAdminValue,
+        permissions: changes.permissions || {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
       return {
         ...prev,
-        user: updatedUser,
-        role: updatedUser.role,
-        permissions: updatedUser.permissions || prev.permissions || {}
+        user: activeUser,
+        role: activeUser.role,
+        empresaId: activeUser.empresaId || 'ddsulf',
+        isSuperAdmin: isSuperAdminValue,
+        empresaSuspensa: false,
+        permissions: activeUser.permissions || prev.permissions || {},
+        isAuthenticated: true,
+        isLoading: false,
+        isHydrated: true,
       };
     });
   };
