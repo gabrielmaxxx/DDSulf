@@ -4,9 +4,10 @@
  */
 
 import { SystemCoreContext } from '../types';
+import { tenantStorage } from '@/utils/storage';
 
 export class AIContextEngine {
-  private static STORAGE_KEY = 'pestflow_ai_live_context';
+  private static STORAGE_KEY = 'ai_live_context';
 
   /**
    * Assembles a permission-aware core context
@@ -63,9 +64,7 @@ export class AIContextEngine {
     }
 
     // Cache compiled context in local storage for instant offline analytics parsing
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(context));
-    }
+    tenantStorage.setItem(this.STORAGE_KEY, JSON.stringify(context));
 
     return context;
   }
@@ -74,10 +73,7 @@ export class AIContextEngine {
    * Safe getter with fallback to cached memory state
    */
   public static getCachedContext(): SystemCoreContext {
-    if (typeof localStorage === 'undefined') {
-      return { activeRole: 'visualizador', userName: 'Anônimo' };
-    }
-    const stored = localStorage.getItem(this.STORAGE_KEY);
+    const stored = tenantStorage.getItem(this.STORAGE_KEY);
     return stored ? JSON.parse(stored) : { activeRole: 'visualizador', userName: 'Anônimo' };
   }
 }

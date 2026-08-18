@@ -17,14 +17,7 @@ export interface AuthStoreState {
 
 export const useAuthStore = create<AuthStoreState>()(
   loggerMiddleware((set) => ({
-    user: {
-      uid: 'u_01',
-      email: 'gabriel@ddsulf.com',
-      displayName: 'Gabriel Max',
-      role: 'admin',
-      tenantId: 'ddsulf_tenant_sp_01',
-      isVerified: true
-    },
+    user: null,
     isLoading: false,
     error: null,
 
@@ -34,7 +27,7 @@ export const useAuthStore = create<AuthStoreState>()(
         email,
         displayName: email.split('@')[0],
         role,
-        tenantId: 'ddsulf_tenant_sp_01',
+        tenantId: email.split('@')[1]?.split('.')[0] || 'default_tenant',
         isVerified: true
       },
       error: null

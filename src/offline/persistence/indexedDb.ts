@@ -3,7 +3,13 @@
  * Manages atomic offline tables: mutations, draft wizards, local indicators cache, and preferences.
  */
 
-const DB_NAME = 'ddsulf_operational_master';
+import { tenantStorage } from '@/utils/storage';
+
+function getDBName(): string {
+  const tenantId = tenantStorage.getEmpresaId() || 'global';
+  return `pestflow_${tenantId}_master`;
+}
+
 const DB_VERSION = 1;
 
 export const STORES = {
@@ -15,9 +21,15 @@ export const STORES = {
 
 export class DDSulfIndexedDB {
   private static dbInstance: IDBDatabase | null = null;
+  private static currentDbName: string | null = null;
 
   public static async getDB(): Promise<IDBDatabase> {
-    if (this.dbInstance) return this.dbInstance;
+    const dbName = getDBName();
+    if (this.dbInstance && this.currentDbName === dbName) return this.dbInstance;
+    if (this.dbInstance && this.currentDbName !== dbName) {
+      this.dbInstance.close();
+      this.dbInstance = null;
+    }
 
     return new Promise((resolve, reject) => {
       if (typeof window === 'undefined') {
@@ -25,7 +37,7 @@ export class DDSulfIndexedDB {
         return;
       }
 
-      const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+      const request = window.indexedDB.open(dbName, DB_VERSION);
 
       request.onupgradeneeded = (event) => {
         const db = request.result;

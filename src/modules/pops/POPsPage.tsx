@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSystemStore } from '@/store';
 import { auth } from '@/firebase/config';
+import { tenantStorage } from '@/utils/storage';
 import { 
   Activity,
   Package,
@@ -86,42 +87,41 @@ const DEFAULT_SEEDED_POPS: ExtendedPOP[] = [
     category: 'Operacional',
     subcategory: 'Controle de Baratas',
     estimatedTimeHoursPer100m2: 1.5,
-    author: 'Gestor DDSulf',
+    author: 'Responsável Técnico',
     version: '2.0',
     status: 'Ativo',
     lastRevision: '15/03/2026',
     createdAt: '2025-01-01',
     requiredProducts: [
-      { productId: 'prod-03', productName: 'Gel Optigard LT WG', quantityPer100m2: 2, unit: 'unidade' },
-      { productId: 'prod-01', productName: 'BIFENTOL 200SC', quantityPer100m2: 50, unit: 'ml' }
+      { productId: 'prod-03', productName: 'Gel Baraticida', quantityPer100m2: 2, unit: 'unidade' },
+      { productId: 'prod-01', productName: 'Inseticida Piretroide', quantityPer100m2: 50, unit: 'ml' }
     ],
-    instructions: `# POP REGULADO - CONTROLE DE BARATAS EM ÁRES RESIDENCIAIS\n\nEste procedimento padroniza as ações de inspeção e aniquilação de Blattella germanica e Periplaneta americana.\n\n## 1. EQUIPAMENTOS DE SEGURANÇA (EPIs)\n* Luvas químicas de nitrila de cano longo.\n* Máscara semifacial com cartucho para vapores orgânicos/névoas.\n* Óculos panorâmicos de proteção.\n\n## 2. PROCEDIMENTO OPERACIONAL PASSO A PASSO\n1. **Inspeção de Foco**: Iniciar vistoria com lanterna em motores de geladeira, frestas de balcão e caixas de gordura.\n2. **Aspiração Mecânica**: Opcional, para remoção inicial de massas críticas.\n3. **Isquicidade Perimetral**: Aplicar pequenas gotas de Gel Optigard LT WG nos gonzos de armários e gaveteiros operacionais.\n4. **Pulverização com Bifentol**: Tratar rodapés, ralos abertos e tubulações periféricas no perímetro úmido externo para formação de barreira residual durável. Evitar contato com alimentos ou louças domésticas.`,
+    instructions: `# POP REGULADO - CONTROLE DE BARATAS EM ÁREAS RESIDENCIAIS\n\nEste procedimento padroniza as ações de inspeção e controle de Blattella germanica e Periplaneta americana.\n\n## 1. EQUIPAMENTOS DE SEGURANÇA (EPIs)\n* Luvas químicas de nitrila de cano longo.\n* Máscara semifacial com cartucho para vapores orgânicos/névoas.\n* Óculos panorâmicos de proteção.\n\n## 2. PROCEDIMENTO OPERACIONAL PASSO A PASSO\n1. **Inspeção de Foco**: Iniciar vistoria com lanterna em motores de geladeira, frestas de balcão e caixas de gordura.\n2. **Aspiração Mecânica**: Opcional, para remoção inicial de massas críticas.\n3. **Isquicidade Perimetral**: Aplicar pequenas gotas de gel nos gonzos de armários e gaveteiros operacionais.\n4. **Pulverização Residual**: Tratar rodapés, ralos abertos e tubulações periféricas no perímetro úmido externo para formação de barreira residual durável. Evitar contato com alimentos ou louças domésticas.`,
     versions: [
       { version: '1.0', date: '01/01/2025', change: 'Primeira versão de controle básico aprovada.' },
-      { version: '1.1', date: '15/06/2025', change: 'Inclusão de indicação de dosagem por m² de gel.' },
-      { version: '2.0', date: '01/01/2026', change: 'Atualização geral de ingredientes e substituição de piretróides por Bifentol 200SC.' }
+      { version: '2.0', date: '01/01/2026', change: 'Atualização geral de ingredientes e dosagens por m².' }
     ]
   },
   {
     id: 'pop-formigas',
-    name: 'POP Controle Avançado de Formigas Doceiras',
+    name: 'POP Controle Avançado de Formigas Urbanas',
     pestType: 'formigas',
     serviceType: 'dedetizacao',
     category: 'Operacional',
     subcategory: 'Controle de Formigas',
     estimatedTimeHoursPer100m2: 1.2,
-    author: 'Guilherme Silva (Tech Lead)',
+    author: 'Responsável Técnico',
     version: '1.2',
     status: 'Ativo',
     lastRevision: '10/01/2026',
     createdAt: '2025-03-10',
     requiredProducts: [
-      { productId: 'prod-03', productName: 'Gel Optigard LT WG', quantityPer100m2: 1, unit: 'unidade' }
+      { productId: 'prod-03', productName: 'Gel Formicida', quantityPer100m2: 1, unit: 'unidade' }
     ],
-    instructions: `# CONTROLE INTEGRADO DE FORMIGAS URBANAS (Monomorium pharaonis)\n\n## 1. PREMISSAS IMPORTANTES\nFormigas doceiras são desalojadas e dispersadas agressivamente caso pulverizações químicas irritantes sejam executas nas proximidades das colônias.\n\n## 2. PROCEDIMENTO EXCLUSIVO DE ISCAGEM\n1. Mapear as trilhas ativas sem espantar as colônias.\n2. Injetar filetes finos de gel à base de fipronil paralelo às rotas de passagem secundárias.\n3. Bloquear o acesso de umidade na área imediata para potencializar a atração do mel isquicida.`,
+    instructions: `# CONTROLE INTEGRADO DE FORMIGAS URBANAS (Monomorium pharaonis)\n\n## 1. PREMISSAS IMPORTANTES\nFormigas doceiras são desalojadas e dispersadas agressivamente caso pulverizações químicas irritantes sejam executadas nas proximidades das colônias.\n\n## 2. PROCEDIMENTO EXCLUSIVO DE ISCAGEM\n1. Mapear as trilhas ativas sem espantar as colônias.\n2. Injetar filetes finos de gel paralelo às rotas de passagem secundárias.\n3. Bloquear o acesso de umidade na área imediata para potencializar a atração do gel atrativo.`,
     versions: [
       { version: '1.0', date: '10/03/2025', change: 'Esboço primordial do POP.' },
-      { version: '1.2', date: '10/01/2026', change: 'Remoção de indicação de calda líquida nas pias de banheiro corporativos.' }
+      { version: '1.2', date: '10/01/2026', change: 'Remoção de indicação de calda líquida nas pias de sanitários.' }
     ]
   },
   {
@@ -131,14 +131,14 @@ const DEFAULT_SEEDED_POPS: ExtendedPOP[] = [
     serviceType: 'administrativo',
     category: 'Administrativo',
     estimatedTimeHoursPer100m2: 4,
-    author: 'Recursos Humanos DDSulf',
+    author: 'Recursos Humanos',
     version: '1.0',
     status: 'Ativo',
     lastRevision: '12/02/2026',
     createdAt: '2026-02-12',
     requiredProducts: [],
-    instructions: `# PROCESSO ADMINISTRATIVO: ONBOARDING INTEGRAL\n\nEste manual guia o fluxo de recepção de recepcionistas e auxiliares de escritório.\n\n## Diretrizes de Entrada:\n1. Coleta de documentação pessoal, carteira técnica (MTE/ANVISA se cabível) e assinatura de contratos.\n2. Concessão de credenciais internas no ERP e Google Workspace.\n3. Fornecimento das apostilas operacionais de controle integrados.\n4. Agendamento do Treinamento Inicial Técnico Básico.`,
-    versions: [{ version: '1.0', date: '12/02/2026', change: 'Primeiro lançamento oficial após revisão de conformidade jurídica.' }]
+    instructions: `# PROCESSO ADMINISTRATIVO: ONBOARDING INTEGRAL\n\nEste manual guia o fluxo de recepção de recepcionistas e auxiliares de escritório.\n\n## Diretrizes de Entrada:\n1. Coleta de documentação pessoal, carteira técnica e assinatura de contratos.\n2. Concessão de credenciais internas no sistema.\n3. Fornecimento das apostilas operacionais de controle integrado.\n4. Agendamento do Treinamento Inicial Técnico Básico.`,
+    versions: [{ version: '1.0', date: '12/02/2026', change: 'Primeiro lançamento oficial após revisão de conformidade.' }]
   },
   {
     id: 'pop-fin-fechamento',
@@ -147,16 +147,16 @@ const DEFAULT_SEEDED_POPS: ExtendedPOP[] = [
     serviceType: 'financeiro',
     category: 'Financeiro',
     estimatedTimeHoursPer100m2: 1,
-    author: 'Departamento Financeiro DDSulf',
+    author: 'Departamento Financeiro',
     version: '1.1',
     status: 'Ativo',
     lastRevision: '05/04/2026',
     createdAt: '2025-10-15',
     requiredProducts: [],
-    instructions: `# ENGENHARIA FINANCEIRA: FECHAMENTO DE CAIXA\n\nPadronização da conferência orçamentária de serviços finalizados DDSulf.\n\n## Passos Mandatórios:\n1. No painel operacional, filtrar Ordens de Serviço dadas como 'Executadas' ou 'Concluídas'.\n2. Cruzar com comprovantes de PIX, boletos de depósitos compensados e liquidações de cartões de débito/crédito.\n3. Sinalizar divergências de centavos e lançar taxas corporativas na aba correspondente.\n4. Fechar sumário diário e emitir relatório de fechamento para o diretor.`,
+    instructions: `# GESTÃO FINANCEIRA: FECHAMENTO DE CAIXA\n\nPadronização da conferência orçamentária de serviços finalizados.\n\n## Passos Mandatórios:\n1. No painel operacional, filtrar Ordens de Serviço dadas como 'Executadas' ou 'Concluídas'.\n2. Cruzar com comprovantes de PIX, boletos de depósitos compensados e liquidações de cartões de débito/crédito.\n3. Sinalizar divergências e lançar taxas corporativas na aba correspondente.\n4. Fechar sumário diário e emitir relatório de fechamento gerencial.`,
     versions: [
-      { version: '1.0', date: '15/10/2025', change: 'Procedimento primitivo manual.' },
-      { version: '1.1', date: '05/04/2026', change: 'Conversão para conciliação bancária semi-automatizada pelo painel ERP.' }
+      { version: '1.0', date: '15/10/2025', change: 'Procedimento inicial.' },
+      { version: '1.1', date: '05/04/2026', change: 'Conversão para conciliação bancária estruturada pelo painel.' }
     ]
   },
   {
@@ -166,32 +166,32 @@ const DEFAULT_SEEDED_POPS: ExtendedPOP[] = [
     serviceType: 'comercial',
     category: 'Comercial',
     estimatedTimeHoursPer100m2: 2,
-    author: 'Equipe de Vendas DDSulf',
+    author: 'Equipe Comercial',
     version: '1.0',
     status: 'Ativo',
     lastRevision: '20/05/2026',
     createdAt: '2026-05-20',
     requiredProducts: [],
-    instructions: `# FUNIL COMERCIAL: DIRETRIZ DE ENTRADA\n\nEste procedimento define como converter contatos receptivos em potenciais orçamentos estruturados no CRM.\n\n## Regras Claves:\n1. Investigar m² total reclamado pelo cliente corporativo.\n2. Perguntar praga predominante e se já houveram tratamentos pretéritos frustrados.\n3. Alimentar a Calculadora Operacional Inteligente para obter limites de preço mínimo.\n4. Enviar proposta personalizada em menos de 10 minutos comerciais.`,
+    instructions: `# FUNIL COMERCIAL: DIRETRIZ DE ATENDIMENTO\n\nEste procedimento define como converter contatos receptivos em propostas estruturadas no sistema.\n\n## Regras Chave:\n1. Investigar metragem total (m²) do imóvel do cliente.\n2. Perguntar praga predominante e se já houveram tratamentos anteriores.\n3. Alimentar a Calculadora Operacional para obter parâmetros de custo e margem mínima.\n4. Enviar proposta comercial detalhada com agilidade.`,
     versions: [{ version: '1.0', date: '20/05/2026', change: 'Lançamento inicial.' }]
   },
   {
     id: 'pop-sys-erp',
-    name: 'POP Práticas de Segurança e Acessos ERP DDSulf',
+    name: 'POP Práticas de Segurança e Acessos ao Sistema',
     pestType: 'outro',
     serviceType: 'sistemas',
     category: 'Sistemas',
     estimatedTimeHoursPer100m2: 0.5,
-    author: 'Segurança de TI DDSulf',
+    author: 'Segurança da Informação',
     version: '1.3',
     status: 'Ativo',
     lastRevision: '22/04/2026',
     createdAt: '2025-05-01',
     requiredProducts: [],
-    instructions: `# SEGURANÇA DIGITAL DDSULF SISTEMAS\n\nRegras de acesso e manutenção de dados sensíveis de carteira de clientes.\n\n## Diretrizes Fundamentais:\n1. Proibido compartilhar credenciais do painel corporativo do operador com terceiros.\n2. Autenticação multifator (MFA) obrigatória para logins em novas redes externas.\n3. Bloqueio automático do console corporal após 5 minutos de ociosidade do usuário.\n4. Registro logs de atividades e modificações de orçamentos auditáveis de ponta a ponta.`,
+    instructions: `# SEGURANÇA E ACESSO A DADOS\n\nRegras de acesso e manutenção de dados sensíveis de carteira de clientes e operações.\n\n## Diretrizes Fundamentais:\n1. Proibido compartilhar credenciais de acesso individuais com terceiros.\n2. Manter autenticação segura ao acessar em novas redes externas.\n3. Bloqueio automático da sessão após inatividade prolongada.\n4. Registro de logs de atividades e modificações auditáveis de ponta a ponta.`,
     versions: [
       { version: '1.0', date: '01/05/2025', change: 'Abertura padrão.' },
-      { version: '1.3', date: '22/04/2026', change: 'Injeção da obrigatoriedade do MFA para colaboradores externos.' }
+      { version: '1.3', date: '22/04/2026', change: 'Revisão de práticas de segurança da informação.' }
     ]
   }
 ];
@@ -214,58 +214,58 @@ interface TrainingCourse {
 const SEEDED_TRAININGS: TrainingCourse[] = [
   {
     id: 'train-01',
-    title: 'Integração e Código Técnico de Vetores e Pragas DDSulf',
-    description: 'Capacitação inicial para técnicos aplicadores de campo. Conceitos de biossegurança de campo, diluição de caldas químicas e manuseio seguro de defensivos sob regulamento fiscal.',
+    title: 'Integração e Código Técnico de Vetores e Pragas',
+    description: 'Capacitação inicial para técnicos aplicadores de campo. Conceitos de biossegurança de campo, diluição de caldas químicas e manuseio seguro de defensivos sob regulamentação sanitária.',
     duration: '8 horas',
     slides: [
-      'Bem-vindo à Academia de Excelência DDSulf! Como técnico corporativo, sua missão é entregar resultados de assepsia sanitária preservando de modo rigoroso a saúde e segurança do cliente e colaboradores.',
-      'Aula 1: Biologia de Pragas Urbanas. Entender os hábitos e comportamentos das Baratas (Periplaneta americana), Ratos e Cupins é fundamental para aplicar a dosagem certa no caminho de volta da nidação.',
-      'Aula 2: Preparo Químico. Sempre vista os EPIs de nitrila e óculos antes de romper lacres de concentrados. Realize tríplice de lavagem e meça as frações indicadas com provetas milimétricas precisas.',
-      'Aula 3: Descarte Ecológico. Embalagens vazias devem ser furadas para inutilização, armazenadas em containers selados e retornadas à base técnica de transbordo regulamentada localmente.'
+      'Bem-vindo à Academia de Capacitação PestFlow! Como técnico profissional, sua missão é entregar resultados de controle sanitário preservando a saúde e segurança do cliente e colaboradores.',
+      'Aula 1: Biologia de Pragas Urbanas. Entender os hábitos e comportamentos de baratas, roedores e cupins é fundamental para aplicar a dosagem correta nos pontos estratégicos.',
+      'Aula 2: Preparo Químico. Sempre vista os EPIs de nitrila e óculos antes de manusear concentrados. Realize tríplice lavagem e meça as frações indicadas com provetas precisas.',
+      'Aula 3: Descarte Ecológico. Embalagens vazias devem ser furadas para inutilização, armazenadas adequadamente e destinadas à logística reversa regulamentada.'
     ],
     quiz: [
       {
-        question: 'Qual o principal EPI indicado para o manuseio direto de diluição de inseticidas pesados?',
-        options: ['Luvas curtas de algodão', 'Luvas de nitrila de cano longo e respirador químico', 'Apenas óculos comuns', 'Capacete e botas simples para perna'],
+        question: 'Qual o principal EPI indicado para o manuseio direto de diluição de concentrados químicos?',
+        options: ['Luvas de algodão simples', 'Luvas de nitrila de cano longo e respirador químico', 'Apenas óculos comuns', 'Capacete e botas simples'],
         correctIndex: 1,
-        explanation: 'Luvas de nitrila grossas e respirador com filtro de carvão protegem o sistema pulmonar e absorção cutânea dos agentes ativos evaporados.'
+        explanation: 'Luvas de nitrila resistentes e respirador com filtro protegem contra absorção cutânea e inalação de vapores.'
       },
       {
-        question: 'O que deve ser realizado imediatamente após esvaziar totalmente a embalagem de um defensivo líquido concentrado?',
-        options: ['Reutilizar a embalagem para carregar água no veículo', 'Tríplice lavagem e inutilização física (furação) do vasilhame', 'Descarte no lixo comum doméstico no cliente', 'Queimar a embalagem na área externa externa'],
+        question: 'O que deve ser realizado imediatamente após esvaziar totalmente a embalagem de um defensivo concentrado?',
+        options: ['Reutilizar a embalagem para água no veículo', 'Tríplice lavagem e inutilização física (furação) do vasilhame', 'Descarte no lixo comum', 'Queimar a embalagem na área externa'],
         correctIndex: 1,
-        explanation: 'A tríplice lavagem limpa resíduos químicos críticos antes de destinar a embalagem para logística reversa obrigatória governamental.'
+        explanation: 'A tríplice lavagem remove resíduos críticos antes de destinar a embalagem para logística reversa obrigatória.'
       },
       {
-        question: 'Por que o uso de piretróides desalojantes em ninhos diretos de formigas domésticas doceiras costuma falhar?',
-        options: ['Formigas não reagem a defensivos', 'As formigas morrem instantaneamente sem relatar nada', 'Eles assustam o formigueiro, provocando fragmentação e abertura de novos satélites de rainha', 'Aumentam o açúcar disponível da cozinha'],
+        question: 'Por que o uso de inseticidas altamente irritantes em ninhos de formigas doceiras pode ser prejudicial?',
+        options: ['Formigas não reagem a defensivos', 'As formigas morrem instantaneamente sem relatar nada', 'Eles fragmentam a colônia e abrem novos ninhos satélites', 'Aumentam o açúcar da cozinha'],
         correctIndex: 2,
-        explanation: 'Inseticidas hiper-irritantes de contato assustam as operárias secundárias, acionando sinais de perigo que induzem a rainha a descentralizar a colônia e colonizar o imóvel.'
+        explanation: 'Inseticidas de contato irritantes podem assustar a colônia, induzindo a fragmentação da colônia em novos ninhos.'
       }
     ]
   },
   {
     id: 'train-02',
     title: 'Procedimentos de Diluição Química Segura e Dosagem Prática',
-    description: 'Curso avançado focando em cálculos químicos, dosagens por m² e regulagem dos bicos de pulverizadores costais de pressão.',
+    description: 'Curso focado em cálculos químicos, dosagens por m² e regulagem dos bicos de pulverizadores costais de pressão.',
     duration: '4 horas',
     slides: [
-      'Compreensão do fator de calda ativa: uma aplicação correta reduz devoluções de garantia a zero e reduz desperdício de insumos no estoque corporativo DDSulf.',
-      'Cálculo Prático: Se o POP estipula 50ml de calda de controle por m² e o imóvel possui 200m² de rodapés, o operador aplicará no total 10 litros de produto acabado diluído.',
-      'Regulagem do Equipamento: Mantenha a pressão constante nos pulverizadores manuais para evitar gotas excessivamente grandes ou formação de névoas super-finas suscetíveis a derivas pelo vento.'
+      'Compreensão do fator de calda ativa: uma aplicação correta reduz retornos de garantia e evita desperdício de insumos no estoque da empresa.',
+      'Cálculo Prático: Se o POP estipula 50ml de calda por 100m² e o imóvel possui 200m² de área tratada, o operador aplicará no total 100ml de calda concentrada diluída.',
+      'Regulagem do Equipamento: Mantenha a pressão constante nos pulverizadores manuais para evitar gotas excessivamente grandes ou deriva por névoa fina.'
     ],
     quiz: [
       {
-        question: 'Se um POP pede 50ml de Bifentol diluído para cada 100m², quantos ml usaremos para um galpão de 400m²?',
+        question: 'Se um POP indica 50ml de calda para cada 100m², quantos ml serão necessários para um galpão de 400m²?',
         options: ['100ml', '200ml', '150ml', '50ml'],
         correctIndex: 1,
-        explanation: 'Multiplicamos a dose unitária pela escala de área: 50ml x 4 = 200ml do produto.'
+        explanation: 'Multiplicamos a dose unitária pela proporção da área: 50ml x 4 = 200ml.'
       },
       {
-        question: 'Em que tipo de bico de pulverização conseguimos um melhor espalhamento residual homogêneo sobre pisos frios e rodapés?',
-        options: ['Bico tipo Leque plano regulado', 'Bico tipo Cone cheio dispersor', 'Bico de fluxo livre', 'Uso de mangueiras diretas'],
+        question: 'Qual o tipo de bico de pulverização mais indicado para cobertura residual homogênea sobre rodapés e superfícies?',
+        options: ['Bico tipo Leque plano regulado', 'Bico tipo Cone cheio', 'Bico de fluxo livre sem ponteira', 'Mangueira direta'],
         correctIndex: 0,
-        explanation: 'Os bicos tipo Leque plano distribuem uma cortina uniforme de gotas médias perfeito para barreiras residuais.'
+        explanation: 'Os bicos tipo leque plano distribuem uma faixa uniforme de gotas médias ideal para barreiras residuais.'
       }
     ]
   }
@@ -386,7 +386,7 @@ export function POPsPage() {
         createdAt: item.createdAt || new Date().toISOString().split('T')[0],
         category: cat,
         subcategory: subcat,
-        author: 'Gestor DDSulf',
+        author: 'Responsável Técnico',
         version: '1.0',
         status: 'Ativo' as const,
         lastRevision: item.createdAt || '01/06/2026',
@@ -394,12 +394,24 @@ export function POPsPage() {
       };
     });
 
-    // Remove duplicates based on ID (favor db over seeds)
-    const dbIds = new Set(formattedDb.map(x => x.id));
-    const cleanSeeds = DEFAULT_SEEDED_POPS.filter(x => !dbIds.has(x.id));
-
-    setProcedures([...formattedDb, ...cleanSeeds]);
+    setProcedures(formattedDb);
   }, [dbProcedures]);
+
+  const handleImportStandardTemplates = () => {
+    DEFAULT_SEEDED_POPS.forEach(pop => {
+      addPOP({
+        id: `pop-${Math.random().toString(36).substr(2, 9)}`,
+        name: pop.name,
+        pestType: pop.pestType,
+        serviceType: pop.serviceType,
+        requiredProducts: pop.requiredProducts,
+        estimatedTimeHoursPer100m2: pop.estimatedTimeHoursPer100m2,
+        instructions: pop.instructions,
+        createdAt: new Date().toLocaleDateString('pt-BR')
+      });
+    });
+    toast.success('Modelos de POPs sugeridos importados com sucesso!');
+  };
 
   // Listen for search or popId URL parameters to auto-focus POP and search entries
   useEffect(() => {
@@ -419,24 +431,15 @@ export function POPsPage() {
 
   // Load collaborator suggestions simulation local list
   useEffect(() => {
-    const cached = localStorage.getItem('ddsulf_pop_suggestions');
+    const cached = tenantStorage.getItem('pop_suggestions');
     if (cached) {
-      setSuggestedEdits(JSON.parse(cached));
+      try {
+        setSuggestedEdits(JSON.parse(cached));
+      } catch {
+        setSuggestedEdits([]);
+      }
     } else {
-      // Seed a default pending suggestion to showcase Model B flow beautifully
-      const seed: any[] = [
-        {
-          id: 'sug-example-01',
-          popId: 'pop-baratas-res',
-          popName: 'POP Controle de Baratas Residencial',
-          proposer: 'Técnico Bruno Costa',
-          content: 'Aumentar a dosagem recomendada de BIFENTOL 200SC para 60ml para cozinhas comerciais críticas e adicionar luva antiderrapante no item EPI de campo.',
-          date: '04/06/2026',
-          status: 'pendente'
-        }
-      ];
-      setSuggestedEdits(seed);
-      localStorage.setItem('ddsulf_pop_suggestions', JSON.stringify(seed));
+      setSuggestedEdits([]);
     }
   }, []);
 
@@ -620,7 +623,7 @@ export function POPsPage() {
 
     const updated = [newSuggestion, ...suggestedEdits];
     setSuggestedEdits(updated);
-    localStorage.setItem('ddsulf_pop_suggestions', JSON.stringify(updated));
+    tenantStorage.setItem('pop_suggestions', JSON.stringify(updated));
 
     toast.success('Sugestão enviada com sucesso!', {
       description: 'O gestor avaliador revisará sua solicitação para eventual publicação na nova versão.'
@@ -668,7 +671,7 @@ export function POPsPage() {
       return s;
     });
     setSuggestedEdits(updatedLocally);
-    localStorage.setItem('ddsulf_pop_suggestions', JSON.stringify(updatedLocally));
+    tenantStorage.setItem('pop_suggestions', JSON.stringify(updatedLocally));
 
     toast.success(`Sugestão técnica de ${sug.proposer} aprovada!`, {
       description: `Procedimento "${target.name}" atualizado de v${target.version} para v${nextVer}.`
@@ -684,7 +687,7 @@ export function POPsPage() {
       return s;
     });
     setSuggestedEdits(updatedLocally);
-    localStorage.setItem('ddsulf_pop_suggestions', JSON.stringify(updatedLocally));
+    tenantStorage.setItem('pop_suggestions', JSON.stringify(updatedLocally));
     toast.info('Sugestão de alteração recusada pelo Administrador.');
   };
 
@@ -885,12 +888,12 @@ Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos
 
   const downloadSimulatedCertificate = () => {
     toast.success('Certificado gerado com sucesso!', {
-      description: 'O download do PDF de Habilitação DDSulf foi disponibilizado no repositório local.'
+      description: 'O download do PDF de Habilitação foi disponibilizado no repositório local.'
     });
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 text-left" id="ddsulf_pops_panel_root">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 text-left" id="pestflow_pops_panel_root">
       
       {/* 1. TOP HEADER SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-gray-100 pb-5" id="pops-header-row">
@@ -902,7 +905,7 @@ Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos
             POPs e Procedimentos
           </h1>
           <p className="text-sm text-slate-500 mt-1.5 max-w-xl">
-            Central de conhecimento, padronização operacional e treinamento corporativo oficial da DDSulf.
+            Central de conhecimento, padronização operacional e treinamento corporativo de controle de pragas.
           </p>
         </div>
         <div className="flex items-center gap-2.5 self-start md:self-auto" id="headers-action-buttons">
@@ -1164,8 +1167,8 @@ Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos
                 <Sparkles className="size-3.5 text-emerald-300" />
               </div>
               <div>
-                <h4 className="text-xs font-extrabold text-slate-800 leading-none">Biblioteca de Contato IA</h4>
-                <span className="text-[9px] text-slate-400 font-bold">Assistente de Consulta DDSulf</span>
+                <h4 className="text-xs font-extrabold text-slate-800 leading-none">Biblioteca de Consulta IA</h4>
+                <span className="text-[9px] text-slate-400 font-bold">Assistente Técnico</span>
               </div>
             </div>
 
@@ -1370,19 +1373,28 @@ Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos
               {filteredProcedures.length === 0 && (
                 <div className="col-span-full py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-white p-6" id="empty-state-card">
                   <div className="p-3 bg-slate-50 text-slate-400 rounded-full mb-3">
-                    <BookOpen className="size-8" />
+                    <BookOpen className="size-8 text-[#1B3A2D]" />
                   </div>
-                  <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest">Nenhum POP encontrado para esta categoria</h4>
+                  <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-widest">Nenhum POP cadastrado</h4>
                   <p className="text-xs text-slate-500 max-w-sm mt-1 font-medium leading-relaxed">
-                    Não localizamos diretrizes de procedimentos ativas sob os parâmetros selecionados de pesquisa e filtragem no formulário.
+                    Sua empresa ainda não possui procedimentos operacionais cadastrados para esta filtragem. Crie uma diretriz personalizada ou importe nossos modelos padrão.
                   </p>
-                  <button
-                    id="empty-state-create-btn"
-                    onClick={triggerCreateModal}
-                    className="mt-4 px-4 py-2 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-xs font-bold rounded-lg transition shadow-xs"
-                  >
-                    Criar POP
-                  </button>
+                  <div className="flex flex-wrap items-center justify-center gap-2.5 mt-4">
+                    <button
+                      id="empty-state-create-btn"
+                      onClick={triggerCreateModal}
+                      className="px-4 py-2 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-xs font-bold rounded-lg transition shadow-xs flex items-center gap-1.5"
+                    >
+                      <Plus className="size-3.5" /> Criar Primeiro POP
+                    </button>
+                    <button
+                      id="empty-state-import-templates-btn"
+                      onClick={handleImportStandardTemplates}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition border border-slate-200 flex items-center gap-1.5"
+                    >
+                      <Sparkles className="size-3.5 text-emerald-600" /> Importar Modelos Padrão
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1490,7 +1502,7 @@ Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos
 
                         <div className="p-3 bg-slate-50 text-slate-500 rounded-lg text-[11px] font-medium leading-relaxed flex items-start gap-2 border border-slate-150">
                           <Info className="size-4 text-slate-400 shrink-0 mt-0.5" />
-                          <span>As diferenças acima destacam as revisões e atualizações executadas pelo Gestor Técnico DDSulf para fins de adequação de controle de qualidade e instruções da saúde pública de controle integrado.</span>
+                          <span>As diferenças acima destacam as revisões e atualizações executadas pelo Gestor Técnico para fins de adequação de controle de qualidade e instruções da saúde pública de controle integrado.</span>
                         </div>
                       </div>
                     ) : (
@@ -1989,7 +2001,7 @@ Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos
             >
               <div className="bg-[#1B3A2D] text-white px-6 py-4 flex items-center justify-between" id="edit-modal-header">
                 <div>
-                  <span className="text-[9px] font-extrabold tracking-widest text-[#1b3a2d] bg-emerald-300 px-2.5 py-0.5 rounded leading-none uppercase">Homologador DDSulf</span>
+                  <span className="text-[9px] font-extrabold tracking-widest text-[#1b3a2d] bg-emerald-300 px-2.5 py-0.5 rounded leading-none uppercase">Homologador Técnico</span>
                   <h3 className="font-bold text-white text-base font-sans tracking-tight pt-1">Editar Procedimento Operacional</h3>
                 </div>
                 <button onClick={() => { setIsEditOpen(false); setEditingPop(null); }} className="p-1 hover:bg-white/10 rounded-lg text-white/80 transition cursor-pointer">
@@ -2258,7 +2270,7 @@ Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos
               {/* Header */}
               <div className="bg-indigo-600 text-white px-6 py-4 flex items-center justify-between" id="course-header">
                 <div className="space-y-0.5 text-left">
-                  <span className="text-[9px] font-extrabold tracking-widest bg-white/25 px-2 py-0.5 rounded uppercase font-sans">DDSulf Corporate Academy</span>
+                  <span className="text-[9px] font-extrabold tracking-widest bg-white/25 px-2 py-0.5 rounded uppercase font-sans">PestFlow Academy</span>
                   <h3 className="font-extrabold text-white text-base leading-tight mt-1">{activeTraining.title}</h3>
                 </div>
                 <button onClick={() => setActiveTraining(null)} className="p-1 hover:bg-white/10 rounded-lg text-red-100 transition cursor-pointer">
@@ -2275,7 +2287,7 @@ Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos
                     <div id="quiz-intro-row">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 flex items-center gap-1"><Award className="size-4" /> Certificação de Capacitação Técnica</span>
                       <h4 className="text-base font-extrabold text-slate-800 mt-1">Gabarito de Verificação Técnica Sanitária</h4>
-                      <p className="text-xs text-slate-400 font-semibold leading-relaxed mt-0.5">Responda corretamente as questões abaixo para obter o seu certificado oficial da franquia DDSulf.</p>
+                      <p className="text-xs text-slate-400 font-semibold leading-relaxed mt-0.5">Responda corretamente as questões abaixo para obter o seu certificado de capacitação técnica.</p>
                     </div>
 
                     {showQuizResult ? (
@@ -2308,7 +2320,7 @@ Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos
                                     <span className="text-[11px] italic font-sans block text-slate-400 leading-none">Certificamos para os devidos fins que</span>
                                     
                                     <input 
-                                      type="text"
+                                      type="text" 
                                       value={certifiedName}
                                       onChange={(e) => setCertifiedName(e.target.value)}
                                       placeholder="Digite seu Nome de Operador Completo..."
@@ -2322,7 +2334,7 @@ Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos
 
                                     <div className="flex items-center justify-between text-[9px] text-slate-400 font-sans border-t border-slate-200 pt-3">
                                       <span>Token: #{Math.random().toString(36).substring(2, 10).toUpperCase()}</span>
-                                      <span>DDSulf S/A - {new Date().toLocaleDateString('pt-BR')}</span>
+                                      <span>PestFlow - {new Date().toLocaleDateString('pt-BR')}</span>
                                     </div>
                                   </div>
 

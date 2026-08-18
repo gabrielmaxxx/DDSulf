@@ -17,10 +17,11 @@ import {
   AIReadyContext, 
   RealtimeProfitabilitySnap 
 } from '../types';
+import { tenantStorage } from '@/utils/storage';
 
 // Constants for Local Storage keys
-const SNAPSHOTS_KEY = 'pestflow_analytics_snapshots';
-const WORKFLOW_ANALYTICS_KEY = 'pestflow_workflow_analytics';
+const SNAPSHOTS_KEY = 'analytics_snapshots';
+const WORKFLOW_ANALYTICS_KEY = 'workflow_analytics';
 
 // Initial realistic seed data representing history of 12 previous quotes to populate the premium charts instantly
 const SEED_SNAPSHOTS: OperationalSnapshot[] = [
@@ -401,9 +402,9 @@ export const analyticsService = {
    */
   initialize(): void {
     try {
-      const existing = localStorage.getItem(SNAPSHOTS_KEY);
+      const existing = tenantStorage.getItem(SNAPSHOTS_KEY);
       if (!existing) {
-        localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(SEED_SNAPSHOTS));
+        tenantStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(SEED_SNAPSHOTS));
       }
     } catch (e) {
       console.error('Failed to initialize metrics storage', e);
@@ -413,7 +414,7 @@ export const analyticsService = {
   getAllSnapshots(): OperationalSnapshot[] {
     this.initialize();
     try {
-      return JSON.parse(localStorage.getItem(SNAPSHOTS_KEY) || '[]');
+      return JSON.parse(tenantStorage.getItem(SNAPSHOTS_KEY) || '[]');
     } catch {
       return SEED_SNAPSHOTS;
     }
@@ -461,10 +462,10 @@ export const analyticsService = {
 
     snaps.unshift(newSnapshot); // Store newest first
     try {
-      localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snaps));
+      tenantStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snaps));
     } catch (error) {
       console.warn('Storage overflow, slicing snapshot records', error);
-      localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snaps.slice(0, 80)));
+      tenantStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snaps.slice(0, 80)));
     }
 
     return newSnapshot;
@@ -854,7 +855,7 @@ AI Optimizer Targets:
    */
   getRawWorkflowEvents(): any[] {
     try {
-      return JSON.parse(localStorage.getItem(WORKFLOW_ANALYTICS_KEY) || '[]');
+      return JSON.parse(tenantStorage.getItem(WORKFLOW_ANALYTICS_KEY) || '[]');
     } catch {
       return [];
     }

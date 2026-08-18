@@ -4,19 +4,18 @@
  */
 
 import { AIChatMessage, AISessionMemory } from '../types';
+import { tenantStorage } from '@/utils/storage';
 
 export class AIMemoryService {
-  private static STORAGE_KEY_PREFIX = 'pestflow_ai_mem_';
+  private static STORAGE_KEY_PREFIX = 'ai_mem_';
   private static MAX_HISTORY_NODES = 20; // Bound history arrays to avoid token overflow problems
 
   /**
    * Retrieves chat lists associated with current browser session
    */
   public static getSessionHistory(sessionId: string): AIChatMessage[] {
-    if (typeof localStorage === 'undefined') return [];
-    
     const key = `${this.STORAGE_KEY_PREFIX}${sessionId}`;
-    const stored = localStorage.getItem(key);
+    const stored = tenantStorage.getItem(key);
     if (!stored) return [];
 
     try {
@@ -32,8 +31,6 @@ export class AIMemoryService {
    * Appends an active conversational node, truncating older nodes to preserve storage/token density.
    */
   public static saveMessage(sessionId: string, message: Omit<AIChatMessage, 'id' | 'timestamp'>): AIChatMessage[] {
-    if (typeof localStorage === 'undefined') return [];
-
     const key = `${this.STORAGE_KEY_PREFIX}${sessionId}`;
     const history = this.getSessionHistory(sessionId);
 
@@ -56,7 +53,7 @@ export class AIMemoryService {
       lastContextSync: Date.now()
     };
 
-    localStorage.setItem(key, JSON.stringify(payload));
+    tenantStorage.setItem(key, JSON.stringify(payload));
     return updated;
   }
 
@@ -64,9 +61,8 @@ export class AIMemoryService {
    * Fully wipes active chat memory logs
    */
   public static clearSession(sessionId: string): void {
-    if (typeof localStorage === 'undefined') return;
     const key = `${this.STORAGE_KEY_PREFIX}${sessionId}`;
-    localStorage.removeItem(key);
+    tenantStorage.removeItem(key);
   }
 }
 

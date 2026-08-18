@@ -3,9 +3,9 @@
  * Prioritizes speed and safe local storage of drafts and offline synchronization queues.
  */
 
-export class PersistenceService {
-  private prefix = 'ddsulf_v1_';
+import { tenantStorage } from '@/utils/storage';
 
+export class PersistenceService {
   private isAvailable(): boolean {
     try {
       if (typeof window === 'undefined') return false;
@@ -25,7 +25,7 @@ export class PersistenceService {
         data,
         timestamp: new Date().toISOString()
       });
-      window.localStorage.setItem(`${this.prefix}${key}`, serialized);
+      tenantStorage.setItem(key, serialized);
     } catch (e) {
       console.error(`[PersistenceService] Failed to serialize key "${key}":`, e);
     }
@@ -34,7 +34,7 @@ export class PersistenceService {
   load<T>(key: string, fallback: T): T {
     if (!this.isAvailable()) return fallback;
     try {
-      const raw = window.localStorage.getItem(`${this.prefix}${key}`);
+      const raw = tenantStorage.getItem(key);
       if (!raw) return fallback;
       const parsed = JSON.parse(raw);
       return parsed.data as T;
@@ -45,20 +45,13 @@ export class PersistenceService {
 
   remove(key: string): void {
     if (!this.isAvailable()) return;
-    window.localStorage.removeItem(`${this.prefix}${key}`);
+    tenantStorage.removeItem(key);
   }
 
-  clearAllDDSulfKeys(): void {
+  clearAllTenantKeys(): void {
     if (!this.isAvailable()) return;
     try {
-      const keysToRemove: string[] = [];
-      for (let i = 0; i < window.localStorage.length; i++) {
-        const key = window.localStorage.key(i);
-        if (key && key.startsWith(this.prefix)) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach(k => window.localStorage.removeItem(k));
+      tenantStorage.clearTenant();
     } catch (e) {
       console.error('[PersistenceService] Failed to bulk clear data:', e);
     }
@@ -69,9 +62,11 @@ export class PersistenceService {
     let size = 0;
     let count = 0;
     try {
+      const tenantId = tenantStorage.getEmpresaId();
+      const prefix = `pestflow_${tenantId}_`;
       for (let i = 0; i < window.localStorage.length; i++) {
         const key = window.localStorage.key(i);
-        if (key && key.startsWith(this.prefix)) {
+        if (key && key.startsWith(prefix)) {
           const val = window.localStorage.getItem(key);
           size += (key.length + (val ? val.length : 0)) * 2; // Approximate UTF-16 bytes
           count++;

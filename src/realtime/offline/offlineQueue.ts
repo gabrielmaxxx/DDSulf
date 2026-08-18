@@ -1,11 +1,16 @@
 import { OfflineMutationTask, SyncAction } from '../types';
 import { generateUUID } from '../utils';
+import { tenantStorage } from '@/utils/storage';
 
 export class OfflineQueueManager {
   private static instance: OfflineQueueManager;
-  private dbName = 'ddsulf_offline_db';
   private storeName = 'mutations_queue';
   private dbVersion = 1;
+
+  private get dbName(): string {
+    const tenantId = tenantStorage.getEmpresaId() || 'global';
+    return `pestflow_${tenantId}_offline_db`;
+  }
 
   public static getInstance(): OfflineQueueManager {
     if (!OfflineQueueManager.instance) {
@@ -48,7 +53,7 @@ export class OfflineQueueManager {
    */
   private setLocalStorageFallback(tasks: OfflineMutationTask[]): void {
     try {
-      localStorage.setItem('ddsulf_offline_fallback', JSON.stringify(tasks));
+      tenantStorage.setItem('offline_fallback', JSON.stringify(tasks));
     } catch (e) {
       console.error('[OfflineQueue] LocalStorage fallback write failed:', e);
     }
@@ -56,7 +61,7 @@ export class OfflineQueueManager {
 
   private getLocalStorageFallback(): OfflineMutationTask[] {
     try {
-      const val = localStorage.getItem('ddsulf_offline_fallback');
+      const val = tenantStorage.getItem('offline_fallback');
       return val ? JSON.parse(val) : [];
     } catch {
       return [];

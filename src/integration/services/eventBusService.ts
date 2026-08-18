@@ -17,12 +17,13 @@ import {
 } from 'firebase/firestore';
 import { useSystemStore } from '@/store/systemStore';
 import { toast } from 'sonner';
+import { tenantStorage } from '@/utils/storage';
 
 type EventListenerCallback = (event: OperationalEvent) => void | Promise<void>;
 
-const EVENTS_LOCAL_STORAGE = 'ddsulf_integration_events';
-const QUEUE_LOCAL_STORAGE = 'ddsulf_integration_offline_queue';
-const TELEMETRY_LOCAL_STORAGE = 'ddsulf_integration_telemetry';
+const EVENTS_LOCAL_STORAGE = 'integration_events';
+const QUEUE_LOCAL_STORAGE = 'integration_offline_queue';
+const TELEMETRY_LOCAL_STORAGE = 'integration_telemetry';
 
 export class EventBusService {
   private listeners: Map<OperationalEventType, Set<EventListenerCallback>> = new Map();
@@ -42,17 +43,17 @@ export class EventBusService {
 
   private restoreState() {
     try {
-      const savedEvents = localStorage.getItem(EVENTS_LOCAL_STORAGE);
+      const savedEvents = tenantStorage.getItem(EVENTS_LOCAL_STORAGE);
       if (savedEvents) {
         this.eventHistory = JSON.parse(savedEvents);
       }
 
-      const savedQueue = localStorage.getItem(QUEUE_LOCAL_STORAGE);
+      const savedQueue = tenantStorage.getItem(QUEUE_LOCAL_STORAGE);
       if (savedQueue) {
         this.offlineQueue = JSON.parse(savedQueue);
       }
 
-      const savedLogs = localStorage.getItem(TELEMETRY_LOCAL_STORAGE);
+      const savedLogs = tenantStorage.getItem(TELEMETRY_LOCAL_STORAGE);
       if (savedLogs) {
         this.telemetryLogs = JSON.parse(savedLogs);
       } else {
@@ -311,7 +312,7 @@ export class EventBusService {
 
   private persistEvents() {
     try {
-      localStorage.setItem(EVENTS_LOCAL_STORAGE, JSON.stringify(this.eventHistory.slice(0, 100)));
+      tenantStorage.setItem(EVENTS_LOCAL_STORAGE, JSON.stringify(this.eventHistory.slice(0, 100)));
     } catch (e) {
       // transient silent fail
     }
@@ -319,7 +320,7 @@ export class EventBusService {
 
   private persistQueue() {
     try {
-      localStorage.setItem(QUEUE_LOCAL_STORAGE, JSON.stringify(this.offlineQueue));
+      tenantStorage.setItem(QUEUE_LOCAL_STORAGE, JSON.stringify(this.offlineQueue));
     } catch (e) {
       console.error(e);
     }
@@ -327,7 +328,7 @@ export class EventBusService {
 
   private persistTelemetry() {
     try {
-      localStorage.setItem(TELEMETRY_LOCAL_STORAGE, JSON.stringify(this.telemetryLogs.slice(0, 100)));
+      tenantStorage.setItem(TELEMETRY_LOCAL_STORAGE, JSON.stringify(this.telemetryLogs.slice(0, 100)));
     } catch (e) {
       console.error(e);
     }
@@ -537,9 +538,9 @@ export class EventBusService {
     this.offlineQueue = [];
     this.telemetryLogs = [];
     this.processedEventIds.clear();
-    localStorage.removeItem(EVENTS_LOCAL_STORAGE);
-    localStorage.removeItem(QUEUE_LOCAL_STORAGE);
-    localStorage.removeItem(TELEMETRY_LOCAL_STORAGE);
+    tenantStorage.removeItem(EVENTS_LOCAL_STORAGE);
+    tenantStorage.removeItem(QUEUE_LOCAL_STORAGE);
+    tenantStorage.removeItem(TELEMETRY_LOCAL_STORAGE);
     this.logTelemetry('info', SystemModuleName.INTEGRATION, 'Fabric states limpos e reinicializados.', 'corr_clear');
   }
 }

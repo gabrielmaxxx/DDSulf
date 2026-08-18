@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { SyncEngineService } from '../services/infrastructureServices';
 import { SyncPayload } from '../types';
+import { tenantStorage } from '@/utils/storage';
 
 export function useOfflineQueue() {
   const [offlineOperations, setOfflineOperations] = useState<SyncPayload[]>([]);
@@ -36,7 +37,7 @@ export function useOfflineQueue() {
     hasPendingOperations: offlineOperations.length > 0,
     pushToBuffer,
     clearBuffer: () => {
-      localStorage.removeItem('ddsulf_infra_sync_queue');
+      tenantStorage.removeItem('infra_sync_queue');
       reload();
     }
   };

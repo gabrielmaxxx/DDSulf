@@ -14,45 +14,7 @@ export function useInventory() {
     setLoading(true);
     try {
       const data = await inventoryService.getProducts(empresaId);
-      if (data.length > 0) {
-        setProducts(data);
-      } else {
-        // Mock data if Firestore is empty for demo/initial state
-        setProducts([
-          {
-            id: 'prod-1',
-            name: 'K-Othrine SC 25',
-            category: 'Inseticidas',
-            manufacturer: 'Bayer',
-            unit: 'L',
-            unitCost: 120,
-            quantityAvailable: 15,
-            minimumStock: 5,
-            updatedAt: new Date().toISOString()
-          },
-          {
-            id: 'prod-2',
-            name: 'Rodilon Bloco Especial',
-            category: 'Raticidas',
-            manufacturer: 'Bayer',
-            unit: 'Kg',
-            unitCost: 85,
-            quantityAvailable: 3,
-            minimumStock: 10,
-            updatedAt: new Date().toISOString()
-          },
-          {
-            id: 'prod-3',
-            name: 'Máscara PFF3',
-            category: 'EPIs',
-            unit: 'Un',
-            unitCost: 12,
-            quantityAvailable: 45,
-            minimumStock: 20,
-            updatedAt: new Date().toISOString()
-          }
-        ]);
-      }
+      setProducts(data || []);
     } catch (err) {
       console.error('Error loading products:', err);
     } finally {

@@ -1,6 +1,7 @@
 import { db, auth } from '@/services/firebase';
 import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp, addDoc } from 'firebase/firestore';
 import { MarginIntelligenceConfig, ProfitabilitySimulationScenario } from '../types';
+import { tenantStorage } from '@/utils/storage';
 
 export enum ProfitabilityOperationType {
   CONFIG_LOAD = 'config_load',
@@ -32,13 +33,13 @@ export const marginService = {
     try {
       const snap = await getDocs(collection(db, path));
       if (snap.empty) {
-        const cached = localStorage.getItem('ddsulf_margin_config');
+        const cached = tenantStorage.getItem('margin_config');
         return cached ? JSON.parse(cached) : null;
       }
       return { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
     } catch (err) {
       if (err instanceof Error && (err.message.includes('offline') || err.message.includes('permission'))) {
-        const cached = localStorage.getItem('ddsulf_margin_config');
+        const cached = tenantStorage.getItem('margin_config');
         return cached ? JSON.parse(cached) : null;
       }
       logMarginServiceError(err, ProfitabilityOperationType.CONFIG_LOAD, path);
@@ -51,7 +52,7 @@ export const marginService = {
   async saveMarginConfiguration(config: MarginIntelligenceConfig): Promise<void> {
     const path = 'financial_margin_configs';
     try {
-      localStorage.setItem('ddsulf_margin_config', JSON.stringify(config));
+      tenantStorage.setItem('margin_config', JSON.stringify(config));
       await setDoc(doc(db, path, config.id), {
         ...config,
         updatedAt: new Date().toISOString(),
@@ -72,7 +73,7 @@ export const marginService = {
   async saveSimulationScenarios(scenarios: ProfitabilitySimulationScenario[]): Promise<void> {
     const path = 'financial_margin_simulations';
     try {
-      localStorage.setItem('ddsulf_margin_simulations', JSON.stringify(scenarios));
+      tenantStorage.setItem('margin_simulations', JSON.stringify(scenarios));
 
       const batch = writeBatch(db);
       scenarios.forEach(sc => {
@@ -100,12 +101,12 @@ export const marginService = {
     try {
       const snap = await getDocs(collection(db, path));
       if (snap.empty) {
-        const cached = localStorage.getItem('ddsulf_margin_simulations');
+        const cached = tenantStorage.getItem('margin_simulations');
         return cached ? JSON.parse(cached) : [];
       }
       return snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
     } catch (err) {
-      const cached = localStorage.getItem('ddsulf_margin_simulations');
+      const cached = tenantStorage.getItem('margin_simulations');
       return cached ? JSON.parse(cached) : [];
     }
   }

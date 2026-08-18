@@ -4,9 +4,10 @@
 
 import { SecurityAuditResult, AIConsistencyMetric } from '../types';
 import { INITIAL_SECURITY_AUDITS, INITIAL_AI_METRICS } from '../utils/testCases';
+import { tenantStorage } from '@/utils/storage';
 
-const SECURITY_AUDITS_KEY = 'ddsulf_security_audits';
-const AI_METRICS_KEY = 'ddsulf_ai_validation_metrics';
+const SECURITY_AUDITS_KEY = 'security_audits';
+const AI_METRICS_KEY = 'ai_validation_metrics';
 
 export class OperationalTestingService {
   private audits: SecurityAuditResult[] = [];
@@ -19,7 +20,7 @@ export class OperationalTestingService {
 
   private restoreData() {
     try {
-      const savedAudits = localStorage.getItem(SECURITY_AUDITS_KEY);
+      const savedAudits = tenantStorage.getItem(SECURITY_AUDITS_KEY);
       if (savedAudits) {
         this.audits = JSON.parse(savedAudits);
       } else {
@@ -27,7 +28,7 @@ export class OperationalTestingService {
         this.persistAudits();
       }
 
-      const savedAi = localStorage.getItem(AI_METRICS_KEY);
+      const savedAi = tenantStorage.getItem(AI_METRICS_KEY);
       if (savedAi) {
         this.aiMetrics = JSON.parse(savedAi);
       } else {
@@ -42,7 +43,7 @@ export class OperationalTestingService {
 
   private persistAudits() {
     try {
-      localStorage.setItem(SECURITY_AUDITS_KEY, JSON.stringify(this.audits));
+      tenantStorage.setItem(SECURITY_AUDITS_KEY, JSON.stringify(this.audits));
     } catch (e) {
       console.warn('Audit persistent write error:', e);
     }
@@ -51,7 +52,7 @@ export class OperationalTestingService {
 
   private persistAi() {
     try {
-      localStorage.setItem(AI_METRICS_KEY, JSON.stringify(this.aiMetrics));
+      tenantStorage.setItem(AI_METRICS_KEY, JSON.stringify(this.aiMetrics));
     } catch (e) {
       console.warn('AI metrics write error:', e);
     }
@@ -81,7 +82,7 @@ export class OperationalTestingService {
     // Simulates checking segregation rules of cross-tenant tokens
     await new Promise(resolve => setTimeout(resolve, 1800));
 
-    const isLeaked = localStorage.getItem('ddsulf_chaos_tenant_breach') === 'true';
+    const isLeaked = tenantStorage.getItem('chaos_tenant_breach') === 'true';
     const auditId = `sec_${Date.now()}`;
     
     const freshAudit: SecurityAuditResult = {

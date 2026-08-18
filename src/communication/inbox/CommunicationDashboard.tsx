@@ -103,52 +103,6 @@ export function CommunicationDashboard() {
     return () => clearInterval(timer);
   }, [incidents]);
 
-  // Seed initial notification state to populate the UI upon initial rendering
-  useEffect(() => {
-    if (notifications.length === 0) {
-      seedInitialFakes();
-    }
-  }, [notifications]);
-
-  const seedInitialFakes = async () => {
-    // Operations submission
-    await sendNotification({
-      category: 'operations',
-      templateKey: 'operations.report_submitted',
-      variables: {
-        technicianName: 'Rodrigo Medeiros',
-        clientName: 'AgroSul Cooperativa',
-        pestType: 'Cupins de Solo',
-        'chemicalVolume usados': '45 L'
-      },
-      routeUrl: '/reports'
-    });
-
-    // Stock shortage
-    await sendNotification({
-      category: 'operations',
-      templateKey: 'operations.inventory_starved',
-      variables: {
-        itemName: 'Fipronil Concentrado SC',
-        currentVolume: '8',
-        minRequired: '40'
-      },
-      routeUrl: '/stock'
-    });
-
-    // Budget margin breach
-    await sendNotification({
-      category: 'financial',
-      templateKey: 'financial.margin_breached',
-      variables: {
-        proposalId: 'O-2026-981',
-        clientName: 'Moinho Planalto S/A',
-        margin: '14.2'
-      },
-      routeUrl: '/financial'
-    });
-  };
-
   const triggerCustomSimulation = async (type: string) => {
     if (type === 'report') {
       await sendNotification({

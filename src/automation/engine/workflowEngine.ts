@@ -7,11 +7,12 @@ import { WorkflowRule, WorkflowInstance, WorkflowStatus, WorkflowAction } from '
 import { RuleEvaluator } from '../rules/evaluator';
 import { EventBusService } from '../../notifications/events/eventBus';
 import { NotificationService } from '../../notifications/services/notificationService';
+import { tenantStorage } from '@/utils/storage';
 
 export class WorkflowEngineService {
-  private static STORAGE_KEY = 'pestflow_active_workflow_instances';
-  private static RULES_KEY = 'pestflow_workflow_rules';
-  private static METRICS_KEY = 'pestflow_workflow_metrics';
+  private static STORAGE_KEY = 'workflow_instances';
+  private static RULES_KEY = 'workflow_rules';
+  private static METRICS_KEY = 'workflow_metrics';
 
   private static listeners: Set<() => void> = new Set();
 
@@ -30,8 +31,7 @@ export class WorkflowEngineService {
    * Returns active workflow execution templates (pre-configured)
    */
   public static getRules(): WorkflowRule[] {
-    if (typeof localStorage === 'undefined') return [];
-    const stored = localStorage.getItem(this.RULES_KEY);
+    const stored = tenantStorage.getItem(this.RULES_KEY);
     if (stored) return JSON.parse(stored);
 
     // Bootstrap standard operational automatic workflows
@@ -102,7 +102,7 @@ export class WorkflowEngineService {
       }
     ];
 
-    localStorage.setItem(this.RULES_KEY, JSON.stringify(defaults));
+    tenantStorage.setItem(this.RULES_KEY, JSON.stringify(defaults));
     return defaults;
   }
 
@@ -110,7 +110,7 @@ export class WorkflowEngineService {
    * Persists active rules templates back to memory
    */
   public static saveRules(rules: WorkflowRule[]): void {
-    localStorage.setItem(this.RULES_KEY, JSON.stringify(rules));
+    tenantStorage.setItem(this.RULES_KEY, JSON.stringify(rules));
     this.notifyListeners();
   }
 
@@ -118,13 +118,12 @@ export class WorkflowEngineService {
    * Gets running workflow instances status logs
    */
   public static getInstances(): WorkflowInstance[] {
-    if (typeof localStorage === 'undefined') return [];
-    const stored = localStorage.getItem(this.STORAGE_KEY);
+    const stored = tenantStorage.getItem(this.STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
   }
 
   private static saveInstances(instances: WorkflowInstance[]) {
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(instances));
+    tenantStorage.setItem(this.STORAGE_KEY, JSON.stringify(instances));
     this.notifyListeners();
   }
 
@@ -272,9 +271,7 @@ export class WorkflowEngineService {
 
       case 'lock_pricing_model':
         // Safeguard locks financial edits
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('pestflow_financial_model_governed_lock', 'true');
-        }
+        tenantStorage.setItem('financial_model_governed_lock', 'true');
         break;
 
       case 'trigger_ai_recommendation':
@@ -296,8 +293,7 @@ export class WorkflowEngineService {
    * Aggregates execution efficiency telemetry
    */
   private static recordMetric(isSuccess: boolean, latencyMs: number) {
-    if (typeof localStorage === 'undefined') return;
-    const currentStr = localStorage.getItem(this.METRICS_KEY);
+    const currentStr = tenantStorage.getItem(this.METRICS_KEY);
     let metrics = currentStr ? JSON.parse(currentStr) : {
       totalTriggered: 0,
       successRate: 1.0,
@@ -316,12 +312,11 @@ export class WorkflowEngineService {
 
     metrics.averageLatencyMs = Math.round(((metrics.averageLatencyMs * (metrics.totalTriggered - 1)) + latencyMs) / metrics.totalTriggered);
 
-    localStorage.setItem(this.METRICS_KEY, JSON.stringify(metrics));
+    tenantStorage.setItem(this.METRICS_KEY, JSON.stringify(metrics));
   }
 
   public static getMetrics(): any {
-    if (typeof localStorage === 'undefined') return {};
-    const stored = localStorage.getItem(this.METRICS_KEY);
+    const stored = tenantStorage.getItem(this.METRICS_KEY);
     return stored ? JSON.parse(stored) : {
       totalTriggered: 0,
       successRate: 1.0,

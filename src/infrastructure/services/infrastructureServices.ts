@@ -10,9 +10,10 @@ import {
   FirestoreQueryStats, 
   CrashReport 
 } from '../types';
+import { tenantStorage } from '@/utils/storage';
 
 export class SyncEngineService {
-  private static QUEUE_KEY = 'ddsulf_infra_sync_queue';
+  private static QUEUE_KEY = 'infra_sync_queue';
   private static listeners: Set<(queueLen: number) => void> = new Set();
 
   public static subscribe(cb: (queueLen: number) => void): () => void {
@@ -28,8 +29,7 @@ export class SyncEngineService {
   }
 
   public static getQueue(): SyncPayload[] {
-    if (typeof localStorage === 'undefined') return [];
-    const raw = localStorage.getItem(this.QUEUE_KEY);
+    const raw = tenantStorage.getItem(this.QUEUE_KEY);
     return raw ? JSON.parse(raw) : [];
   }
 
@@ -41,7 +41,7 @@ export class SyncEngineService {
       retriesCount: 0
     };
     queue.push(item);
-    localStorage.setItem(this.QUEUE_KEY, JSON.stringify(queue));
+    tenantStorage.setItem(this.QUEUE_KEY, JSON.stringify(queue));
     this.notify();
     
     // Attempt processing immediately if online
@@ -74,7 +74,7 @@ export class SyncEngineService {
       return item.retriesCount < 5;
     });
 
-    localStorage.setItem(this.QUEUE_KEY, JSON.stringify(remaining));
+    tenantStorage.setItem(this.QUEUE_KEY, JSON.stringify(remaining));
     this.notify();
   }
 }

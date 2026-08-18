@@ -5,6 +5,7 @@
 import { UserPreferences, AlertCategory, AlertSeverity } from '../types';
 import { db, auth } from '../../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { tenantStorage } from '@/utils/storage';
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   userId: 'user_default_technician',
@@ -51,7 +52,7 @@ export class UserPreferencesService {
   }
 
   private loadLocal() {
-    const saved = localStorage.getItem('pestflow_communication_preferences');
+    const saved = tenantStorage.getItem('communication_preferences');
     if (saved) {
       try {
         this.currentPrefs = { ...DEFAULT_PREFERENCES, ...JSON.parse(saved) };
@@ -62,7 +63,7 @@ export class UserPreferencesService {
   }
 
   private saveLocal() {
-    localStorage.setItem('pestflow_communication_preferences', JSON.stringify(this.currentPrefs));
+    tenantStorage.setItem('communication_preferences', JSON.stringify(this.currentPrefs));
     this.broadcast();
   }
 

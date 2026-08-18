@@ -43,18 +43,18 @@ export function useDashboardIntelligence() {
       : 0;
     const ticketMedio = revenues.length > 0 ? totalRevenue / revenues.length : 0;
     
-    // Growth simulation for visuals (comparing with "last period" which we mock here)
+    const hasData = quotes.length > 0 || revenues.length > 0 || costs.length > 0;
     const growth = {
-      revenue: 12.5,
-      margin: -2.3,
-      services: 8.4,
-      cost: 4.1
+      revenue: hasData && totalRevenue > 0 ? 0 : 0,
+      margin: 0,
+      services: 0,
+      cost: 0
     };
 
     const insights = analyticsService.generateInsights(quotes, costs, revenues);
 
-    // Productivity: simple mock based on quote count vs technicians
-    const totalTechsCount = quotes.reduce((acc, q) => acc + q.suggestedTeam, 0);
+    // Productivity: based on quote count vs technicians
+    const totalTechsCount = quotes.reduce((acc, q) => acc + (q.suggestedTeam || 1), 0);
     const productivity = quotes.length > 0 ? quotes.length / (totalTechsCount || 1) : 0;
 
     return {
@@ -69,8 +69,8 @@ export function useDashboardIntelligence() {
       operational: {
         totalServices: quotes.length,
         productivity,
-        reworkRate: 3.2, // Mocked
-        avgTime: quotes.length > 0 ? quotes.reduce((acc, q) => acc + q.estimatedTime, 0) / quotes.length : 0
+        reworkRate: 0,
+        avgTime: quotes.length > 0 ? quotes.reduce((acc, q) => acc + (q.estimatedTime || 0), 0) / quotes.length : 0
       },
       insights
     };

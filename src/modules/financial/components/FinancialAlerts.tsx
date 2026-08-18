@@ -26,7 +26,7 @@ export function FinancialAlerts() {
   } : null;
 
   // 2. Overdue accounts (contas vencidas)
-  const todayStr = '2026-06-01'; // Simulated current date based on prompt metadata
+  const todayStr = new Date().toISOString().split('T')[0];
   const overduePayments = movements.filter(m => {
     if (m.isPaid === false && m.dueDate && m.value < 0) {
       return m.dueDate < todayStr;
@@ -42,7 +42,7 @@ export function FinancialAlerts() {
     icon: AlertCircle
   } : null;
 
-  // 3. Contracts close to expiration (contratos próximos do vencimento)
+  // 3. Contracts close to expiration (receitas/contratos a vencer nos próximos 15 dias)
   const incomingContracts = movements.filter(m => {
     if (m.isPaid === false && m.dueDate && m.category === 'RECEITAS') {
       const diffMs = new Date(m.dueDate).getTime() - new Date(todayStr).getTime();
@@ -59,30 +59,30 @@ export function FinancialAlerts() {
     icon: Calendar
   } : null;
 
-  // 4. Expenses above historical average (despesas acima da média histórica)
-  // Let's compute average monthly spending for marketing, fuel, etc., and check if current May spending exceeds the general average.
-  const categoriesToCompare = ['Produtos Químicos', 'Combustível', 'Marketing', 'Aluguel'];
-  const monthMovements = movements.filter(m => m.date.startsWith('2026-05') && m.value < 0);
-  const historicMovements = movements.filter(m => !m.date.startsWith('2026-05') && m.value < 0);
+  // 4. Expenses above historical average (despesas com aumento anormal)
+  const currentMonthPrefix = todayStr.substring(0, 7);
+  const currentMonthExpenses = movements.filter(m => m.date.startsWith(currentMonthPrefix) && m.value < 0);
+  const previousExpenses = movements.filter(m => !m.date.startsWith(currentMonthPrefix) && m.value < 0);
 
   const overheadAlerts: Array<{ title: string; message: string; sub: string }> = [];
-  categoriesToCompare.forEach(sub => {
-    const currentSum = Math.abs(monthMovements.filter(m => m.subcategory === sub).reduce((sum, current) => sum + current.value, 0));
-    // Simulated historical baseline averages for DDSulf standard (based on default ratios) or from remaining items.
-    const baseline = sub === 'Marketing' ? 2000 
-                   : sub === 'Produtos Químicos' ? 3500 
-                   : sub === 'Combustível' ? 3000 
-                   : 3000;
-    
-    if (currentSum > baseline * 1.15) {
-      const percentage = ((currentSum - baseline) / baseline) * 100;
-      overheadAlerts.push({
-        title: `Despesa com ${sub} Elevada`,
-        message: `Os gastos atuais em Maio com ${sub} (R$ ${currentSum.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) estão ${percentage.toFixed(1)}% acima da média histórica projetada (R$ ${baseline.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}).`,
-        sub
-      });
-    }
-  });
+  if (previousExpenses.length >= 3) {
+    const categoriesToCompare = Array.from(new Set(currentMonthExpenses.map(m => m.subcategory).filter(Boolean)));
+    categoriesToCompare.forEach(sub => {
+      const currentSum = Math.abs(currentMonthExpenses.filter(m => m.subcategory === sub).reduce((sum, current) => sum + current.value, 0));
+      const pastItems = previousExpenses.filter(m => m.subcategory === sub);
+      if (pastItems.length > 0) {
+        const pastAverage = Math.abs(pastItems.reduce((sum, current) => sum + current.value, 0)) / Math.max(1, new Set(pastItems.map(m => m.date.substring(0, 7))).size);
+        if (pastAverage > 0 && currentSum > pastAverage * 1.25) {
+          const percentage = ((currentSum - pastAverage) / pastAverage) * 100;
+          overheadAlerts.push({
+            title: `Despesa com ${sub} Elevada`,
+            message: `Os gastos da competência atual com ${sub} (R$ ${currentSum.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) estão ${percentage.toFixed(1)}% acima da média histórica (R$ ${pastAverage.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}).`,
+            sub
+          });
+        }
+      }
+    });
+  }
 
   const expenseAlert = overheadAlerts.length > 0 ? {
     id: 'expense-alert',
@@ -92,24 +92,30 @@ export function FinancialAlerts() {
     icon: AlertTriangle
   } : null;
 
-  // Extra positive points list
-  const totalRevenue = movements.filter(m => m.value > 0 && m.isPaid).reduce((sum, curr) => sum + curr.value, 0);
-  const totalExpense = Math.abs(movements.filter(m => m.value < 0 && m.isPaid).reduce((sum, curr) => sum + curr.value, 0));
-  const isHealthy = totalRevenue > totalExpense * 1.3;
-
-  const healthAlert = isHealthy ? {
-    id: 'health-ok',
-    type: 'success' as const,
-    title: 'Potencialidade Financeira Consistente',
-    message: 'Seu faturamento acumulado supera suas despesas operacionais em mais de 30,00%, indicando tendências saudáveis de lucratividade.',
-    icon: CheckCircle2
-  } : {
-    id: 'health-warn',
-    type: 'warning' as const,
-    title: 'Alerta de Provisão de Capital',
-    message: 'Distorção de fluxo identificada. A soma de seus custos fixos e variáveis está consumindo margens necessárias para o capital de giro.',
-    icon: AlertTriangle
-  };
+  // Extra positive points list when movements exist
+  let healthAlert: { id: string; type: 'success' | 'warning'; title: string; message: string; icon: any } | null = null;
+  if (movements.length > 0) {
+    const totalRevenue = movements.filter(m => m.value > 0 && m.isPaid).reduce((sum, curr) => sum + curr.value, 0);
+    const totalExpense = Math.abs(movements.filter(m => m.value < 0 && m.isPaid).reduce((sum, curr) => sum + curr.value, 0));
+    
+    if (totalRevenue > totalExpense * 1.2) {
+      healthAlert = {
+        id: 'health-ok',
+        type: 'success' as const,
+        title: 'Potencialidade Financeira Consistente',
+        message: 'Seu faturamento acumulado supera suas despesas operacionais, indicando tendências saudáveis de lucratividade.',
+        icon: CheckCircle2
+      };
+    } else if (totalExpense > totalRevenue && totalRevenue > 0) {
+      healthAlert = {
+        id: 'health-warn',
+        type: 'warning' as const,
+        title: 'Alerta de Provisão de Capital',
+        message: 'A soma dos custos operacionais no período superou o faturamento liquidado. Acompanhe a margem de contribuição.',
+        icon: AlertTriangle
+      };
+    }
+  }
 
   const allAlerts = [
     lowStockAlert,
@@ -118,6 +124,25 @@ export function FinancialAlerts() {
     expenseAlert,
     healthAlert
   ].filter((a): a is NonNullable<typeof a> => a !== null);
+
+  if (allAlerts.length === 0) {
+    return (
+      <div className="space-y-4" id="financial-alerts-box">
+        <div className="flex items-center gap-2 mb-2">
+          <h3 className="font-display text-sm font-bold uppercase tracking-wider text-[#6B6B5F]">
+            Sinalizadores de Conformidade e Alertas de Controle
+          </h3>
+        </div>
+        <div className="border border-dashed border-[#E8E6E1] bg-white rounded-2xl p-6 text-center text-slate-400">
+          <CheckCircle2 className="size-6 mx-auto opacity-30 text-emerald-600 mb-1" />
+          <p className="font-bold text-[#141410] text-xs">Nenhum Alerta Crítico no Momento</p>
+          <p className="text-[11px] text-slate-500 mt-1 max-w-md mx-auto">
+            O fluxo financeiro e níveis de estoque operam em conformidade. Alertas de vencimentos e médias serão gerados automaticamente conforme a movimentação.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4" id="financial-alerts-box">

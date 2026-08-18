@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSystemStore, Client, Contract, AgendaEvent, Quote, selectClienteRentabilidade, ClienteRentabilidade, selectContratosParaReajuste } from '@/store/systemStore';
+import { tenantStorage } from '@/utils/storage';
 import { 
   Users, 
   FileText, 
@@ -53,30 +54,8 @@ interface ClientDoc {
 
 const SIMULATED_TODAY = '2026-06-05';
 
-// Mock DB of initial documents for default clients
-const INITIAL_DOCS: Record<string, ClientDoc[]> = {
-  'c-01': [
-    { id: 'doc-1', name: 'Contrato_Social_Grupo_Pao_Duro.pdf', type: 'pdf', size: '2.4 MB', uploadedAt: '2026-05-10' },
-    { id: 'doc-2', name: 'Laudo_Vigilancia_Desinsetizacao_Maio.pdf', type: 'pdf', size: '1.1 MB', uploadedAt: '2026-05-11' }
-  ],
-  'c-02': [
-    { id: 'doc-3', name: 'Contrato_CIP_Shopping_das_Flores_Assinado.pdf', type: 'pdf', size: '4.8 MB', uploadedAt: '2026-01-10' },
-    { id: 'doc-4', name: 'Relatorio_Mensal_CIP_Maio.docx', type: 'docx', size: '1.3 MB', uploadedAt: '2026-05-29' }
-  ],
-  'c-03': [
-    { id: 'doc-6', name: 'Plano_Anual_Controle_Roedores_Especificacoes.pdf', type: 'pdf', size: '3.1 MB', uploadedAt: '2025-05-01' },
-    { id: 'doc-7', name: 'Relatorio_De_Iscas_Consumidas_Abril.pdf', type: 'pdf', size: '890 KB', uploadedAt: '2026-04-28' }
-  ],
-  'c-04': [
-    { id: 'doc-8', name: 'Licenca_Sanitaria_MedSim.pdf', type: 'pdf', size: '1.2 MB', uploadedAt: '2026-05-18' }
-  ],
-  'c-05': [
-    { id: 'doc-10', name: 'Fotos_Foco_Cupim_Garagem.jpg', type: 'jpg', size: '3.3 MB', uploadedAt: '2026-05-20' }
-  ],
-  'c-06': [
-    { id: 'doc-12', name: 'Contrato_Anual_Metalnorte_Vigente.pdf', type: 'pdf', size: '5.2 MB', uploadedAt: '2026-05-22' }
-  ]
-};
+// Client document registry
+const INITIAL_DOCS: Record<string, ClientDoc[]> = {};
 
 export function ClientesPage() {
   const [searchParams] = useSearchParams();
@@ -255,12 +234,11 @@ export function ClientesPage() {
         return (contracts || []).some(contr => contr.clientId === c.id && contr.status === 'ativo');
       }
       if (statusFilter === 'inadimplentes') {
-        // Mock default for styling and realism (Residência Dr. Marcos and Grupo Pão Duro have some pending bills)
-        return c.id === 'c-05' || c.id === 'c-01';
+        return movements.some(m => m.description.toLowerCase().includes(c.name.toLowerCase()) && !m.isPaid);
       }
       return true;
     });
-  }, [clients, contracts, agenda, searchTerm, statusFilter]);
+  }, [clients, contracts, agenda, searchTerm, statusFilter, movements]);
 
   // Set default selection if none
   const activeClient = useMemo(() => {
@@ -275,14 +253,16 @@ export function ClientesPage() {
   // Handle document database state sync on select
   useEffect(() => {
     if (activeClient) {
-      const stored = localStorage.getItem(`DDSULF_CLIENT_DOCS_${activeClient.id}`);
+      const stored = tenantStorage.getItem(`client_docs_${activeClient.id}`);
       if (stored) {
-        setClientDocs(JSON.parse(stored));
+        try {
+          setClientDocs(JSON.parse(stored));
+        } catch {
+          setClientDocs([]);
+        }
       } else {
-        const initial = INITIAL_DOCS[activeClient.id] || [
-          { id: 'doc-basic', name: 'Laudo_Vistoria_Preventiva_DDSulf.pdf', type: 'pdf', size: '1.4 MB', uploadedAt: '2026-06-01' }
-        ];
-        localStorage.setItem(`DDSULF_CLIENT_DOCS_${activeClient.id}`, JSON.stringify(initial));
+        const initial = INITIAL_DOCS[activeClient.id] || [];
+        tenantStorage.setItem(`client_docs_${activeClient.id}`, JSON.stringify(initial));
         setClientDocs(initial);
       }
     } else {
@@ -306,21 +286,21 @@ export function ClientesPage() {
     const movSum = clientMovements.reduce((acc, current) => acc + Math.abs(current.value), 0);
 
     const clientContracts = (contracts || []).filter(c => c.clientId === activeClient.id);
-    const contractSum = clientContracts.reduce((acc, c) => acc + (c.status === 'ativo' ? c.recurrentValue * 5 : 0), 0); // simulated months paid
+    const contractSum = clientContracts.reduce((acc, c) => acc + (c.status === 'ativo' ? c.recurrentValue : 0), 0);
 
-    const faturamentoTotal = movSum > 0 ? movSum + contractSum : (servicosRealizados * 1250) + contractSum;
+    const faturamentoTotal = movSum + contractSum;
 
     // Ticket médio
-    const ticketMedio = servicosRealizados > 0 ? Number((faturamentoTotal / servicosRealizados).toFixed(2)) : 1250;
+    const ticketMedio = servicosRealizados > 0 ? Number((faturamentoTotal / servicosRealizados).toFixed(2)) : 0;
 
     // Garantias Ativas
     const garantiasList = clientCompleted.filter(s => {
       const exec = new Date(s.date + 'T00:00:00');
       const exp = new Date(exec);
       exp.setDate(exp.getDate() + 90);
-      return exp > new Date(SIMULATED_TODAY);
+      return exp > new Date();
     });
-    const garantias = garantiasList.length || (activeClient.id === 'c-01' || activeClient.id === 'c-02' ? 1 : 0);
+    const garantias = garantiasList.length;
 
     return {
       faturamentoTotal,
@@ -346,31 +326,38 @@ export function ClientesPage() {
     return selectClienteRentabilidade(activeClient.id, { clients, contracts, quotes, agenda } as any);
   }, [activeClient, clients, contracts, quotes, agenda]);
 
-  // Customer health calculation
+  // Customer health calculation based on real records
   const clientHealth = useMemo(() => {
     if (!activeClient) return { label: 'Inativo', color: 'gray', bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' };
     
-    // c-05 is mock risk
-    if (activeClient.id === 'c-05') {
-      return { 
-        label: 'Cliente em Risco', 
-        color: 'red', 
-        bg: 'bg-rose-50', 
-        text: 'text-rose-700', 
-        border: 'border-rose-100',
-        desc: '🔴 Sem nenhum atendimento há mais de 8 meses.' 
-      };
-    }
-    // c-01 default issues matching Mocked items
-    if (activeClient.id === 'c-01') {
+    // Check overdue/unpaid invoices
+    const hasUnpaidMovements = movements.some(m => m.description.toLowerCase().includes(activeClient.name.toLowerCase()) && !m.isPaid);
+    if (hasUnpaidMovements) {
       return { 
         label: 'Atenção / Cobrança', 
         color: 'yellow', 
         bg: 'bg-amber-50', 
         text: 'text-amber-800', 
         border: 'border-amber-200',
-        desc: '⚠️ Constatado histórico financeiro oscilante.' 
+        desc: '⚠️ Constatadas pendências financeiras em aberto.' 
       };
+    }
+
+    // Check last service date
+    const clientCompleted = (agenda || []).filter(e => e.clientId === activeClient.id && e.status === 'realizado');
+    if (clientCompleted.length > 0) {
+      const lastService = clientCompleted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      const daysSinceLast = Math.floor((new Date().getTime() - new Date(lastService.date).getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceLast > 180) {
+        return { 
+          label: 'Cliente Inativo / Risco', 
+          color: 'red', 
+          bg: 'bg-rose-50', 
+          text: 'text-rose-700', 
+          border: 'border-rose-100',
+          desc: `🔴 Sem atendimentos realizados há mais de ${daysSinceLast} dias.` 
+        };
+      }
     }
 
     const clientContracts = (contracts || []).filter(c => c.clientId === activeClient.id);
@@ -382,59 +369,60 @@ export function ClientesPage() {
         bg: 'bg-emerald-50', 
         text: 'text-emerald-800', 
         border: 'border-emerald-200',
-        desc: '🟢 Cliente estratégico com faturamento e CIP ativos.' 
+        desc: '🟢 Cliente estratégico com contrato mensal ativo.' 
       };
     }
 
     return { 
-      label: 'Relacionamento Saudável', 
+      label: 'Relacionamento Regular', 
       color: 'green', 
       bg: 'bg-sky-50', 
       text: 'text-sky-850', 
       border: 'border-sky-200',
-      desc: '🟢 Sem pendências financeiras registradas.' 
+      desc: '🟢 Sem pendências financeiras ou operacionais.' 
     };
-  }, [activeClient, contracts]);
+  }, [activeClient, contracts, movements, agenda]);
 
-  // IA Opportunities Generation
+  // IA Opportunities Generation dynamically from client state
   const aiOpportunity = useMemo(() => {
     if (!activeClient) return null;
-    if (activeClient.id === 'c-05') {
-      return {
-        badge: "Inativo há 8 meses",
-        title: "Reativação Preventiva",
-        description: "Cliente residencial sem ordens de serviço executadas desde Outubro de 2025. Período crítico para proliferação de insetos voadores nos ralos e dispensas.",
-        estimatedValue: 1250,
-        pct: 95
-      };
-    }
-    if (activeClient.id === 'c-03') {
-      return {
-        badge: "Renovação de Contrato",
-        title: "Retomada do Plano Mensal",
-        description: "Condomínio Green Park está com o Plano de Controle de Roedores expirado há 30 dias. Oferecer 5% de desconto no primeiro mês para contratação imediata.",
-        estimatedValue: 33600,
-        pct: 88
-      };
-    }
-    const hasActiveContract = (contracts || []).some(c => c.clientId === activeClient.id && c.status === 'ativo');
+
+    const clientContracts = (contracts || []).filter(c => c.clientId === activeClient.id);
+    const hasActiveContract = clientContracts.some(c => c.status === 'ativo');
+    const clientServices = (agenda || []).filter(e => e.clientId === activeClient.id && e.status === 'realizado');
+
     if (!hasActiveContract && getClientType(activeClient) === 'B2B') {
       return {
         badge: "Fidelização B2B",
         title: "Upgrade para Plano Multisserviço",
-        description: "Este cliente corporativo atual faz contratação apenas avulsa. Oferecer contrato CIP mensal cobrindo dedetização + desratização para previsibilidade de custos.",
+        description: "Oferecer contrato CIP mensal cobrindo dedetização + desratização para previsibilidade de custos e atendimento contínuo.",
         estimatedValue: 1800,
         pct: 75
       };
     }
+
+    if (clientServices.length > 0) {
+      const lastService = clientServices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      const days = Math.floor((new Date().getTime() - new Date(lastService.date).getTime()) / (1000 * 60 * 60 * 24));
+      if (days >= 90) {
+        return {
+          badge: "Reativação Preventiva",
+          title: "Renovação de Reforço Sanitário",
+          description: `Último atendimento executado há ${days} dias. Momento propício para contato preventivo e agendamento de inspeção.`,
+          estimatedValue: 850,
+          pct: 85
+        };
+      }
+    }
+
     return {
       badge: "Cross-selling Ativo",
-      title: "Descupinização de Estruturas",
-      description: "Sugerir inspeção técnica gratuita para cupins de solo nas madeiras e forros em Volta Redonda para aumentar o ticket médio atual.",
-      estimatedValue: 1950,
+      title: "Inspeção Preventiva Completa",
+      description: "Sugerir vistoria técnica preventiva para controle integrado de pragas urbanas.",
+      estimatedValue: 1200,
       pct: 60
     };
-  }, [activeClient, contracts]);
+  }, [activeClient, contracts, agenda]);
 
   // Client Timeline Generation
   const clientTimeline = useMemo(() => {
@@ -510,29 +498,6 @@ export function ClientesPage() {
       };
     });
 
-    // Seed mock fallback for default screens if none found
-    if (result.length === 0) {
-      if (activeClient.id === 'c-01') {
-        result.push({
-          id: 'w-mock-1',
-          title: "Detetização de Baratas & Pragas Comuns",
-          execDate: "2026-05-10",
-          expDate: "2026-08-10",
-          daysLeft: 66,
-          status: 'active'
-        });
-      } else if (activeClient.id === 'c-06') {
-        result.push({
-          id: 'w-mock-2',
-          title: "Desinsetização Química e Controle Sanitário",
-          execDate: "2026-05-22",
-          expDate: "2026-08-22",
-          daysLeft: 78,
-          status: 'active'
-        });
-      }
-    }
-
     return result;
   }, [activeClient, agenda]);
 
@@ -550,19 +515,19 @@ export function ClientesPage() {
       name: file.name,
       type: extension.toLowerCase(),
       size: displaySize,
-      uploadedAt: SIMULATED_TODAY
+      uploadedAt: new Date().toISOString().split('T')[0]
     };
 
     const updated = [newDoc, ...clientDocs];
     setClientDocs(updated);
-    localStorage.setItem(`DDSULF_CLIENT_DOCS_${activeClient!.id}`, JSON.stringify(updated));
+    tenantStorage.setItem(`client_docs_${activeClient!.id}`, JSON.stringify(updated));
     toast.success('Documento carregado!', { description: `Arquivo "${file.name}" anexado com sucesso.` });
   };
 
   const handleDeleteDoc = (docId: string, docName: string) => {
     const updated = clientDocs.filter(d => d.id !== docId);
     setClientDocs(updated);
-    localStorage.setItem(`DDSULF_CLIENT_DOCS_${activeClient!.id}`, JSON.stringify(updated));
+    tenantStorage.setItem(`client_docs_${activeClient!.id}`, JSON.stringify(updated));
     toast.success('Documento arquivado', { description: `O arquivo "${docName}" foi excluído.` });
   };
 
@@ -1361,60 +1326,68 @@ export function ClientesPage() {
                     )}
 
                     {/* FINANCEIRO TAB */}
-                    {activeProfileTab === 'financeiro' && (
-                      <div className="space-y-3">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Extrato Financeiro e Fluxo de Caixa</p>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 bg-slate-50/50 p-2.5 border border-[#E8E6E1]/40 rounded-xl">
-                          <div>
-                            <span className="text-[8px] font-bold text-slate-500 uppercase">Receita Líquida</span>
-                            <p className="font-mono font-black text-emerald-850">R$ {clientStats.faturamentoTotal.toLocaleString('pt-BR')}</p>
-                          </div>
-                          <div>
-                            <span className="text-[8px] font-bold text-slate-500 uppercase font-semibold">Último Recebimento</span>
-                            <p className="font-mono font-black text-slate-700">R$ 1.500,00</p>
-                          </div>
-                          <div>
-                            <span className="text-[8px] font-bold text-slate-500 uppercase">Faturas Pendentes</span>
-                            <p className="font-mono font-black text-amber-700">R$ {(activeClient.id === 'c-01' ? 3500 : 0).toLocaleString('pt-BR')}</p>
-                          </div>
-                          <div>
-                            <span className="text-[8px] font-bold text-slate-500 uppercase">Inadimplência</span>
-                            <p className="font-mono font-black text-rose-700">R$ {(activeClient.id === 'c-05' ? 1200 : 0).toLocaleString('pt-BR')}</p>
-                          </div>
-                        </div>
+                    {activeProfileTab === 'financeiro' && (() => {
+                      const clientMovements = movements.filter(m => m.description.toLowerCase().includes(activeClient.name.toLowerCase()));
+                      const paidMovements = clientMovements.filter(m => m.isPaid && m.value > 0);
+                      const lastReceived = paidMovements.length > 0 ? paidMovements[paidMovements.length - 1].value : 0;
+                      const pendingInvoices = clientMovements.filter(m => !m.isPaid).reduce((acc, m) => acc + Math.abs(m.value), 0);
+                      const overdueInvoices = clientMovements.filter(m => !m.isPaid && new Date(m.date) < new Date()).reduce((acc, m) => acc + Math.abs(m.value), 0);
 
-                        {/* Financial listings of transaction movements */}
-                        <div className="space-y-2">
-                          <span className="text-[9px] font-black text-slate-400 uppercase">Lançamentos no Livro Caixa</span>
-                          {movements.filter(m => m.description.toLowerCase().includes(activeClient.name.toLowerCase())).length === 0 ? (
-                            <div className="p-3 bg-slate-50 rounded-xl text-slate-400 text-center">
-                              Não há transações liquidadas registradas no módulo financeiro sob esta razão social.
+                      return (
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Extrato Financeiro e Fluxo de Caixa</p>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 bg-slate-50/50 p-2.5 border border-[#E8E6E1]/40 rounded-xl">
+                            <div>
+                              <span className="text-[8px] font-bold text-slate-500 uppercase">Receita Líquida</span>
+                              <p className="font-mono font-black text-emerald-850">R$ {clientStats.faturamentoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                             </div>
-                          ) : (
-                            <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
-                              {movements.filter(m => m.description.toLowerCase().includes(activeClient.name.toLowerCase())).map(m => (
-                                <div key={m.id} className="p-2.5 bg-white border border-[#E8E6E1]/50 rounded-lg flex items-center justify-between text-[11px]">
-                                  <div className="space-y-0.5 text-left">
-                                    <span className="font-bold text-slate-800 font-sans block">{m.description}</span>
-                                    <span className="text-[9px] text-slate-500">{m.date} via {m.paymentMethod} • Ref: {m.costCenter}</span>
-                                  </div>
-                                  <div className="text-right font-mono">
-                                    <span className={`font-black ${m.value > 0 ? 'text-emerald-700' : 'text-slate-700'}`}>
-                                      {m.value > 0 ? '+' : ''} R$ {m.value.toLocaleString('pt-BR')}
-                                    </span>
-                                    <span className={`block text-[8px] font-black ${m.isPaid ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                      {m.isPaid ? 'CONCLUÍDO' : 'PENDENTE'}
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
+                            <div>
+                              <span className="text-[8px] font-bold text-slate-500 uppercase font-semibold">Último Recebimento</span>
+                              <p className="font-mono font-black text-slate-700">R$ {lastReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                             </div>
-                          )}
-                        </div>
+                            <div>
+                              <span className="text-[8px] font-bold text-slate-500 uppercase">Faturas Pendentes</span>
+                              <p className="font-mono font-black text-amber-700">R$ {pendingInvoices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                            </div>
+                            <div>
+                              <span className="text-[8px] font-bold text-slate-500 uppercase">Inadimplência</span>
+                              <p className="font-mono font-black text-rose-700">R$ {overdueInvoices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                            </div>
+                          </div>
 
-                      </div>
-                    )}
+                          {/* Financial listings of transaction movements */}
+                          <div className="space-y-2">
+                            <span className="text-[9px] font-black text-slate-400 uppercase">Lançamentos no Livro Caixa</span>
+                            {clientMovements.length === 0 ? (
+                              <div className="p-3 bg-slate-50 rounded-xl text-slate-400 text-center">
+                                Não há transações liquidadas registradas no módulo financeiro sob esta razão social.
+                              </div>
+                            ) : (
+                              <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
+                                {clientMovements.map(m => (
+                                  <div key={m.id} className="p-2.5 bg-white border border-[#E8E6E1]/50 rounded-lg flex items-center justify-between text-[11px]">
+                                    <div className="space-y-0.5 text-left">
+                                      <span className="font-bold text-slate-800 font-sans block">{m.description}</span>
+                                      <span className="text-[9px] text-slate-500">{m.date} via {m.paymentMethod} • Ref: {m.costCenter}</span>
+                                    </div>
+                                    <div className="text-right font-mono">
+                                      <span className={`font-black ${m.value > 0 ? 'text-emerald-700' : 'text-slate-700'}`}>
+                                        {m.value > 0 ? '+' : ''} R$ {m.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                      </span>
+                                      <span className={`block text-[8px] font-black ${m.isPaid ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        {m.isPaid ? 'CONCLUÍDO' : 'PENDENTE'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                        </div>
+                      );
+                    })()}
 
                     {/* DOCUMENTOS TAB */}
                     {activeProfileTab === 'documentos' && (
@@ -1749,15 +1722,15 @@ export function ClientesPage() {
 
               {/* ⚠️ GATILHOS DE CONFORMIDADE E ALERTAS SENSORIAIS */}
               <div className="mt-5 pt-4 border-t border-[#E8E6E1]/50 space-y-2">
-                <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 font-sans">Gatilhos de Conformidade DDSulf</span>
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 font-sans">Gatilhos de Conformidade & Inteligência</span>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   
-                  {activeClient.id === 'c-05' ? (
+                  {clientHealth.color === 'red' ? (
                     <div className="p-2.5 rounded-xl border border-rose-100 bg-rose-50/20 text-[10px] text-[#C53030] flex items-start gap-2">
                       <span className="shrink-0 pt-0.5">🔴</span>
                       <div>
-                        <span className="font-bold block uppercase tracking-wide">Inatividade Crítica</span>
-                        <p className="text-slate-500 pt-0.5 font-semibold font-sans">O faturamento acumulou prejuízo de contato há 8 competências sucessivas.</p>
+                        <span className="font-bold block uppercase tracking-wide">Inatividade / Risco</span>
+                        <p className="text-slate-500 pt-0.5 font-semibold font-sans">{clientHealth.desc}</p>
                       </div>
                     </div>
                   ) : (
@@ -1765,12 +1738,12 @@ export function ClientesPage() {
                       <span className="shrink-0 pt-0.5">🟢</span>
                       <div>
                         <span className="font-bold block uppercase tracking-wide">Regularidade do Atendimento</span>
-                        <p className="text-slate-500 pt-0.5 font-semibold font-sans">Status em conformidade com as metas do plano de qualidade ANVISA.</p>
+                        <p className="text-slate-500 pt-0.5 font-semibold font-sans">Status operacional em conformidade com as diretrizes do cliente.</p>
                       </div>
                     </div>
                   )}
 
-                  {activeClient.id === 'c-01' ? (
+                  {movements.some(m => m.description.toLowerCase().includes(activeClient.name.toLowerCase()) && !m.isPaid) ? (
                     <div className="p-2.5 rounded-xl border border-amber-100 bg-amber-50/20 text-[10px] text-amber-800 flex items-start gap-2">
                       <span className="shrink-0 pt-0.5">🟡</span>
                       <div>
@@ -1783,7 +1756,7 @@ export function ClientesPage() {
                       <span className="shrink-0 pt-0.5">🟢</span>
                       <div>
                         <span className="font-bold block uppercase tracking-wide">Faturamento Adimplente</span>
-                        <p className="text-slate-500 pt-0.5 font-semibold font-sans">Sem histórico ou registros na fila de cobrança.</p>
+                        <p className="text-slate-500 pt-0.5 font-semibold font-sans">Sem títulos vencidos ou registros pendentes na fila de cobrança.</p>
                       </div>
                     </div>
                   )}
@@ -1793,19 +1766,18 @@ export function ClientesPage() {
                       <span className="shrink-0 pt-0.5">🟢</span>
                       <div>
                         <span className="font-bold block uppercase tracking-wide">Vistoria e Proteção</span>
-                        <p className="text-slate-500 pt-0.5 font-semibold font-sans">Apólice de garantia operacional vigente contra vetores urbanos.</p>
+                        <p className="text-slate-500 pt-0.5 font-semibold font-sans">Garantia operacional vigente para o imóvel.</p>
                       </div>
                     </div>
                   ) : (
-                    <div className="p-2.5 rounded-xl border border-amber-100 bg-amber-50/20 text-[10px] text-amber-800 flex items-start gap-2">
-                      <span className="shrink-0 pt-0.5">🟡</span>
+                    <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-[10px] text-slate-700 flex items-start gap-2">
+                      <span className="shrink-0 pt-0.5">ℹ️</span>
                       <div>
-                        <span className="font-bold block uppercase tracking-wide">Reserva Cobertura Expirada</span>
-                        <p className="text-slate-500 pt-0.5 font-semibold font-sans">Imóvel sem apólices de dedetização ativas baseadas em monitoramentos.</p>
+                        <span className="font-bold block uppercase tracking-wide">Sem Garantia Ativa</span>
+                        <p className="text-slate-500 pt-0.5 font-semibold font-sans">Nenhuma garantia ou serviço recente registrado com cobertura ativa.</p>
                       </div>
                     </div>
                   )}
-
                 </div>
               </div>
 

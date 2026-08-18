@@ -35,7 +35,7 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
     token = localStorage.getItem('pestflow_auth_token') || localStorage.getItem('pestflow_session_token') || 'master_superadmin_token';
   }
 
-  const tenantId = localStorage.getItem('pestflow_tenant_id') || 'ddsulf';
+  const tenantId = localStorage.getItem('pestflow_tenant_id') || 'master_tenant';
 
   return {
     'Content-Type': 'application/json',

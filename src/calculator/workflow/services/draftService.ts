@@ -1,9 +1,10 @@
 import { db } from '@/services/firebase';
 import { collection, addDoc, getDocs, doc, setDoc, query, orderBy, limit } from 'firebase/firestore';
 import { QuoteWorkflowState, WorkflowDraft } from '../types';
+import { tenantStorage } from '@/utils/storage';
 
-const COMPONENT_STORAGE_KEY = 'pestflow_pricing_workflows_draft';
-const RECOVERY_STORAGE_KEY = 'pestflow_draft_recovery_list';
+const COMPONENT_STORAGE_KEY = 'pricing_workflows_draft';
+const RECOVERY_STORAGE_KEY = 'draft_recovery_list';
 
 export const draftService = {
   /**
@@ -18,7 +19,7 @@ export const draftService = {
         syncAttempts: 0,
         isSynced: false
       };
-      localStorage.setItem(COMPONENT_STORAGE_KEY, JSON.stringify(draft));
+      tenantStorage.setItem(COMPONENT_STORAGE_KEY, JSON.stringify(draft));
       
       // Store into historical recoveries as well to let users search past unfinished sessions
       if (state.clientName.trim().length >= 3) {
@@ -29,7 +30,7 @@ export const draftService = {
         } else {
           history.unshift(draft);
         }
-        localStorage.setItem(RECOVERY_STORAGE_KEY, JSON.stringify(history.slice(0, 10))); // lock up to 10 recs
+        tenantStorage.setItem(RECOVERY_STORAGE_KEY, JSON.stringify(history.slice(0, 10))); // lock up to 10 recs
       }
     } catch (e) {
       console.warn('Failed to commit local cache draft', e);
@@ -41,7 +42,7 @@ export const draftService = {
    */
   getLatestLocalDraft(): WorkflowDraft | null {
     try {
-      const raw = localStorage.getItem(COMPONENT_STORAGE_KEY);
+      const raw = tenantStorage.getItem(COMPONENT_STORAGE_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
@@ -52,7 +53,7 @@ export const draftService = {
    * Discards the current active step draft
    */
   clearActiveDraft(): void {
-    localStorage.removeItem(COMPONENT_STORAGE_KEY);
+    tenantStorage.removeItem(COMPONENT_STORAGE_KEY);
   },
 
   /**
@@ -60,7 +61,7 @@ export const draftService = {
    */
   getRecoveryList(): WorkflowDraft[] {
     try {
-      const raw = localStorage.getItem(RECOVERY_STORAGE_KEY);
+      const raw = tenantStorage.getItem(RECOVERY_STORAGE_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -73,7 +74,7 @@ export const draftService = {
   removeRecovery(id: string): void {
     try {
       const list = this.getRecoveryList().filter(d => d.id !== id);
-      localStorage.setItem(RECOVERY_STORAGE_KEY, JSON.stringify(list));
+      tenantStorage.setItem(RECOVERY_STORAGE_KEY, JSON.stringify(list));
     } catch {}
   },
 

@@ -10,20 +10,20 @@ export function LoginScreen() {
   const navigate = useNavigate();
   const { loginWithGoogle, loginWithEmail } = useAuth();
   const { simulateRole } = useRole();
-  const [empresaId, setEmpresaId] = useState('ddsulf');
-  const [username, setUsername] = useState('master');
-  const [password, setPassword] = useState('123456');
+  const [empresaId, setEmpresaId] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Quick credentials for test workflows and Super-Admin master access
-  const quickTestCredentials = [
-    { label: '👑 Super-Admin Master (ddsulf / master)', empresa: 'ddsulf', user: 'master', role: 'master', isSuperAdmin: true, pass: '123456' },
-    { label: 'Administrador (ddsulf)', empresa: 'ddsulf', user: 'admin', role: 'admin', pass: 'pestflow_pass_123' },
-    { label: 'Gerência (ddsulf)', empresa: 'ddsulf', user: 'manager', role: 'manager', pass: 'pestflow_pass_123' },
-    { label: 'Comercial (ddsulf)', empresa: 'ddsulf', user: 'commercial', role: 'commercial', pass: 'pestflow_pass_123' },
-    { label: 'Técnico de Campo (ddsulf)', empresa: 'ddsulf', user: 'tech', role: 'technician', pass: 'pestflow_pass_123' }
-  ];
+  // Quick credentials for development sandbox testing (only visible in DEV mode)
+  const quickTestCredentials = import.meta.env.DEV ? [
+    { label: '👑 Super-Admin Master (Sandbox)', empresa: 'master_tenant', user: 'master', role: 'master', isSuperAdmin: true, pass: '123456' },
+    { label: 'Administrador (Sandbox)', empresa: 'demo_empresa', user: 'admin', role: 'admin', pass: 'pestflow_pass_123' },
+    { label: 'Gerência (Sandbox)', empresa: 'demo_empresa', user: 'manager', role: 'manager', pass: 'pestflow_pass_123' },
+    { label: 'Comercial (Sandbox)', empresa: 'demo_empresa', user: 'commercial', role: 'commercial', pass: 'pestflow_pass_123' },
+    { label: 'Técnico de Campo (Sandbox)', empresa: 'demo_empresa', user: 'tech', role: 'technician', pass: 'pestflow_pass_123' }
+  ] : [];
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,7 +218,7 @@ export function LoginScreen() {
                   type="text" 
                   value={empresaId}
                   onChange={(e) => setEmpresaId(e.target.value)}
-                  placeholder="ex: ddsulf" 
+                  placeholder="ex: minha-empresa" 
                   className="w-full h-11 pl-10 pr-4 text-xs bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:border-slate-900 focus:bg-white transition-all font-medium text-slate-800"
                 />
               </div>
@@ -232,7 +232,7 @@ export function LoginScreen() {
                   type="text" 
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="ex: master" 
+                  placeholder="Seu usuário ou login..." 
                   className="w-full h-11 pl-10 pr-4 text-xs bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:border-slate-900 focus:bg-white transition-all font-medium text-slate-800"
                 />
               </div>
@@ -280,35 +280,37 @@ export function LoginScreen() {
             Entrar com Conta Google
           </button>
 
-          {/* Developer Quick-Switch Panel */}
-          <div className="pt-2">
-            <div className="bg-slate-50 border border-slate-100/80 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center justify-between text-slate-800">
-                <span className="text-[10px] uppercase font-black tracking-wider font-mono text-slate-500">Acesso Rápido / Perfis</span>
-                <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">1-Clique</span>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-1.5">
-                {quickTestCredentials.map((c) => (
-                  <button
-                    key={`${c.empresa}_${c.user}`}
-                    onClick={() => handleShortcutSelect(c.empresa, c.user, c.role, c.isSuperAdmin, c.pass)}
-                    className={`w-full h-8.5 text-[10px] font-bold rounded-lg px-2.5 flex items-center justify-between transition-all cursor-pointer group border ${
-                      c.isSuperAdmin 
-                        ? 'bg-amber-500/10 hover:bg-amber-500 text-amber-900 hover:text-slate-950 border-amber-300' 
-                        : 'bg-white hover:bg-slate-900 text-slate-700 hover:text-white border-slate-200/80'
-                    }`}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      {c.isSuperAdmin && <ShieldCheck className="size-3.5 text-amber-600 group-hover:text-slate-950" />}
-                      <span>{c.label}</span>
-                    </span>
-                    <ChevronRight className="size-3 opacity-50 group-hover:translate-x-0.5 group-hover:opacity-100 transition-all text-slate-400 group-hover:text-slate-950" />
-                  </button>
-                ))}
+          {/* Developer Quick-Switch Panel (DEV Mode only) */}
+          {quickTestCredentials.length > 0 && (
+            <div className="pt-2">
+              <div className="bg-slate-50 border border-slate-100/80 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between text-slate-800">
+                  <span className="text-[10px] uppercase font-black tracking-wider font-mono text-slate-500">Acesso Rápido / Sandbox DEV</span>
+                  <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">DEV</span>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-1.5">
+                  {quickTestCredentials.map((c) => (
+                    <button
+                      key={`${c.empresa}_${c.user}`}
+                      onClick={() => handleShortcutSelect(c.empresa, c.user, c.role, c.isSuperAdmin, c.pass)}
+                      className={`w-full h-8.5 text-[10px] font-bold rounded-lg px-2.5 flex items-center justify-between transition-all cursor-pointer group border ${
+                        c.isSuperAdmin 
+                          ? 'bg-amber-500/10 hover:bg-amber-500 text-amber-900 hover:text-slate-950 border-amber-300' 
+                          : 'bg-white hover:bg-slate-900 text-slate-700 hover:text-white border-slate-200/80'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        {c.isSuperAdmin && <ShieldCheck className="size-3.5 text-amber-600 group-hover:text-slate-950" />}
+                        <span>{c.label}</span>
+                      </span>
+                      <ChevronRight className="size-3 opacity-50 group-hover:translate-x-0.5 group-hover:opacity-100 transition-all text-slate-400 group-hover:text-slate-950" />
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </motion.div>
     </div>

@@ -4,8 +4,9 @@
 
 import { OrchestrationWorkflow, OperationalEventType, SystemModuleName, OperationalEvent } from '../types';
 import { eventBusService } from './eventBusService';
+import { tenantStorage } from '@/utils/storage';
 
-const WORKFLOW_STORAGE_KEY = 'ddsulf_orchestration_workflows';
+const WORKFLOW_STORAGE_KEY = 'orchestration_workflows';
 
 export class OrchestrationService {
   private workflows: OrchestrationWorkflow[] = [];
@@ -17,7 +18,7 @@ export class OrchestrationService {
 
   private restoreWorkflows() {
     try {
-      const saved = localStorage.getItem(WORKFLOW_STORAGE_KEY);
+      const saved = tenantStorage.getItem(WORKFLOW_STORAGE_KEY);
       if (saved) {
         this.workflows = JSON.parse(saved);
       } else {
@@ -55,7 +56,7 @@ export class OrchestrationService {
 
   private persist() {
     try {
-      localStorage.setItem(WORKFLOW_STORAGE_KEY, JSON.stringify(this.workflows));
+      tenantStorage.setItem(WORKFLOW_STORAGE_KEY, JSON.stringify(this.workflows));
     } catch (e) {
       console.warn('Orchestration workflows save failed:', e);
     }

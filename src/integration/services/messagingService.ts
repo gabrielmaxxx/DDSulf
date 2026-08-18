@@ -4,6 +4,7 @@
 
 import { SystemModuleName, OperationalEvent, OperationalEventType } from '../types';
 import { eventBusService } from './eventBusService';
+import { tenantStorage } from '@/utils/storage';
 
 export interface InternalMessage {
   id: string;
@@ -17,7 +18,7 @@ export interface InternalMessage {
   correlationId: string;
 }
 
-const MESSAGING_STORAGE_KEY = 'ddsulf_messaging_internal';
+const MESSAGING_STORAGE_KEY = 'messaging_internal';
 
 export class MessagingService {
   private messages: InternalMessage[] = [];
@@ -29,7 +30,7 @@ export class MessagingService {
 
   private restoreMessages() {
     try {
-      const saved = localStorage.getItem(MESSAGING_STORAGE_KEY);
+      const saved = tenantStorage.getItem(MESSAGING_STORAGE_KEY);
       if (saved) {
         this.messages = JSON.parse(saved);
       } else {
@@ -66,7 +67,7 @@ export class MessagingService {
 
   private persist() {
     try {
-      localStorage.setItem(MESSAGING_STORAGE_KEY, JSON.stringify(this.messages));
+      tenantStorage.setItem(MESSAGING_STORAGE_KEY, JSON.stringify(this.messages));
     } catch (e) {
       console.warn('Internal messages save error:', e);
     }

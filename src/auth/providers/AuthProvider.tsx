@@ -57,8 +57,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const profileUnsubscribe = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
               const userData = docSnap.data() as UserProfile;
-              const activeEmpresaId = claimEmpresaId || userData.empresaId || '';
+              const activeEmpresaId = claimEmpresaId || userData.empresaId || localStorage.getItem('pestflow_tenant_id') || '';
               const activeRole = claimRole || userData.role || 'funcionario';
+
+              // If user is not SuperAdmin and has no resolvable empresaId, block access
+              if (!isSuperAdmin && !activeEmpresaId) {
+                console.warn('[PestFlow AuthProvider] Usuário sem empresa associada. Acesso negado.');
+                setSession({
+                  user: null,
+                  role: null,
+                  empresaId: null,
+                  isSuperAdmin: false,
+                  empresaSuspensa: false,
+                  permissions: {},
+                  isAuthenticated: false,
+                  isLoading: false,
+                  isHydrated: true,
+                });
+                return;
+              }
+
               const fullUserData: UserProfile = { 
                 ...userData, 
                 role: activeRole, 
@@ -78,6 +96,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 isHydrated: true,
               });
             } else {
+              const activeEmpresaId = claimEmpresaId || localStorage.getItem('pestflow_tenant_id') || '';
+              if (!isSuperAdmin && !activeEmpresaId) {
+                console.warn('[PestFlow AuthProvider] Documento de perfil não localizado e empresaId ausente. Acesso negado.');
+                setSession({
+                  user: null,
+                  role: null,
+                  empresaId: null,
+                  isSuperAdmin: false,
+                  empresaSuspensa: false,
+                  permissions: {},
+                  isAuthenticated: false,
+                  isLoading: false,
+                  isHydrated: true,
+                });
+                return;
+              }
+
               const activeRole = claimRole || 'funcionario';
               const defaultProfile: UserProfile = {
                 uid: firebaseUser.uid,
@@ -85,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 name: firebaseUser.displayName || 'Colaborador PestFlow',
                 role: activeRole,
                 status: 'active',
-                empresaId: claimEmpresaId,
+                empresaId: activeEmpresaId,
                 isSuperAdmin,
                 permissions: {},
                 createdAt: new Date().toISOString(),
@@ -94,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setSession({
                 user: defaultProfile,
                 role: activeRole,
-                empresaId: claimEmpresaId,
+                empresaId: activeEmpresaId,
                 isSuperAdmin,
                 empresaSuspensa,
                 permissions: {},
@@ -105,7 +140,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }, (err) => {
             console.warn('[PestFlow AuthProvider] Profile state listener failed, falling back to token claims:', err.message);
-            const activeRole = claimRole || 'master';
+            const activeEmpresaId = claimEmpresaId || localStorage.getItem('pestflow_tenant_id') || '';
+            if (!isSuperAdmin && !activeEmpresaId) {
+              setSession({
+                user: null,
+                role: null,
+                empresaId: null,
+                isSuperAdmin: false,
+                empresaSuspensa: false,
+                permissions: {},
+                isAuthenticated: false,
+                isLoading: false,
+                isHydrated: true,
+              });
+              return;
+            }
+
+            const activeRole = claimRole || (isSuperAdmin ? 'master' : 'funcionario');
             setSession({
               user: {
                 uid: firebaseUser.uid,
@@ -113,14 +164,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 name: firebaseUser.displayName || 'Usuário PestFlow',
                 role: activeRole,
                 status: 'active',
-                empresaId: claimEmpresaId,
+                empresaId: activeEmpresaId,
                 isSuperAdmin,
                 permissions: {},
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
               },
               role: activeRole,
-              empresaId: claimEmpresaId,
+              empresaId: activeEmpresaId,
               isSuperAdmin,
               empresaSuspensa,
               permissions: {},
@@ -159,10 +210,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const profile = await AuthService.loginWithGoogle();
       const isSuper = profile.isSuperAdmin || profile.role === 'master' || profile.email?.includes('master');
+      const activeEmpresaId = profile.empresaId || localStorage.getItem('pestflow_tenant_id') || '';
+      
+      if (!isSuper && !activeEmpresaId) {
+        throw new Error('Não foi possível identificar sua empresa. Faça login novamente.');
+      }
+
       setSession({
         user: profile,
         role: profile.role || (isSuper ? 'master' : 'admin'),
-        empresaId: profile.empresaId || localStorage.getItem('pestflow_tenant_id') || 'ddsulf',
+        empresaId: activeEmpresaId || (isSuper ? 'master_tenant' : ''),
         isSuperAdmin: Boolean(isSuper),
         empresaSuspensa: false,
         permissions: profile.permissions || {},
@@ -183,10 +240,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const profile = await AuthService.loginWithEmail(email, pass);
       const isSuper = profile.isSuperAdmin || profile.role === 'master' || email.includes('master');
+      const activeEmpresaId = profile.empresaId || localStorage.getItem('pestflow_tenant_id') || '';
+
+      if (!isSuper && !activeEmpresaId) {
+        throw new Error('Não foi possível identificar sua empresa. Faça login novamente.');
+      }
+
       setSession({
         user: profile,
         role: profile.role || (isSuper ? 'master' : 'admin'),
-        empresaId: profile.empresaId || localStorage.getItem('pestflow_tenant_id') || 'ddsulf',
+        empresaId: activeEmpresaId || (isSuper ? 'master_tenant' : ''),
         isSuperAdmin: Boolean(isSuper),
         empresaSuspensa: false,
         permissions: profile.permissions || {},
@@ -225,17 +288,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ? changes.isSuperAdmin 
         : (changes.role === 'master' || prev.isSuperAdmin);
 
+      const targetEmpresaId = changes.empresaId || prev.user?.empresaId || localStorage.getItem('pestflow_tenant_id') || '';
+
+      if (!isSuperAdminValue && !targetEmpresaId) {
+        return {
+          user: null,
+          role: null,
+          empresaId: null,
+          isSuperAdmin: false,
+          empresaSuspensa: false,
+          permissions: {},
+          isAuthenticated: false,
+          isLoading: false,
+          isHydrated: true,
+        };
+      }
+
       const activeUser: UserProfile = prev.user ? {
         ...prev.user,
         ...changes,
-        isSuperAdmin: isSuperAdminValue
+        isSuperAdmin: isSuperAdminValue,
+        empresaId: targetEmpresaId
       } : {
         uid: `user_${Date.now()}`,
-        email: changes.email || 'master@ddsulf.pestflow.local',
+        email: changes.email || 'master@pestflow.local',
         name: changes.name || 'Gabriel - Super Admin',
         role: changes.role || 'master',
         status: 'active',
-        empresaId: changes.empresaId || localStorage.getItem('pestflow_tenant_id') || 'ddsulf',
+        empresaId: targetEmpresaId,
         isSuperAdmin: isSuperAdminValue,
         permissions: changes.permissions || {},
         createdAt: new Date().toISOString(),
@@ -246,7 +326,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         user: activeUser,
         role: activeUser.role,
-        empresaId: activeUser.empresaId || 'ddsulf',
+        empresaId: targetEmpresaId,
         isSuperAdmin: isSuperAdminValue,
         empresaSuspensa: false,
         permissions: activeUser.permissions || prev.permissions || {},

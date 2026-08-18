@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { toast } from 'sonner';
 import { resolveCityFromAddress, haversineKm, getCityCoordinates } from '@/utils/geo';
+import { tenantZustandStorage } from '@/utils/storage';
 
 export interface FinancialMovement {
   id: string;
@@ -228,13 +229,7 @@ export interface Employee {
   color?: string;
 }
 
-export const DEFAULT_EMPLOYEES: Employee[] = [
-  { id: 'emp-01', name: 'Carlos Eduardo', role: 'tecnico', phone: '(24) 99811-2020', active: true, specialties: ['Dedetização', 'Desratização'] },
-  { id: 'emp-02', name: 'Roberto Mendes', role: 'tecnico', phone: '(24) 99822-3030', active: true, specialties: ['Descupinização', 'Sanitização'] },
-  { id: 'emp-03', name: 'Gabriel Silva', role: 'tecnico', phone: '(24) 99833-4040', active: true, specialties: ['Dedetização', 'Controle Integrado'] },
-  { id: 'emp-04', name: 'Marcos Souza', role: 'vendedor', phone: '(24) 99844-5050', active: true, specialties: ['Comercial', 'Inspeção'] },
-  { id: 'emp-05', name: 'Admin Demo', role: 'admin', phone: '(24) 99855-6060', active: true, specialties: ['Gestão', 'SecOps'] },
-];
+export const DEFAULT_EMPLOYEES: Employee[] = [];
 
 export interface AgendaEvent {
   id: string;
@@ -413,335 +408,64 @@ export interface SystemActions {
   resetSystemData: () => void;
 }
 
-const DEFAULT_MOVEMENTS: FinancialMovement[] = [
-  // RECEITAS - Maio 2026
-  { id: "m-rev-01", date: "2026-05-10", description: "Serviço de Dedetização Comercial - Grupo Pão Duro", category: "RECEITAS", subcategory: "Dedetização", value: 3500.00, paymentMethod: "Boleto", costCenter: "Equipe Alfa", isPaid: true },
-  { id: "m-rev-02", date: "2026-05-12", description: "Contrato Mensal - Shopping das Flores", category: "RECEITAS", subcategory: "Contratos Mensais", value: 4200.00, paymentMethod: "Pix", costCenter: "Equipe Beta", isPaid: true },
-  { id: "m-rev-03", date: "2026-05-15", description: "Serviço de Desratização - Condomínio Green Park", category: "RECEITAS", subcategory: "Desratização", value: 2800.00, paymentMethod: "Pix", costCenter: "Equipe Alfa", isPaid: true },
-  { id: "m-rev-04", date: "2026-05-18", description: "Sanitização de Ambientes - Clínica MedSim", category: "RECEITAS", subcategory: "Sanitização", value: 1500.00, paymentMethod: "Cartão de Crédito", costCenter: "Equipe Alfa", isPaid: true },
-  { id: "m-rev-05", date: "2026-05-20", description: "Serviço de Descupinização - Residência Dr. Marcos", category: "RECEITAS", subcategory: "Descupinização", value: 5300.00, paymentMethod: "Transferência", costCenter: "Equipe Beta", isPaid: true },
-  { id: "m-rev-06", date: "2026-05-22", description: "Contrato Anual - Indústria Metalnorte", category: "RECEITAS", subcategory: "Contratos Anuais", value: 12500.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
-  
-  // CUSTOS DIRETOS
-  { id: "m-cost-01", date: "2026-05-02", description: "Compra de Insumo BIFENTOL 200SC - Distribuidora Rogama", category: "CUSTOS DIRETOS", subcategory: "Produtos Químicos", value: -4500.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
-  { id: "m-cost-02", date: "2026-05-04", description: "Compra de Iscas Ratol Bloco - Rogama", category: "CUSTOS DIRETOS", subcategory: "Iscas", value: -2100.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
-  { id: "m-cost-03", date: "2026-05-05", description: "Seringas OPTIGARD LT WG - Gel Baraticida", category: "CUSTOS DIRETOS", subcategory: "Gel Baraticida", value: -1650.00, paymentMethod: "Pix", costCenter: "Geral", isPaid: true },
-  { id: "m-cost-04", date: "2026-05-08", description: "Novos Pulverizadores Costais Guarany", category: "CUSTOS DIRETOS", subcategory: "Equipamentos", value: -2400.00, paymentMethod: "Cartão de Crédito", costCenter: "Geral", isPaid: true },
-  { id: "m-cost-05", date: "2026-05-11", description: "Máscaras de Filtros Químicos e Luvas Nitrílicas (EPIs)", category: "CUSTOS DIRETOS", subcategory: "EPIs", value: -980.00, paymentMethod: "Pix", costCenter: "Geral", isPaid: true },
-  { id: "m-cost-06", date: "2026-05-14", description: "Uniformes Personalizados DDSulf com Logo", category: "CUSTOS DIRETOS", subcategory: "Uniformes", value: -850.00, paymentMethod: "Pix", costCenter: "Geral", isPaid: true },
-  
-  // DESPESAS OPERACIONAIS
-  { id: "m-ope-01", date: "2026-05-05", description: "Folha de pagamento - Técnicos e Auxiliares", category: "DESPESAS OPERACIONAIS", subcategory: "Salários", value: -18000.00, paymentMethod: "Transferência", costCenter: "Equipe Alfa", isPaid: true },
-  { id: "m-ope-02", date: "2026-05-07", description: "Guia FGTS - Competência Abril", category: "DESPESAS OPERACIONAIS", subcategory: "Encargos", value: -1440.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
-  { id: "m-ope-03", date: "2026-05-07", description: "Guia INSS - Competência Abril", category: "DESPESAS OPERACIONAIS", subcategory: "Encargos", value: -4200.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
-  { id: "m-ope-04", date: "2026-05-05", description: "Pró-labore Sócios DDSulf", category: "DESPESAS OPERACIONAIS", subcategory: "Pró-labore", value: -9000.00, paymentMethod: "Transferência", costCenter: "Geral", isPaid: true },
-  { id: "m-ope-05", date: "2026-05-15", description: "Combustível Frota - Abastecimento Semanal Posto Shell", category: "DESPESAS OPERACIONAIS", subcategory: "Combustível", value: -4300.00, paymentMethod: "Pix", costCenter: "Veículo 01", isPaid: true },
-  { id: "m-ope-06", date: "2026-05-18", description: "Pedágios - Viagem Atendimento Campo", category: "DESPESAS OPERACIONAIS", subcategory: "Pedágios", value: -320.00, paymentMethod: "Sem Parar", costCenter: "Veículo 02", isPaid: true },
-  { id: "m-ope-07", date: "2026-05-10", description: "Pneus novos e Alinhamento de Veículo Pajero", category: "DESPESAS OPERACIONAIS", subcategory: "Manutenção de Veículos", value: -1450.00, paymentMethod: "Cartão de Crédito", costCenter: "Veículo 01", isPaid: true },
-  { id: "m-ope-08", date: "2026-05-12", description: "Anúncios Google Ads - Campanhas de Marketing Digital", category: "DESPESAS OPERACIONAIS", subcategory: "Marketing", value: -2800.00, paymentMethod: "Cartão de Crédito", costCenter: "Geral", isPaid: true },
-  { id: "m-ope-09", date: "2026-05-13", description: "Fatura Telefone Fixo e Chips Equipe Móvel", category: "DESPESAS OPERACIONAIS", subcategory: "Telefonia", value: -380.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
-  { id: "m-ope-10", date: "2026-05-15", description: "Internet Banda Larga Fibra Copel", category: "DESPESAS OPERACIONAIS", subcategory: "Internet", value: -150.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
+const DEFAULT_MOVEMENTS: FinancialMovement[] = [];
 
-  // DESPESAS ADMINISTRATIVAS
-  { id: "m-adm-01", date: "2026-05-10", description: "Aluguel da Sede Comercial - Imobiliária Sul", category: "DESPESAS ADMINISTRATIVAS", subcategory: "Aluguel", value: -3500.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
-  { id: "m-adm-02", date: "2026-05-14", description: "Fatura Copel - Consumo de Energia Elétrica", category: "DESPESAS ADMINISTRATIVAS", subcategory: "Energia", value: -780.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
-  { id: "m-adm-03", date: "2026-05-14", description: "Tarifa de Saneamento - Água Sabesp", category: "DESPESAS ADMINISTRATIVAS", subcategory: "Água", value: -120.00, paymentMethod: "Pix", costCenter: "Geral", isPaid: true },
-  { id: "m-adm-04", date: "2026-05-08", description: "Papel Hectográfico, Envelopes e Material Administrativo", category: "DESPESAS ADMINISTRATIVAS", subcategory: "Material de Escritório", value: -220.00, paymentMethod: "Pix", costCenter: "Geral", isPaid: true },
-  { id: "m-adm-05", date: "2026-05-01", description: "Mensalidade do ERP de Gestão e Emissor de Notas", category: "DESPESAS ADMINISTRATIVAS", subcategory: "Sistemas", value: -450.00, paymentMethod: "Pix", costCenter: "Geral", isPaid: true },
-  { id: "m-adm-06", date: "2026-05-05", description: "Honorários Contabilidade Mensal", category: "DESPESAS ADMINISTRATIVAS", subcategory: "Contabilidade", value: -980.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
-
-  // DESPESAS FINANCEIRAS
-  { id: "m-fin-01", date: "2026-05-20", description: "Parcela Banco Itaú - Financiamento de Capital de Giro", category: "DESPESAS FINANCEIRAS", subcategory: "Empréstimos", value: -3800.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
-  { id: "m-fin-02", date: "2026-05-20", description: "Juros sobre Atraso de Fornecedores", category: "DESPESAS FINANCEIRAS", subcategory: "Juros", value: -150.00, paymentMethod: "Pix", costCenter: "Geral", isPaid: true },
-  { id: "m-fin-03", date: "2026-05-30", description: "Tarifas de Manutenção de Conta CNPJ", category: "DESPESAS FINANCEIRAS", subcategory: "Tarifas Bancárias", value: -89.00, paymentMethod: "Débito Automático", costCenter: "Geral", isPaid: true },
-  
-  // IMPOSTOS
-  { id: "m-tax-01", date: "2026-05-20", description: "DAS Simples Nacional - Competência Abril", category: "IMPOSTOS", subcategory: "Simples Nacional", value: -4800.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
-  { id: "m-tax-02", date: "2026-05-22", description: "Alvará de Funcionamento Municipal", category: "IMPOSTOS", subcategory: "Taxas Municipais", value: -280.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: true },
-
-  // OVERDUE / ALERTS ENTRIES
-  { id: "m-alert-overdue-1", date: "2026-05-20", description: "Fatura Google Ads pendente", category: "DESPESAS OPERACIONAIS", subcategory: "Marketing", value: -1200.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: false, dueDate: "2026-05-25" },
-  { id: "m-alert-overdue-2", date: "2026-05-18", description: "Parcela Financiamento Banco do Brasil", category: "DESPESAS FINANCEIRAS", subcategory: "Empréstimos", value: -4600.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: false, dueDate: "2026-05-22" },
-  { id: "m-alert-contract-1", date: "2026-06-05", description: "Renovação Contrato Anual Hospital Geral", category: "RECEITAS", subcategory: "Contratos Anuais", value: 8500.00, paymentMethod: "Boleto", costCenter: "Geral", isPaid: false, dueDate: "2026-06-15" }
-];
-
-const defaultMonth = new Date().toISOString().slice(0, 7);
-const expDate10Days = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
-
-const DEFAULT_QUOTES: Quote[] = [
-  {
-    id: "q-exec-01",
-    createdAt: `${defaultMonth}-05`,
-    status: "executado",
-    confirmedAt: `${defaultMonth}-05T14:30:00Z`,
-    confirmedBy: "Carlos Eduardo",
-    scheduledTechnician: "Carlos Eduardo",
-    client: {
-      name: "Grupo Pão Duro",
-      address: "Av. Paulista, 100 - São Paulo - SP",
-      phone: "(11) 98765-4321"
-    },
-    service: {
-      pestType: "Dedetização",
-      serviceType: "Dedetização Geral",
-      areaM2: 150,
-      distanceKm: 12
-    },
-    costs: { products: 120, labor: 180, transport: 60, overhead: 40, total: 400 },
-    pricing: { suggestedPrice: 650, marginPercent: 38.46, finalPrice: 650 },
-    productsUsed: [
-      { productId: "prod-01", productName: "BIFENTOL 200SC", quantity: 150, unit: "ml" }
-    ],
-    inventoryDeducted: true,
-    hasReturn: true
-  },
-  {
-    id: "q-exec-02",
-    createdAt: `${defaultMonth}-10`,
-    status: "executado",
-    confirmedAt: `${defaultMonth}-10T16:00:00Z`,
-    confirmedBy: "Mariana Souza",
-    scheduledTechnician: "Mariana Souza",
-    client: {
-      name: "Condomínio Green Park",
-      address: "Al. das Palmeiras, 192 - Volta Redonda - RJ",
-      phone: "(24) 3340-9900"
-    },
-    service: {
-      pestType: "Desratização",
-      serviceType: "Desratização Completa",
-      areaM2: 300,
-      distanceKm: 8
-    },
-    costs: { products: 180, labor: 220, transport: 50, overhead: 50, total: 500 },
-    pricing: { suggestedPrice: 950, marginPercent: 47.37, finalPrice: 950 },
-    productsUsed: [
-      { productId: "prod-02", productName: "Ratol Bloco Isquicida", quantity: 200, unit: "g" }
-    ],
-    inventoryDeducted: true,
-    hasReturn: false
-  },
-  {
-    id: "q-exec-03",
-    createdAt: `${defaultMonth}-15`,
-    status: "executado",
-    confirmedAt: `${defaultMonth}-15T11:00:00Z`,
-    confirmedBy: "Carlos Eduardo",
-    scheduledTechnician: "Carlos Eduardo",
-    client: {
-      name: "Shopping das Flores",
-      address: "Rua das Flores, 450 - Curitiba - PR",
-      phone: "(41) 3222-1111"
-    },
-    service: {
-      pestType: "Descupinização",
-      serviceType: "Tratamento de Barreira Química",
-      areaM2: 500,
-      distanceKm: 25
-    },
-    costs: { products: 450, labor: 500, transport: 120, overhead: 100, total: 1170 },
-    pricing: { suggestedPrice: 2200, marginPercent: 46.81, finalPrice: 2200 },
-    productsUsed: [
-      { productId: "prod-04", productName: "Termidor 25 CE", quantity: 1500, unit: "ml" }
-    ],
-    inventoryDeducted: true,
-    hasReturn: false
-  },
-  {
-    id: "q-ret-01",
-    createdAt: `${defaultMonth}-18`,
-    status: "retorno",
-    isRetorno: true,
-    parentQuoteId: "q-exec-01",
-    returnCost: 180,
-    confirmedBy: "Mariana Souza",
-    scheduledTechnician: "Mariana Souza",
-    client: {
-      name: "Grupo Pão Duro",
-      address: "Av. Paulista, 100 - São Paulo - SP",
-      phone: "(11) 98765-4321"
-    },
-    service: {
-      pestType: "Dedetização (Retorno)",
-      serviceType: "Retorno Técnico de Garantia",
-      areaM2: 150,
-      distanceKm: 12
-    },
-    costs: { products: 60, labor: 90, transport: 30, overhead: 0, total: 180 },
-    pricing: { suggestedPrice: 0, marginPercent: 0, finalPrice: 0 },
-    productsUsed: [
-      { productId: "prod-01", productName: "BIFENTOL 200SC", quantity: 50, unit: "ml" }
-    ],
-    inventoryDeducted: true,
-    serviceNotes: "Reforço de barreira em caixas de gordura do refeitório."
-  }
-];
+const DEFAULT_QUOTES: Quote[] = [];
 
 const INITIAL_STATE: SystemState = {
   financial: {
     fixedCosts: {
-      vehicleRental: 3500,
-      salaries: 18000,
-      rent: 3500,
-      fuel: 4300,
-      insurance: 1200,
-      other: 1500,
+      vehicleRental: 0,
+      salaries: 0,
+      rent: 0,
+      fuel: 0,
+      insurance: 0,
+      other: 0,
     },
     variableCosts: {
-      productsPerService: 15,
-      laborPerHour: 25,
-      equipmentDepreciation: 5,
+      productsPerService: 0,
+      laborPerHour: 0,
+      equipmentDepreciation: 0,
     },
     operational: {
-      servicesPerMonth: 120,
-      avgServiceDurationHours: 3,
-      minimumMarginPercent: 35,
+      servicesPerMonth: 0,
+      avgServiceDurationHours: 0,
+      minimumMarginPercent: 20,
     },
     revenueHistory: [],
     costHistory: [],
     movements: DEFAULT_MOVEMENTS,
   },
   inventory: {
-    products: [
-      {
-        id: "prod-01",
-        name: "BIFENTOL 200SC",
-        category: "inseticida",
-        unit: "ml",
-        quantity: 2500,
-        minQuantity: 1000,
-        costPerUnit: 1.80,
-        supplier: "Distribuidora Rogama",
-        chemicalGroup: "Piretroide",
-        activeIngredient: "Bifentrina 20,0%",
-        productGroup: "Concentrado Emulsionável"
-      },
-      {
-        id: "prod-02",
-        name: "Ratol Bloco Isquicida",
-        category: "raticida",
-        unit: "g",
-        quantity: 800,
-        minQuantity: 1200,
-        costPerUnit: 0.12,
-        supplier: "Rogama Insumos Ltda",
-        chemicalGroup: "Cumarínico anticoagulante",
-        activeIngredient: "Brodifacoum 0,005%",
-        productGroup: "Isca Extrudada em Bloco"
-      },
-      {
-        id: "prod-03",
-        name: "Gel Optigard LT WG",
-        category: "inseticida",
-        unit: "unidade",
-        quantity: 20,
-        minQuantity: 15,
-        costPerUnit: 48.00,
-        supplier: "Syngenta Proteção",
-        chemicalGroup: "Neonicotinoide",
-        activeIngredient: "Tiametoxam 0,10%",
-        productGroup: "Gel pronto uso"
-      },
-      {
-        id: "prod-04",
-        name: "Termidor 25 CE",
-        category: "inseticida",
-        unit: "L",
-        quantity: 12,
-        minQuantity: 10,
-        costPerUnit: 185.00,
-        supplier: "BASF Agro",
-        chemicalGroup: "Pirazol",
-        activeIngredient: "Fipronil 2,5%",
-        productGroup: "Inibidor de GABA"
-      }
-    ],
+    products: [],
     movements: []
   },
   pops: {
-    procedures: [
-      {
-        id: "pop-01",
-        name: "Desinsetização Premium contra Baratas",
-        pestType: "baratas",
-        serviceType: "dedetizacao",
-        requiredProducts: [
-          { productId: "prod-03", productName: "Gel Optigard LT WG", quantityPer100m2: 2, unit: "unidade" },
-          { productId: "prod-01", productName: "BIFENTOL 200SC", quantityPer100m2: 50, unit: "ml" }
-        ],
-        estimatedTimeHoursPer100m2: 1.5,
-        instructions: "Calçar luvas de nitrila, óculos de segurança contra respingos e respirador semifacial com filtro de carvão ativado. Aplicar gel baraticida em frestas e fendas de cozinhas e despensas. Pulverizar solução de Bifentol nas superfícies de rodapés e caixas de gordura.",
-        createdAt: "2026-05-01"
-      },
-      {
-        id: "pop-02",
-        name: "Desratização Completa com Iscagem Perimetral",
-        pestType: "ratos",
-        serviceType: "desratizacao",
-        requiredProducts: [
-          { productId: "prod-02", productName: "Ratol Bloco Isquicida", quantityPer100m2: 100, unit: "g" }
-        ],
-        estimatedTimeHoursPer100m2: 1.2,
-        instructions: "Fazer triagem visual de tocas e fontes de alimento. Posicionar blocos de Ratol paracatando caixas iscadoras lacradas. Mapear pontos e fixá-los com arame em ambientes fechados.",
-        createdAt: "2026-05-02"
-      },
-      {
-        id: "pop-03",
-        name: "Tratamento de Barreira Química contra Cupim de Solo",
-        pestType: "cupins",
-        serviceType: "descupinizacao",
-        requiredProducts: [
-          { productId: "prod-04", productName: "Termidor 25 CE", quantityPer100m2: 1.5, unit: "L" }
-        ],
-        estimatedTimeHoursPer100m2: 2.5,
-        instructions: "Furar solo a cada 30cm no perímetro atacado. Injetar calda preparada de Termidor. Calçar EPI completo, incluindo macacão tyvek e máscara facial.",
-        createdAt: "2026-05-03"
-      }
-    ]
+    procedures: []
   },
   quotes: {
     list: DEFAULT_QUOTES
   },
-  clients: [
-    { id: "c-01", name: "Grupo Pão Duro", cnpjCpf: "12.345.678/0001-90", address: "Av. Paulista, 100 - São Paulo - SP", phone: "(11) 98765-4321", email: "contato@paoduro.com.br", createdAt: "2026-05-10" },
-    { id: "c-02", name: "Shopping das Flores", cnpjCpf: "98.765.432/0001-10", address: "Rua das Flores, 450 - Curitiba - PR", phone: "(41) 3222-1111", email: "adm@shoppingflores.com.br", createdAt: "2026-05-12" },
-    { id: "c-03", name: "Condomínio Green Park", cnpjCpf: "55.444.333/0001-22", address: "Al. das Palmeiras, 192 - Volta Redonda - RJ", phone: "(24) 3340-9900", email: "portaria@greenpark.com.br", createdAt: "2026-05-15" },
-    { id: "c-04", name: "Clínica MedSim", cnpjCpf: "11.222.333/0001-44", address: "Rua da Saúde, 80 - Volta Redonda - RJ", phone: "(24) 3348-1234", email: "faturamento@medsim.com.br", createdAt: "2026-05-18" },
-    { id: "c-05", name: "Residência Dr. Marcos", cnpjCpf: "222.333.444-55", address: "Rua das Laranjeiras, 15 - Volta Redonda - RJ", phone: "(24) 99988-7766", email: "marcos@gmail.com", createdAt: "2026-05-20" },
-    { id: "c-06", name: "Indústria Metalnorte", cnpjCpf: "77.888.999/0001-11", address: "Rodovia BR-393, Km 5 - Barra Mansa - RJ", phone: "(24) 3320-4000", email: "suprimentos@metalnorte.com.br", createdAt: "2026-05-22" }
-  ],
-  contracts: [
-    { id: "contr-01", clientId: "c-02", clientName: "Shopping das Flores", title: "Contrato de CIP (Controle Inteligente)", value: 50400.00, recurrentValue: 4200.00, status: "ativo", startDate: "2026-01-10", endDate: "2027-01-10", recurrencyMonths: 1, createdAt: "2026-01-10" },
-    { id: "contr-02", clientId: "c-06", clientName: "Indústria Metalnorte", title: "Contrato Anual Controle de Pragas", value: 12500.00, recurrentValue: 12500.00, status: "ativo", startDate: "2026-05-22", endDate: "2027-05-22", recurrencyMonths: 12, createdAt: "2026-05-22" },
-    { id: "contr-03", clientId: "c-03", clientName: "Condomínio Green Park", title: "Plano Anual de Controle de Roedores", value: 33600.00, recurrentValue: 2800.00, status: "vencido", startDate: "2025-05-01", endDate: "2026-05-01", recurrencyMonths: 1, createdAt: "2025-05-01" },
-    { id: "contr-04", clientId: "c-04", clientName: "Clínica MedSim", title: "Contrato Mensal de Sanitização", value: 18000.00, recurrentValue: 1500.00, status: "ativo", startDate: "2025-08-01", endDate: expDate10Days, recurrencyMonths: 1, createdAt: "2025-08-01" }
-  ],
-  agenda: [
-    { id: "ev-01", title: "Ordem de Serviço #m-rev-01 - Dedetização", date: "2026-05-10", clientId: "c-01", clientName: "Grupo Pão Duro", type: "servico", quoteId: "q-rev-01", notes: "Dedetização inicial concluída com sucesso.", status: "realizado" },
-    { id: "ev-02", title: "Ordem de Serviço #m-rev-03 - Desratização", date: "2026-05-15", clientId: "c-03", clientName: "Condomínio Green Park", type: "servico", quoteId: "q-rev-03", notes: "Instalação de blocos para ratos concluída.", status: "realizado" },
-    { id: "ev-03", title: "Visita Trimestral de Monitoramento", date: "2026-06-05", clientId: "c-02", clientName: "Shopping das Flores", type: "visita", notes: "Monitorar nível de iscas consumidas nas caixas.", status: "pendente" },
-    { id: "ev-04", title: "Controle de Baratas e Sanitização", date: "2026-06-12", clientId: "c-04", clientName: "Clínica MedSim", type: "servico", notes: "Aplicação conjunta de gel de frestas e pulverização bifentol.", status: "pendente" }
-  ],
-  purchases: [
-    { id: "purch-01", productId: "prod-02", productName: "Ratol Bloco Isquicida", currentStock: 800, minStock: 1200, idealStock: 3000, quantityToBuy: 2200, status: "Pendente", createdAt: "2026-05-28", updatedAt: "2026-05-28" },
-    { id: "purch-02", productId: "prod-01", productName: "BIFENTOL 200SC", currentStock: 2500, minStock: 1000, idealStock: 5000, quantityToBuy: 2500, status: "Recebido", createdAt: "2026-05-02", updatedAt: "2026-05-05" }
-  ],
+  clients: [],
+  contracts: [],
+  agenda: [],
+  purchases: [],
   employees: DEFAULT_EMPLOYEES,
   routes: [],
   settings: {
-    companyName: 'DDSulf Dedetizadora',
-    cnpj: '00.000.000/0001-00',
-    headquartersAddress: 'Rua 33, 120 - Vila Santa Cecília, Volta Redonda - RJ',
-    city: 'Volta Redonda',
-    state: 'RJ',
-    phone: '(24) 3344-5566',
+    companyName: '',
+    cnpj: '',
+    headquartersAddress: '',
+    city: '',
+    state: '',
+    phone: '',
     maxReturnRatePercent: 8,
     ipcaReferencePercent: 4.6,
     operationalGoals: {
-      targetServicesPerMonth: 120,
-      minimumMarginPercent: 35,
+      targetServicesPerMonth: 0,
+      minimumMarginPercent: 20,
       costPerKm: 0,
-      variableExpensesPercent: 15,
+      variableExpensesPercent: 0,
       minMarginPercent: 20,
       targetMarginPercent: 35,
       costPerHour: 0,
@@ -1916,20 +1640,20 @@ export const useSystemStore = create<SystemState & SystemActions>()(
         const id = `emp-${Math.random().toString(36).substring(2, 9)}`;
         const newEmp: Employee = { ...employeeData, id };
         return updateCompanyData(state, {
-          employees: [...(state.employees || DEFAULT_EMPLOYEES), newEmp]
+          employees: [...(state.employees || []), newEmp]
         });
       }),
 
       updateEmployee: (id, data) => set((state) => updateCompanyData(state, {
-        employees: (state.employees || DEFAULT_EMPLOYEES).map(e => e.id === id ? { ...e, ...data } : e)
+        employees: (state.employees || []).map(e => e.id === id ? { ...e, ...data } : e)
       })),
 
       toggleEmployeeStatus: (id) => set((state) => updateCompanyData(state, {
-        employees: (state.employees || DEFAULT_EMPLOYEES).map(e => e.id === id ? { ...e, active: !e.active } : e)
+        employees: (state.employees || []).map(e => e.id === id ? { ...e, active: !e.active } : e)
       })),
 
       removeEmployee: (id) => set((state) => updateCompanyData(state, {
-        employees: (state.employees || DEFAULT_EMPLOYEES).filter(e => e.id !== id)
+        employees: (state.employees || []).filter(e => e.id !== id)
       })),
 
       updateSettings: (settings) => set((state) => {
@@ -2227,7 +1951,8 @@ export const useSystemStore = create<SystemState & SystemActions>()(
       }
     }),
     {
-      name: 'ddsulf_system_v2'
+      name: 'system_state',
+      storage: createJSONStorage(() => tenantZustandStorage)
     }
   )
 );

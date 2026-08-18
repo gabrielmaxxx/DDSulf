@@ -4,9 +4,10 @@
 
 import { TestCase, TestStatus, TestType, QualityReport } from '../types';
 import { INITIAL_TEST_CASES } from '../utils/testCases';
+import { tenantStorage } from '@/utils/storage';
 
-const QA_TESTS_KEY = 'ddsulf_qa_test_runs';
-const QA_REPORT_KEY = 'ddsulf_qa_latest_report';
+const QA_TESTS_KEY = 'qa_test_runs';
+const QA_REPORT_KEY = 'qa_latest_report';
 
 export class QAOrchestrationService {
   private testCases: TestCase[] = [];
@@ -18,7 +19,7 @@ export class QAOrchestrationService {
 
   private restoreState() {
     try {
-      const savedTests = localStorage.getItem(QA_TESTS_KEY);
+      const savedTests = tenantStorage.getItem(QA_TESTS_KEY);
       if (savedTests) {
         this.testCases = JSON.parse(savedTests);
       } else {
@@ -32,7 +33,7 @@ export class QAOrchestrationService {
 
   private persist() {
     try {
-      localStorage.setItem(QA_TESTS_KEY, JSON.stringify(this.testCases));
+      tenantStorage.setItem(QA_TESTS_KEY, JSON.stringify(this.testCases));
     } catch (e) {
       console.warn('QA persistence failure:', e);
     }
@@ -66,7 +67,7 @@ export class QAOrchestrationService {
     await new Promise(resolve => setTimeout(resolve, executionDelay));
 
     // Simulated probability of failure (very small, usually passes unless chaos is active)
-    const isChaosActive = localStorage.getItem('ddsulf_chaos_network_offline') === 'true';
+    const isChaosActive = tenantStorage.getItem('chaos_network_offline') === 'true';
     const failRate = isChaosActive && tc.type === TestType.RESILIENCE ? 0.7 : 0.03;
 
     if (Math.random() < failRate) {
@@ -111,7 +112,7 @@ export class QAOrchestrationService {
     const rawScore = (passedRatio * 80) + (coveragePercent * 0.2);
     
     // Check resilience factors
-    const isChaosOffline = localStorage.getItem('ddsulf_chaos_network_offline') === 'true';
+    const isChaosOffline = tenantStorage.getItem('chaos_network_offline') === 'true';
     const resilienceScore = isChaosOffline ? 78 : 98.4;
 
     const report: QualityReport = {
@@ -126,13 +127,13 @@ export class QAOrchestrationService {
       timestamp: Date.now()
     };
 
-    localStorage.setItem(QA_REPORT_KEY, JSON.stringify(report));
+    tenantStorage.setItem(QA_REPORT_KEY, JSON.stringify(report));
     return report;
   }
 
   public getLatestReport(): QualityReport {
     try {
-      const saved = localStorage.getItem(QA_REPORT_KEY);
+      const saved = tenantStorage.getItem(QA_REPORT_KEY);
       if (saved) return JSON.parse(saved);
     } catch {
       // fallback

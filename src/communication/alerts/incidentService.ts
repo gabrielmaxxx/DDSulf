@@ -6,6 +6,7 @@ import { IncidentLog, AlertCategory, AlertSeverity } from '../types';
 import PestFlowNotificationService from '../services/notificationService';
 import { db } from '../../firebase';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { tenantStorage } from '@/utils/storage';
 
 const MILISECONDS_ESC_INTERVAL = 30000; // Fast 30s escalation intervals for live simulation
 
@@ -28,7 +29,7 @@ export class PestFlowIncidentService {
   }
 
   private loadLocal() {
-    const saved = localStorage.getItem('pestflow_incident_logs');
+    const saved = tenantStorage.getItem('incident_logs');
     if (saved) {
       try {
         this.incidents = JSON.parse(saved);
@@ -39,7 +40,7 @@ export class PestFlowIncidentService {
   }
 
   private saveLocal() {
-    localStorage.setItem('pestflow_incident_logs', JSON.stringify(this.incidents));
+    tenantStorage.setItem('incident_logs', JSON.stringify(this.incidents));
     this.broadcast();
   }
 

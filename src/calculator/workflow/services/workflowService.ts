@@ -2,6 +2,7 @@ import { db, auth } from '@/services/firebase';
 import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { QuoteWorkflowState } from '../types';
 import { ProductCostItem, PricingBreakdown } from '../../types';
+import { tenantStorage } from '@/utils/storage';
 
 export const workflowService = {
   /**
@@ -86,9 +87,9 @@ export const workflowService = {
     } catch (e) {
       console.warn('Network timeout or permission deficit. Storing quote in Local Queue.');
       const localId = `local_quote_${Date.now()}`;
-      const localList = JSON.parse(localStorage.getItem('offline_quotes') || '[]');
+      const localList = JSON.parse(tenantStorage.getItem('offline_quotes') || '[]');
       localList.unshift({ ...payload, id: localId });
-      localStorage.setItem('offline_quotes', JSON.stringify(localList));
+      tenantStorage.setItem('offline_quotes', JSON.stringify(localList));
       return localId;
     }
   },
@@ -98,13 +99,13 @@ export const workflowService = {
    */
   trackAnalytics(eventAction: string, metadata: any): void {
     try {
-      const history = JSON.parse(localStorage.getItem('pestflow_workflow_analytics') || '[]');
+      const history = JSON.parse(tenantStorage.getItem('workflow_analytics') || '[]');
       history.push({
         event: eventAction,
         metadata,
         timestamp: new Date().toISOString()
       });
-      localStorage.setItem('pestflow_workflow_analytics', JSON.stringify(history.slice(-100))); // Cap at 100
+      tenantStorage.setItem('workflow_analytics', JSON.stringify(history.slice(-100))); // Cap at 100
     } catch {}
   }
 };

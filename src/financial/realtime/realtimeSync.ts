@@ -1,10 +1,11 @@
 import { costEngineService } from '../services/costEngineService';
+import { tenantStorage } from '@/utils/storage';
 
 /**
  * Robustly synchronizes offline draft snapshots when connectivity is restored
  */
 export async function synchronizeOfflineFinancialData(): Promise<{ synchronizedCount: number; errors: any[] }> {
-  const offlineSnapshots = JSON.parse(localStorage.getItem('ddsulf_financial_snapshots') || '[]');
+  const offlineSnapshots = JSON.parse(tenantStorage.getItem('financial_snapshots') || '[]');
   if (offlineSnapshots.length === 0) {
     return { synchronizedCount: 0, errors: [] };
   }
@@ -33,7 +34,7 @@ export async function synchronizeOfflineFinancialData(): Promise<{ synchronizedC
   }
 
   // Refreshes the local queue with any unsynced leftovers
-  localStorage.setItem('ddsulf_financial_snapshots', JSON.stringify(unsyncedBack));
+  tenantStorage.setItem('financial_snapshots', JSON.stringify(unsyncedBack));
 
   return {
     synchronizedCount: successCount,

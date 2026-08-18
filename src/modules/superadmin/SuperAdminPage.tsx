@@ -755,7 +755,7 @@ export function SuperAdminPage() {
                       </label>
                       <input
                         type="text"
-                        placeholder="Ex: ddsulf, dedetizadora-sul"
+                        placeholder="Ex: minha-empresa, dedetizadora-sul"
                         value={formEmpresaId}
                         onChange={(e) => setFormEmpresaId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                         required

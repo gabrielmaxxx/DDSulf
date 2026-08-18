@@ -5,6 +5,7 @@
 import { qaOrchestrationService } from './qaOrchestrationService';
 import { reliabilityAnalyticsService } from './reliabilityAnalyticsService';
 import { resilienceValidationService } from './resilienceValidationService';
+import { tenantStorage } from '@/utils/storage';
 
 export interface ReadinessGate {
   id: string;
@@ -16,7 +17,7 @@ export interface ReadinessGate {
   currentValue?: string;
 }
 
-const READINESS_CHECKLIST_KEY = 'ddsulf_production_readiness_checklist';
+const READINESS_CHECKLIST_KEY = 'production_readiness_checklist';
 
 export class ProductionReadinessService {
   private gates: ReadinessGate[] = [];
@@ -28,7 +29,7 @@ export class ProductionReadinessService {
 
   private restoreGates() {
     try {
-      const saved = localStorage.getItem(READINESS_CHECKLIST_KEY);
+      const saved = tenantStorage.getItem(READINESS_CHECKLIST_KEY);
       if (saved) {
         this.gates = JSON.parse(saved);
       } else {
@@ -84,7 +85,7 @@ export class ProductionReadinessService {
 
   private persist() {
     try {
-      localStorage.setItem(READINESS_CHECKLIST_KEY, JSON.stringify(this.gates));
+      tenantStorage.setItem(READINESS_CHECKLIST_KEY, JSON.stringify(this.gates));
     } catch (e) {
       console.warn('Readiness write failed:', e);
     }
@@ -116,7 +117,7 @@ export class ProductionReadinessService {
 
     const gate3 = this.gates.find(g => g.id === 'gate_03_tenant_segregation');
     if (gate3) {
-      const isBreached = localStorage.getItem('ddsulf_chaos_tenant_breach') === 'true';
+      const isBreached = tenantStorage.getItem('chaos_tenant_breach') === 'true';
       gate3.checked = !isLeakedContext() && !isBreached;
       gate3.currentValue = isBreached ? 'Leak Detectado!' : 'Criptografia Isolada';
     }
@@ -124,14 +125,14 @@ export class ProductionReadinessService {
     const gate4 = this.gates.find(g => g.id === 'gate_04_offline_cache');
     if (gate4) {
       // Offline validated if tests are green and no current active chaos blocking offline
-      const hasOfflineChaos = localStorage.getItem('ddsulf_chaos_network_offline') === 'true';
+      const hasOfflineChaos = tenantStorage.getItem('chaos_network_offline') === 'true';
       gate4.checked = !hasOfflineChaos;
       gate4.currentValue = hasOfflineChaos ? 'Simulado Off' : 'PWA Armazenamento Ativo';
     }
 
     const gate5 = this.gates.find(g => g.id === 'gate_05_latency_benchmark');
     if (gate5) {
-      const hasLatencyChaos = localStorage.getItem('ddsulf_chaos_latency') === 'true';
+      const hasLatencyChaos = tenantStorage.getItem('chaos_latency') === 'true';
       gate5.checked = !hasLatencyChaos;
       gate5.currentValue = hasLatencyChaos ? '3.5s (Acima SLA!)' : '24ms';
     }
@@ -162,14 +163,14 @@ export class ProductionReadinessService {
   }
 
   public resetReadiness() {
-    localStorage.removeItem(READINESS_CHECKLIST_KEY);
+    tenantStorage.removeItem(READINESS_CHECKLIST_KEY);
     this.restoreGates();
   }
 }
 
 function isLeakedContext(): boolean {
   try {
-    const issues = JSON.parse(localStorage.getItem('ddsulf_consistency_issues') || '[]');
+    const issues = JSON.parse(tenantStorage.getItem('consistency_issues') || '[]');
     return issues.some((is: any) => is.type === 'contract_violation' && !is.resolved);
   } catch {
     return false;

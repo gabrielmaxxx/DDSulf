@@ -5,8 +5,9 @@
 import { ReliabilityMetric } from '../types';
 import { qaOrchestrationService } from './qaOrchestrationService';
 import { resilienceValidationService } from './resilienceValidationService';
+import { tenantStorage } from '@/utils/storage';
 
-const SCORE_HISTORY_KEY = 'ddsulf_reliability_index_history';
+const SCORE_HISTORY_KEY = 'reliability_index_history';
 
 export class ReliabilityAnalyticsService {
   private scoreHistory: number[] = [99.8, 99.85, 99.82, 99.9, 99.92];
@@ -17,7 +18,7 @@ export class ReliabilityAnalyticsService {
 
   private restoreHistory() {
     try {
-      const saved = localStorage.getItem(SCORE_HISTORY_KEY);
+      const saved = tenantStorage.getItem(SCORE_HISTORY_KEY);
       if (saved) {
         this.scoreHistory = JSON.parse(saved);
       } else {
@@ -30,7 +31,7 @@ export class ReliabilityAnalyticsService {
 
   private persist() {
     try {
-      localStorage.setItem(SCORE_HISTORY_KEY, JSON.stringify(this.scoreHistory));
+      tenantStorage.setItem(SCORE_HISTORY_KEY, JSON.stringify(this.scoreHistory));
     } catch (e) {
       console.warn('Reliability history failed:', e);
     }
@@ -66,8 +67,8 @@ export class ReliabilityAnalyticsService {
   }
 
   public getLiveMetrics(): ReliabilityMetric[] {
-    const isOffline = localStorage.getItem('ddsulf_chaos_network_offline') === 'true';
-    const hasLatency = localStorage.getItem('ddsulf_chaos_latency') === 'true';
+    const isOffline = tenantStorage.getItem('chaos_network_offline') === 'true';
+    const hasLatency = tenantStorage.getItem('chaos_latency') === 'true';
 
     return [
       {

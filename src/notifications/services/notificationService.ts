@@ -5,10 +5,11 @@
 
 import { OperationalAlert, AlertSeverity, AlertCategory, NotificationPreference } from '../types';
 import { EventBusService } from '../events/eventBus';
+import { tenantStorage } from '@/utils/storage';
 
 export class NotificationService {
-  private static STORAGE_KEY = 'ddsulf_in_app_notices';
-  private static PREFS_KEY = 'ddsulf_notice_prefs';
+  private static STORAGE_KEY = 'in_app_notices';
+  private static PREFS_KEY = 'notice_prefs';
 
   private static changeListeners: Set<() => void> = new Set();
 
@@ -36,8 +37,7 @@ export class NotificationService {
    * Retrieves active in-app notices sorted by dynamic severity scores
    */
   public static getAlerts(): OperationalAlert[] {
-    if (typeof localStorage === 'undefined') return [];
-    const stored = localStorage.getItem(this.STORAGE_KEY);
+    const stored = tenantStorage.getItem(this.STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
   }
 
@@ -45,8 +45,6 @@ export class NotificationService {
    * Dispatches custom alerts to client terminal buffers, triggering EventBus announcements
    */
   public static dispatch(alert: OperationalAlert): void {
-    if (typeof localStorage === 'undefined') return;
-
     // Check preferences first
     const prefs = this.getPreferences();
     const catPref = prefs.find(p => p.category === alert.category);
@@ -75,14 +73,14 @@ export class NotificationService {
       if (index !== -1) {
         // Recycle target node timestamp instead of creating noise
         current[index].timestamp = Date.now();
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(current));
+        tenantStorage.setItem(this.STORAGE_KEY, JSON.stringify(current));
         this.notifyListeners();
         return;
       }
     }
 
     const updated = [alert, ...current].slice(0, 50); // Hardcap index max to keep mobile storage slim
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+    tenantStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
 
     // Announce event onto client bus
     EventBusService.publish(`alert.${alert.category}.${alert.severity}`, alert);
@@ -95,7 +93,7 @@ export class NotificationService {
   public static markAsRead(id: string): void {
     const current = this.getAlerts();
     const updated = current.map(item => item.id === id ? { ...item, isRead: true } : item);
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+    tenantStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
     this.notifyListeners();
   }
 
@@ -108,7 +106,7 @@ export class NotificationService {
       if (category && item.category !== category) return item;
       return { ...item, isRead: true };
     });
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+    tenantStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
     this.notifyListeners();
   }
 
@@ -116,7 +114,7 @@ export class NotificationService {
    * Fully clears read/un-read cache buffers
    */
   public static clearAll(): void {
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify([]));
+    tenantStorage.setItem(this.STORAGE_KEY, JSON.stringify([]));
     this.notifyListeners();
   }
 
@@ -124,8 +122,7 @@ export class NotificationService {
    * Configuration preferences getter
    */
   public static getPreferences(): NotificationPreference[] {
-    if (typeof localStorage === 'undefined') return [];
-    const stored = localStorage.getItem(this.PREFS_KEY);
+    const stored = tenantStorage.getItem(this.PREFS_KEY);
     if (stored) return JSON.parse(stored);
 
     // Dynamic Default Settings
@@ -136,7 +133,7 @@ export class NotificationService {
       { id: '4', category: 'analytics', enabledChannels: ['in_app'], minSeverity: 'medium' },
       { id: '5', category: 'sync', enabledChannels: ['in_app'], minSeverity: 'high' }
     ];
-    localStorage.setItem(this.PREFS_KEY, JSON.stringify(defaults));
+    tenantStorage.setItem(this.PREFS_KEY, JSON.stringify(defaults));
     return defaults;
   }
 
@@ -144,7 +141,7 @@ export class NotificationService {
    * Save user notification preferences back to memory
    */
   public static savePreferences(prefs: NotificationPreference[]): void {
-    localStorage.setItem(this.PREFS_KEY, JSON.stringify(prefs));
+    tenantStorage.setItem(this.PREFS_KEY, JSON.stringify(prefs));
   }
 }
 

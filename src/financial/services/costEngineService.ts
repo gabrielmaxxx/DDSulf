@@ -1,6 +1,7 @@
 import { db, auth } from '@/services/firebase';
 import { collection, addDoc, doc, setDoc, getDocs, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { FixedCostItem, VariableCostItem, CostAllocationSettings, OperationalFinancialSnapshot } from '../types';
+import { tenantStorage } from '@/utils/storage';
 
 export enum FinancialOperationType {
   CREATE = 'create',
@@ -59,7 +60,7 @@ export const costEngineService = {
     } catch (err) {
       if (err instanceof Error && (err.message.includes('offline') || err.message.includes('permission'))) {
         // Recover from local offline cache
-        return JSON.parse(localStorage.getItem('ddsulf_fixed_costs') || '[]');
+        return JSON.parse(tenantStorage.getItem('fixed_costs') || '[]');
       }
       handleFirestoreError(err, FinancialOperationType.LIST, path);
     }
@@ -72,7 +73,7 @@ export const costEngineService = {
     const path = 'financial_fixed_costs';
     try {
       // Offline fallback
-      localStorage.setItem('ddsulf_fixed_costs', JSON.stringify(items));
+      tenantStorage.setItem('fixed_costs', JSON.stringify(items));
 
       // Batch transactional upload to cloud firestore
       const batch = writeBatch(db);
@@ -106,7 +107,7 @@ export const costEngineService = {
       return snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
     } catch (err) {
       if (err instanceof Error && (err.message.includes('offline') || err.message.includes('permission'))) {
-        return JSON.parse(localStorage.getItem('ddsulf_variable_costs') || '[]');
+        return JSON.parse(tenantStorage.getItem('variable_costs') || '[]');
       }
       handleFirestoreError(err, FinancialOperationType.LIST, path);
     }
@@ -118,7 +119,7 @@ export const costEngineService = {
   async saveVariableCosts(items: VariableCostItem[]): Promise<void> {
     const path = 'financial_variable_costs';
     try {
-      localStorage.setItem('ddsulf_variable_costs', JSON.stringify(items));
+      tenantStorage.setItem('variable_costs', JSON.stringify(items));
 
       const batch = writeBatch(db);
       items.forEach(item => {
@@ -149,7 +150,7 @@ export const costEngineService = {
       return { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
     } catch (err) {
       if (err instanceof Error && (err.message.includes('offline') || err.message.includes('permission'))) {
-        const cached = localStorage.getItem('ddsulf_allocation_settings');
+        const cached = tenantStorage.getItem('allocation_settings');
         return cached ? JSON.parse(cached) : null;
       }
       handleFirestoreError(err, FinancialOperationType.LIST, path);
@@ -162,7 +163,7 @@ export const costEngineService = {
   async saveAllocationSettings(settings: CostAllocationSettings): Promise<void> {
     const path = 'financial_allocation_config';
     try {
-      localStorage.setItem('ddsulf_allocation_settings', JSON.stringify(settings));
+      tenantStorage.setItem('allocation_settings', JSON.stringify(settings));
       await setDoc(doc(db, path, settings.id), {
         ...settings,
         updatedAt: new Date().toISOString(),
@@ -183,9 +184,9 @@ export const costEngineService = {
   async saveTransactionalSnapshot(snapshot: OperationalFinancialSnapshot): Promise<void> {
     const path = 'financial_snapshots';
     try {
-      const offlineSnapshots = JSON.parse(localStorage.getItem('ddsulf_financial_snapshots') || '[]');
+      const offlineSnapshots = JSON.parse(tenantStorage.getItem('financial_snapshots') || '[]');
       offlineSnapshots.unshift(snapshot);
-      localStorage.setItem('ddsulf_financial_snapshots', JSON.stringify(offlineSnapshots));
+      tenantStorage.setItem('financial_snapshots', JSON.stringify(offlineSnapshots));
 
       await addDoc(collection(db, path), {
         ...snapshot,
@@ -208,11 +209,11 @@ export const costEngineService = {
     try {
       const snap = await getDocs(collection(db, path));
       if (snap.empty) {
-        return JSON.parse(localStorage.getItem('ddsulf_financial_snapshots') || '[]');
+        return JSON.parse(tenantStorage.getItem('financial_snapshots') || '[]');
       }
       return snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
     } catch (err) {
-      return JSON.parse(localStorage.getItem('ddsulf_financial_snapshots') || '[]');
+      return JSON.parse(tenantStorage.getItem('financial_snapshots') || '[]');
     }
   }
 };

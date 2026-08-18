@@ -3,6 +3,7 @@
  */
 
 import { db, auth } from '../../firebase';
+import { tenantStorage } from '@/utils/storage';
 import { 
   collection, 
   doc, 
@@ -113,25 +114,25 @@ class PestFlowNotificationService {
 
   private loadFromLocalStorage() {
     try {
-      const stored = localStorage.getItem('pestflow_notifications');
+      const stored = tenantStorage.getItem('notifications');
       if (stored) {
         this.notifications = JSON.parse(stored);
       }
-      const queueStored = localStorage.getItem('pestflow_notifications_offline_queue');
+      const queueStored = tenantStorage.getItem('notifications_offline_queue');
       if (queueStored) {
         this.offlineQueue = JSON.parse(queueStored);
       }
     } catch (e) {
-      console.error('Failed to load pestflow_notifications from local storage', e);
+      console.error('Failed to load notifications from local storage', e);
     }
   }
 
   private saveToLocalStorage() {
     try {
-      localStorage.setItem('pestflow_notifications', JSON.stringify(this.notifications));
-      localStorage.setItem('pestflow_notifications_offline_queue', JSON.stringify(this.offlineQueue));
+      tenantStorage.setItem('notifications', JSON.stringify(this.notifications));
+      tenantStorage.setItem('notifications_offline_queue', JSON.stringify(this.offlineQueue));
     } catch (e) {
-      console.error('Failed to save pestflow_notifications to local storage', e);
+      console.error('Failed to save notifications to local storage', e);
     }
   }
 
@@ -473,7 +474,7 @@ class PestFlowNotificationService {
     console.log(`[PestFlow Realtime Synchronizer] Replaying ${this.offlineQueue.length} offline operations...`);
     const queue = [...this.offlineQueue];
     this.offlineQueue = [];
-    localStorage.removeItem('pestflow_notifications_offline_queue');
+    tenantStorage.removeItem('notifications_offline_queue');
 
     queue.forEach(op => {
       if (op.type === 'create') {

@@ -19,21 +19,21 @@ import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function DisponibilidadeTecnicos() {
-  const { quotes, agenda } = useSystemStore();
+  const { quotes, agenda, employees } = useSystemStore();
   const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, 1 = next week, etc.
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCell, setSelectedCell] = useState<{ techName: string; dateStr: string; formattedDate: string } | null>(null);
 
-  // Fallback / default DDSulf active technicians to populate a rich default workforce if none exists of if they have low events
-  const defaultTechnicians = useMemo(() => [
-    { name: "Carlos Souza", role: "Técnico Aplicador Sr.", color: "bg-emerald-500" },
-    { name: "Roberto Dias", role: "Técnico de Campo Pl.", color: "bg-sky-500" },
-    { name: "Ana Carolina", role: "Engenheira Química / Responsável", color: "bg-purple-500" },
-    { name: "Marcos Silva", role: "Auxiliar Operacional", color: "bg-amber-500" }
-  ], []);
-
-  // Compute all unique technicians currently in system, combined with our default workforce
+  // Compute all unique technicians currently in system
   const techniciansList = useMemo(() => {
+    const fromEmployees = (employees || [])
+      .filter(e => e.active !== false && (e.role === 'tecnico' || !e.role))
+      .map(e => ({
+        name: e.name,
+        role: e.role === 'tecnico' ? 'Técnico Aplicador' : (e.role || 'Colaborador'),
+        color: 'bg-[#1B3A2D]'
+      }));
+
     const fromQuotes = (quotes?.list || [])
       .map(q => q.scheduledTechnician)
       .filter((t): t is string => !!t && t.trim().length > 0);
@@ -45,25 +45,19 @@ export function DisponibilidadeTecnicos() {
       })
       .filter((t): t is string => !!t);
 
-    const uniqueFound = Array.from(new Set([...fromQuotes, ...fromAgenda]));
+    const allNames = Array.from(new Set([...fromEmployees.map(e => e.name), ...fromQuotes, ...fromAgenda]));
     
-    // Merge found list with default ones cleanly
-    const merged = [...uniqueFound];
-    defaultTechnicians.forEach(def => {
-      if (!merged.some(m => m.toLowerCase() === def.name.toLowerCase())) {
-        merged.push(def.name);
-      }
-    });
+    const palette = ['bg-[#1B3A2D]', 'bg-emerald-600', 'bg-sky-600', 'bg-purple-600', 'bg-amber-600', 'bg-indigo-600'];
 
-    return merged.map(name => {
-      const defMatch = defaultTechnicians.find(d => d.name.toLowerCase() === name.toLowerCase());
+    return allNames.map((name, idx) => {
+      const matchEmp = fromEmployees.find(e => e.name.toLowerCase() === name.toLowerCase());
       return {
         name,
-        role: defMatch?.role || "Operador Saneamento DDSulf",
-        color: defMatch?.color || "bg-slate-400"
+        role: matchEmp?.role || 'Técnico de Campo',
+        color: palette[idx % palette.length]
       };
     });
-  }, [quotes?.list, agenda, defaultTechnicians]);
+  }, [employees, quotes?.list, agenda]);
 
   // Filter tech list by search input
   const filteredTechnicians = useMemo(() => {
@@ -207,7 +201,7 @@ export function DisponibilidadeTecnicos() {
             Disponibilidade de Técnicos
           </h2>
           <p className="text-xs font-medium text-slate-450 mt-1">
-            Gestão inteligente de capacidade e grade horária semanal de técnicos de campo de DDSulf.
+            Gestão inteligente de capacidade e grade horária semanal de técnicos de campo.
           </p>
         </div>
 
@@ -330,7 +324,16 @@ export function DisponibilidadeTecnicos() {
             </div>
 
             {/* GRID BODY */}
-            {filteredTechnicians.length === 0 ? (
+            {techniciansList.length === 0 ? (
+              <div className="py-12 px-4 text-center">
+                <p className="text-slate-500 font-semibold text-xs mb-1">
+                  Nenhum técnico ou aplicador cadastrado no momento.
+                </p>
+                <p className="text-slate-400 text-[11px] max-w-md mx-auto">
+                  Cadastre seus colaboradores no menu <strong className="text-slate-600">Funcionários</strong> para acompanhar a disponibilidade, escalas e carregamento de ordens de serviço.
+                </p>
+              </div>
+            ) : filteredTechnicians.length === 0 ? (
               <div className="py-12 text-center text-slate-400 font-bold text-xs">
                 Nenhum técnico encontrado para o termo "{searchTerm}".
               </div>

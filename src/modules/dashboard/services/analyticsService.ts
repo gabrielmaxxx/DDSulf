@@ -45,10 +45,11 @@ export const analyticsService = {
 
   generateInsights(quotes: Quote[], costs: FinancialCost[], revenues: Revenue[]): HistoricalInsight[] {
     const insights: HistoricalInsight[] = [];
+    if (!quotes || quotes.length === 0) {
+      return insights;
+    }
 
-    const avgMargin = quotes.length > 0 
-      ? quotes.reduce((acc, q) => acc + q.estimatedMargin, 0) / quotes.length 
-      : 0;
+    const avgMargin = quotes.reduce((acc, q) => acc + q.estimatedMargin, 0) / quotes.length;
 
     if (avgMargin < 35) {
       insights.push({

@@ -4,6 +4,7 @@
  */
 
 import { RealtimeListenerDiagnostic, OfflineSyncSimulation } from '@/types/qa';
+import { tenantStorage } from '@/utils/storage';
 
 class QAMonitoringService {
   private listeners: RealtimeListenerDiagnostic[] = [];
@@ -14,24 +15,26 @@ class QAMonitoringService {
   }
 
   private seedDiagnostics() {
+    const tenantId = tenantStorage.getEmpresaId() || 'matriz';
+
     this.listeners = [
       {
         listenerId: 'lis_rt_tenants',
-        collectionPath: 'tenants/ddsulf_matriz',
+        collectionPath: `tenants/${tenantId}`,
         eventsReceivedCount: 142,
         lastReceivedAt: new Date(Date.now() - 5000).toISOString(),
         status: 'healthy_stream'
       },
       {
         listenerId: 'lis_rt_inventory',
-        collectionPath: 'tenants/ddsulf_matriz/inventory',
+        collectionPath: `tenants/${tenantId}/inventory`,
         eventsReceivedCount: 981,
         lastReceivedAt: new Date(Date.now() - 15000).toISOString(),
         status: 'healthy_stream'
       },
       {
         listenerId: 'lis_rt_billing',
-        collectionPath: 'tenants/ddsulf_matriz/billing',
+        collectionPath: `tenants/${tenantId}/billing`,
         eventsReceivedCount: 42,
         lastReceivedAt: new Date(Date.now() - 3600000).toISOString(),
         status: 'listening'

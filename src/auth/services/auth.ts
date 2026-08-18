@@ -46,8 +46,15 @@ export class AuthService {
    * Technical Email identity login bypass
    */
   static async loginWithEmail(email: string, password: string, empresaId?: string): Promise<UserProfile> {
-    const activeTenant = empresaId || localStorage.getItem('pestflow_tenant_id') || 'ddsulf';
+    const activeTenant = (empresaId || localStorage.getItem('pestflow_tenant_id') || '').trim();
     const loginUser = email.includes('@') ? email.split('@')[0] : email;
+    const isMaster = loginUser === 'master' || email.includes('master');
+
+    if (!activeTenant && !isMaster) {
+      throw new Error('Não foi possível identificar sua empresa. Informe o código da empresa para continuar.');
+    }
+
+    const tenantToUse = activeTenant || 'master_tenant';
 
     try {
       // Primary authentication via backend login (generates Firebase Custom Token without requiring Email Provider in Console)
@@ -57,7 +64,7 @@ export class AuthService {
         body: JSON.stringify({
           email,
           password,
-          empresaId: activeTenant,
+          empresaId: tenantToUse,
           login: loginUser,
           username: loginUser
         })
@@ -67,7 +74,7 @@ export class AuthService {
         const data = await res.json();
         if (data.customToken) {
           localStorage.setItem('pestflow_auth_token', data.customToken);
-          localStorage.setItem('pestflow_tenant_id', activeTenant);
+          localStorage.setItem('pestflow_tenant_id', tenantToUse);
           
           try {
             const userCredential = await signInWithCustomToken(auth, data.customToken);
@@ -98,10 +105,10 @@ export class AuthService {
         const fallbackProfile: UserProfile = {
           uid: isMaster ? 'master_superadmin_uid' : `user_${Date.now()}`,
           email,
-          name: isMaster ? 'Gabriel - Super Admin Master' : `${loginUser.toUpperCase()} (${activeTenant})`,
+          name: isMaster ? 'Gabriel - Super Admin Master' : `${loginUser.toUpperCase()} (${tenantToUse})`,
           role: isMaster ? 'master' : 'admin',
           status: 'active',
-          empresaId: activeTenant,
+          empresaId: tenantToUse,
           isSuperAdmin: isMaster,
           permissions: {},
           createdAt: new Date().toISOString(),
@@ -109,7 +116,7 @@ export class AuthService {
           lastLogin: new Date().toISOString(),
         };
         localStorage.setItem('pestflow_auth_token', 'master_superadmin_token');
-        localStorage.setItem('pestflow_tenant_id', activeTenant);
+        localStorage.setItem('pestflow_tenant_id', tenantToUse);
         return fallbackProfile;
       }
 

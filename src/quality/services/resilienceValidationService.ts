@@ -4,8 +4,9 @@
 
 import { ChaosExperiment } from '../types';
 import { INITIAL_CHAOS_EXPERIMENTS } from '../utils/testCases';
+import { tenantStorage } from '@/utils/storage';
 
-const CHAOS_EXPERIMENTS_KEY = 'ddsulf_chaos_experiments';
+const CHAOS_EXPERIMENTS_KEY = 'chaos_experiments';
 
 export class ResilienceValidationService {
   private experiments: ChaosExperiment[] = [];
@@ -17,7 +18,7 @@ export class ResilienceValidationService {
 
   private restoreExperiments() {
     try {
-      const saved = localStorage.getItem(CHAOS_EXPERIMENTS_KEY);
+      const saved = tenantStorage.getItem(CHAOS_EXPERIMENTS_KEY);
       if (saved) {
         this.experiments = JSON.parse(saved);
       } else {
@@ -31,7 +32,7 @@ export class ResilienceValidationService {
 
   private persist() {
     try {
-      localStorage.setItem(CHAOS_EXPERIMENTS_KEY, JSON.stringify(this.experiments));
+      tenantStorage.setItem(CHAOS_EXPERIMENTS_KEY, JSON.stringify(this.experiments));
     } catch (e) {
       console.warn('Chaos persistence write fail:', e);
     }
@@ -60,8 +61,8 @@ export class ResilienceValidationService {
     exp.status = 'active';
     this.persist();
 
-    // Trigger visual simulation flag in localStorage for app behavior hooks
-    localStorage.setItem(`ddsulf_chaos_${exp.injectedFailureType}`, 'true');
+    // Trigger visual simulation flag in tenantStorage for app behavior hooks
+    tenantStorage.setItem(`chaos_${exp.injectedFailureType}`, 'true');
 
     // Simulate duration of direct systemic threat
     await new Promise(resolve => setTimeout(resolve, 2500));
@@ -78,7 +79,7 @@ export class ResilienceValidationService {
     const exp = this.experiments.find(e => e.id === id);
     if (exp) {
       exp.status = 'idle';
-      localStorage.removeItem(`ddsulf_chaos_${exp.injectedFailureType}`);
+      tenantStorage.removeItem(`chaos_${exp.injectedFailureType}`);
       this.persist();
     }
   }
@@ -86,7 +87,7 @@ export class ResilienceValidationService {
   public stopAllExperiments() {
     this.experiments.forEach(e => {
       e.status = 'idle';
-      localStorage.removeItem(`ddsulf_chaos_${e.injectedFailureType}`);
+      tenantStorage.removeItem(`chaos_${e.injectedFailureType}`);
     });
     this.persist();
   }
