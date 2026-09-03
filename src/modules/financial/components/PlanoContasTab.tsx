@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '@/components/ui/card';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription 
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useSystemStore, FinancialMovement } from '@/store';
 import { 
@@ -463,26 +469,19 @@ export function PlanoContasTab() {
         </div>
       </div>
 
-      {/* Manual Insertion Dynamic Modal / Panel */}
-      {isFormOpen && (
-        <div className="fixed inset-0 bg-black/45 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <Card className="bg-white border border-[#E8E6E1] rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 md:p-8 space-y-6 text-left">
-            <div className="flex justify-between items-start border-b border-[#E8E6E1] pb-4">
-              <div>
-                <h3 className="font-display text-xl font-bold text-[#141410]">
-                  {editingId ? 'Editar Lançamento' : 'Novo Lançamento Manual'}
-                </h3>
-                <p className="text-xs text-[#6B6B5F]">Toda movimentação financeira deve ser automaticamente classificada.</p>
-              </div>
-              <button 
-                onClick={() => setIsFormOpen(false)}
-                className="text-[#6B6B5F] hover:text-[#141410] font-sans font-bold text-xs"
-              >
-                [ FECHAR ]
-              </button>
-            </div>
+      {/* Dialog Oficial: Novo Lançamento Manual / Editar Lançamento */}
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent size="md" className="sm:max-w-xl p-6 md:p-8 text-left max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="border-b border-[#E8E6E1] pb-4 pr-6">
+            <DialogTitle className="font-display text-xl font-bold text-[#141410]">
+              {editingId ? 'Editar Lançamento' : 'Novo Lançamento Manual'}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-[#6B6B5F]">
+              Toda movimentação financeira deve ser automaticamente classificada.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleSaveMovement} className="space-y-4 text-xs font-sans">
+          <form onSubmit={handleSaveMovement} className="space-y-4 text-xs font-sans mt-2">
               
               {/* Lançamento / Descrição */}
               <div className="space-y-1.5">
@@ -652,10 +651,9 @@ export function PlanoContasTab() {
                 </Button>
               </div>
 
-            </form>
-          </Card>
-        </div>
-      )}
+          </form>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
