@@ -59,8 +59,13 @@ import {
 } from 'recharts';
 
 import { FileUpload, UploadedFile } from '@/components/FileUpload';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SpreadsheetImportTab } from './components/SpreadsheetImportTab';
 import { PlanoContasTab } from './components/PlanoContasTab';
+import { NewTransactionDialog } from './components/NewTransactionDialog';
+import { ServiceDREDetailDialog } from './components/ServiceDREDetailDialog';
+import { ClientBillingDetailDialog } from './components/ClientBillingDetailDialog';
+import { FinancialDetailedAnalysis } from './components/FinancialDetailedAnalysis';
 import { formatBRL, formatPercent, formatDate } from '@/utils/format';
 
 const COLORS = ['#1B3A2D', '#2D6A4F', '#D4A017', '#C1361A', '#7C6F5B', '#A8CDB8', '#3F51B5'];
@@ -106,34 +111,6 @@ export function FinancialPage() {
   const [isNewTxOpen, setIsNewTxOpen] = useState(false);
   const [newTxType, setNewTxType] = useState<'RECEITAS' | 'DESPESAS'>('RECEITAS');
   const [selectedClientDetail, setSelectedClientDetail] = useState<Client | null>(null);
-
-  // Form States for quick transaction form
-  const [txDescription, setTxDescription] = useState('');
-  const [txCategory, setTxCategory] = useState('RECEITAS');
-  const [txSubcategory, setTxSubcategory] = useState('');
-  const [txValue, setTxValue] = useState('');
-  const [txPaymentMethod, setTxPaymentMethod] = useState('Pix');
-  const [txCostCenter, setTxCostCenter] = useState('Geral');
-  const [txDueDate, setTxDueDate] = useState(new Date().toISOString().split('T')[0]);
-  const [txIsPaid, setTxIsPaid] = useState(true);
-
-  // Quick category reset on transactional type click
-  useEffect(() => {
-    if (newTxType === 'RECEITAS') {
-      setTxCategory('RECEITAS');
-      setTxSubcategory('Dedetização');
-    } else {
-      setTxCategory('DESPESAS OPERACIONAIS');
-      setTxSubcategory('Combustível');
-    }
-  }, [newTxType]);
-
-  useEffect(() => {
-    const list = GROUPS_STRUCTURE[txCategory as keyof typeof GROUPS_STRUCTURE] || [];
-    if (list.length > 0 && !list.includes(txSubcategory)) {
-      setTxSubcategory(list[0]);
-    }
-  }, [txCategory]);
 
   // Pricing Goals configuration form states
   const [vehicleRental, setVehicleRental] = useState(financial.fixedCosts?.vehicleRental || 0);
@@ -745,40 +722,6 @@ export function FinancialPage() {
     setActiveTab('painel');
   };
 
-  const handleCreateTransaction = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const valueNum = parseFloat(txValue);
-    if (!txDescription || isNaN(valueNum) || valueNum <= 0) {
-      toast.error('Preencha todos os campos obrigatórios corretamente.');
-      return;
-    }
-
-    // Deduct direct expenses in backend standard (Despesa is negative)
-    const signedValue = txCategory === 'RECEITAS' ? valueNum : -valueNum;
-
-    addFinancialMovement({
-      date: new Date().toISOString().split('T')[0],
-      description: txDescription,
-      category: txCategory,
-      subcategory: txSubcategory,
-      value: signedValue,
-      paymentMethod: txPaymentMethod,
-      costCenter: txCostCenter,
-      dueDate: txDueDate,
-      isPaid: txIsPaid
-    });
-
-    toast.success('Fluxo Reconciliado com Sucesso!', {
-      description: `Lançamento "${txDescription}" no valor de R$ ${valueNum.toLocaleString('pt-BR')} computado ao Plano de Contas.`
-    });
-
-    // Reset Form
-    setTxDescription('');
-    setTxValue('');
-    setIsNewTxOpen(false);
-  };
-
   const handleExportCSVReport = () => {
     // Generate clean CSV representation of active movements
     try {
@@ -898,72 +841,54 @@ export function FinancialPage() {
       </div>
 
       {/* Primary Navigation Shell */}
-      <div className="flex flex-wrap p-1.5 bg-[#F0EDE8]/60 border border-slate-200/60 rounded-2xl w-fit gap-1 shadow-inner">
-        <button
-          onClick={() => setActiveTab('painel')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'painel' ? 'bg-[#1B3A2D] text-white shadow-sm' : 'text-[#6B6B5F] hover:text-[#141410]'
-          }`}
-        >
-          <Gauge className="size-4" />
-          Painel Executivo
-        </button>
-
-        <button
-          onClick={() => setActiveTab('servicos')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'servicos' ? 'bg-[#1B3A2D] text-white shadow-sm' : 'text-[#6B6B5F] hover:text-[#141410]'
-          }`}
-        >
-          <Briefcase className="size-4" />
-          DRE por Serviço
-        </button>
-
-        <button
-          onClick={() => setActiveTab('lancamentos')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'lancamentos' ? 'bg-[#1B3A2D] text-white shadow-sm' : 'text-[#6B6B5F] hover:text-[#141410]'
-          }`}
-        >
-          <Layers className="size-4" />
-          Lançamentos Reconciliados
-        </button>
-
-        <button
-          onClick={() => setActiveTab('caixa')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'caixa' ? 'bg-[#1B3A2D] text-white shadow-sm' : 'text-[#6B6B5F] hover:text-[#141410]'
-          }`}
-        >
-          <Clock className="size-4" />
-          Projeção de Caixa
-        </button>
-
-        <button
-          onClick={() => setActiveTab('planilha')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'planilha' ? 'bg-[#1B3A2D] text-white shadow-sm' : 'text-[#6B6B5F] hover:text-[#141410]'
-          }`}
-        >
-          <Sparkles className="size-4" />
-          Auditoria de Planilhas
-        </button>
-      </div>
-
-
-      {/* ----------------------------------------------------
-          TAB SWITCHBOARD
-          ---------------------------------------------------- */}
-      <AnimatePresence mode="wait">
-        {activeTab === 'painel' && (
-          <motion.div
-            key="dashboard-view"
-            className="space-y-6"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => setActiveTab(val as any)}
+        className="w-full space-y-6"
+      >
+        <TabsList className="h-auto p-1.5 bg-[#F0EDE8]/60 border border-slate-200/60 rounded-2xl w-fit gap-1 shadow-inner flex-wrap">
+          <TabsTrigger
+            value="painel"
+            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
           >
+            <Gauge className="size-4" />
+            Painel Executivo
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="servicos"
+            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+          >
+            <Briefcase className="size-4" />
+            DRE por Serviço
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="lancamentos"
+            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+          >
+            <Layers className="size-4" />
+            Lançamentos Reconciliados
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="caixa"
+            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+          >
+            <Clock className="size-4" />
+            Projeção de Caixa
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="planilha"
+            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+          >
+            <Sparkles className="size-4" />
+            Auditoria de Planilhas
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="painel" className="space-y-6">
             {/* Banner Configurações de Precificação/Markup */}
             <div className="bg-emerald-50 border border-emerald-100/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-left shadow-2xs">
               <div className="flex items-center gap-3">
@@ -1394,338 +1319,24 @@ export function FinancialPage() {
             </div>
 
 
-            {/* SECTION 6: ANALISES (GRID CORE AREA) */}
-            <h3 className="text-lg font-black uppercase text-slate-700 tracking-wider pt-4 text-left font-display">
-              Strategic Financial Evaluations
-            </h3>
-
-            <div className="grid gap-6 lg:grid-cols-12 text-left" id="secao-analises">
-              
-              {/* SUBSECTION: RENTABILIDADE POR SERVIÇO (12 columns) */}
-              <div className="lg:col-span-12 bg-white border border-slate-200 rounded-3xl p-6 flex flex-col justify-between shadow-xs">
-                <div className="space-y-4">
-                  <div className="border-b border-slate-100 pb-3">
-                    <h3 className="text-sm font-black uppercase tracking-wider text-[#141410] flex items-center gap-2">
-                      <Percent className="size-4.5 text-emerald-800" />
-                      Rentabilidade por Tipo de Inseticidas / Serviços
-                    </h3>
-                    <p className="text-xs text-[#6B6B5F]">Margens líquidas calculadas após descontar compras de insumos e tempo técnico rural.</p>
-                  </div>
-
-                  {serviceRankings.highest && serviceRankings.lowest && (
-                    <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
-                      <div className="bg-emerald-50/50 border border-emerald-150 rounded-xl p-3">
-                        <span className="text-[9px] font-extrabold text-emerald-700 uppercase tracking-widest block">Líder em Margem</span>
-                        <h5 className="font-extrabold text-slate-900 mt-1">{serviceRankings.highest.name}</h5>
-                        <span className="font-mono text-emerald-700 font-extrabold block text-sm mt-0.5">{serviceRankings.highest.margin.toFixed(2)}%</span>
-                      </div>
-                      <div className="bg-amber-50/50 border border-amber-150 rounded-xl p-3">
-                        <span className="text-[9px] font-extrabold text-amber-700 uppercase tracking-widest block">Margem Crítica (Diluição)</span>
-                        <h5 className="font-extrabold text-slate-900 mt-1">{serviceRankings.lowest.name}</h5>
-                        <span className="font-mono text-amber-700 font-extrabold block text-sm mt-0.5">{serviceRankings.lowest.margin.toFixed(2)}%</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Split Grid for Table and Bar Chart side-by-side */}
-                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 pt-2">
-                    
-                    {/* Left: Table */}
-                    <div className="xl:col-span-7 overflow-x-auto">
-                      <table className="w-full text-xs font-sans">
-                        <thead>
-                          <tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                            <th className="py-2.5 px-3 text-left">Canal / Serviço</th>
-                            <th className="py-2.5 px-3 text-right">Faturamento</th>
-                            <th className="py-2.5 px-3 text-right">Custos Diretos</th>
-                            <th className="py-2.5 px-3 text-right">Margem Pura</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {profitabilityByService.map(srv => {
-                            const isHighest = serviceRankings.highest?.id === srv.id;
-                            const isLowest = serviceRankings.lowest?.id === srv.id;
-                            return (
-                              <tr key={srv.id} className="hover:bg-slate-50/30 font-medium">
-                                <td className="py-3 px-3">
-                                  <div className="space-y-0.5">
-                                    <p className="font-semibold text-slate-800">{srv.name}</p>
-                                    <p className="text-[10px] text-slate-400">{srv.qty} execuções no período</p>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-3 text-right font-mono">
-                                  R$ {srv.revenue.toLocaleString('pt-BR')}
-                                </td>
-                                <td className="py-3 px-3 text-right font-mono text-slate-500">
-                                  R$ {srv.costs.toLocaleString('pt-BR')}
-                                </td>
-                                <td className="py-3 px-3 text-right font-mono">
-                                  <span className={`px-2 py-0.5 rounded-lg border font-bold ${
-                                    isHighest 
-                                      ? 'bg-[#EBFDF5] border-emerald-250 text-emerald-800' 
-                                      : isLowest
-                                        ? 'bg-rose-50 border-rose-200 text-rose-800'
-                                        : 'bg-slate-50 border-slate-200 text-slate-700'
-                                  }`}>
-                                    {srv.margin.toFixed(2)}%
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Right: Bar Chart illustrating margins with adaptive highlighting */}
-                    <div className="xl:col-span-5 bg-[#FAF9F5]/70 border border-slate-200/55 p-5 rounded-2xl flex flex-col justify-between">
-                      <div className="space-y-1 mb-4 text-left">
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-widest">Comparativo de Margem da Carteira</h4>
-                        <p className="text-[11px] text-slate-500 leading-normal">Representação visual do aproveitamento líquido real por tipo de atendimento.</p>
-                      </div>
-
-                      <div className="h-[210px] w-full" id="rentabilidade-chart-holder">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={profitabilityByService} margin={{ top: 10, right: 10, left: -25, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#F1F0EC" />
-                            <XAxis dataKey="name" stroke="#6B6B5F" style={{ fontSize: '9px', fontWeight: 'bold' }} />
-                            <YAxis stroke="#6B6B5F" style={{ fontSize: '9px' }} tickFormatter={(val) => `${val}%`} domain={[0, 100]} />
-                            <Tooltip 
-                              formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Margem de Lucro']} 
-                              contentStyle={{ borderRadius: '12px', borderColor: '#E8E6E1', backgroundColor: '#FFF', fontSize: '11px', textAlign: 'left' }}
-                            />
-                            <Bar dataKey="margin" radius={[4, 4, 0, 0]} barSize={26}>
-                              {profitabilityByService.map((entry, index) => {
-                                const isHighest = serviceRankings.highest?.id === entry.id;
-                                const isLowest = serviceRankings.lowest?.id === entry.id;
-                                let fillColor = '#A8CDB8'; // Standard default (soft sage green)
-                                if (isHighest) fillColor = '#1B3A2D'; // Highest (deep forest green)
-                                if (isLowest) fillColor = '#C1361A'; // Lowest (deep crimson red)
-                                return <Cell key={`cell-${index}`} fill={fillColor} />;
-                              })}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-
-                      {/* Custom Legend detailing highest/lowest and standard margins */}
-                      <div className="flex flex-col gap-2.5 text-[10.5px] text-slate-600 border-t border-slate-200/50 pt-3 mt-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <span className="inline-block size-2 rounded-xs" style={{ backgroundColor: '#1B3A2D' }} />
-                            <span className="font-medium text-slate-500">Maior Margem (Performance Top)</span>
-                          </div>
-                          <span className="font-bold text-slate-800">{serviceRankings.highest?.name}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <span className="inline-block size-2 rounded-xs" style={{ backgroundColor: '#C1361A' }} />
-                            <span className="font-medium text-slate-500">Menor Desempenho (Alerta/Gargalo)</span>
-                          </div>
-                          <span className="font-bold text-slate-800">{serviceRankings.lowest?.name}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <span className="inline-block size-2 rounded-xs" style={{ backgroundColor: '#A8CDB8' }} />
-                            <span className="font-medium text-slate-500">Outros Procedimentos Padrão</span>
-                          </div>
-                          <span className="text-slate-400 font-medium">Margem Saudável</span>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-              </div>
-
-
-              {/* SUBSECTION: GARANTIAS - RETORNOS (6 columns) */}
-              <div className="lg:col-span-6 bg-white border border-slate-200 rounded-3xl p-6 flex flex-col justify-between shadow-xs">
-                <div className="space-y-4">
-                  <div className="border-b border-slate-100 pb-3">
-                    <h3 className="text-sm font-black uppercase tracking-wider text-[#141410] flex items-center gap-2">
-                      <Clock className="size-4.5 text-slate-500" />
-                      Análise de Qualidade Operacional e Garantias
-                    </h3>
-                    <p className="text-xs text-[#6B6B5F]">Acompanhamento de chamados de re-visitas sem faturamento que consomem reagentes e horas extras.</p>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-4 text-center">
-                    <div className="bg-[#FAF9F5] border border-slate-200 rounded-2xl p-4">
-                      <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider block">Qtde Retornos</span>
-                      <h4 className="text-2xl font-black font-semibold text-[#141410] font-mono mt-1">{operationalGuaranteeMetrics.qty}</h4>
-                    </div>
-
-                    <div className="bg-[#FAF9F5] border border-slate-200 rounded-2xl p-4">
-                      <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider block">Custo Gerado</span>
-                      <h4 className="text-xl font-black font-mono text-rose-700 mt-1.5">R$ {operationalGuaranteeMetrics.cost}</h4>
-                    </div>
-
-                    <div className="bg-[#FAF9F5] border border-slate-200 rounded-2xl p-4">
-                      <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider block">Químicos Cons.</span>
-                      <h4 className="text-xl font-black font-semibold text-slate-800 font-mono mt-1.5">{operationalGuaranteeMetrics.productsConsumed}</h4>
-                    </div>
-
-                    <div className="bg-[#FAF9F5] border border-slate-200 rounded-2xl p-4">
-                      <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider block">Horas Gastas</span>
-                      <h4 className="text-xl font-black font-semibold text-slate-800 font-mono mt-1.5">{operationalGuaranteeMetrics.hoursSpent}</h4>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#FFFDEB] border border-[#FFE9A3] p-4 rounded-2xl text-xs space-y-1 text-slate-800">
-                    <div className="flex items-center gap-1.5 font-bold text-amber-800">
-                      <AlertTriangle className="size-3.5" />
-                      <span>Impacto de Retornos sobre Receitas Totais</span>
-                    </div>
-                    <p className="leading-relaxed opacity-95">
-                      Garantias operacionais e re-dedetizações custaram <span className="font-bold underline text-[#C1361A]">R$ {operationalGuaranteeMetrics.cost.toLocaleString('pt-BR')}</span> ao caixa corporativo este mês. Isso causou vazamento de faturamento bruto equivalente a <span className="font-bold">{operationalGuaranteeMetrics.revWastePercent.toFixed(2)}%</span>.
-                    </p>
-                  </div>
-
-                  {warrantyQuotes.length > 0 && (
-                    <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
-                      <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider block">
-                        Lista de Atendimentos em Garantia ({warrantyQuotes.length})
-                      </span>
-                      <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
-                        {warrantyQuotes.map((q) => (
-                          <div key={q.id} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
-                            <div className="min-w-0 pr-2">
-                              <span className="font-bold text-slate-800 block truncate">{q.client.name}</span>
-                              <span className="text-[10px] text-slate-500 font-medium">{q.service.serviceType || q.service.pestType || 'Retorno de Garantia'} • {q.createdAt.slice(0, 10)}</span>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <span className="font-bold text-rose-700 block font-mono">R$ {(q.returnCost || q.costs?.total || 180).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                              <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">Garantia OS #{q.parentQuoteId || q.id}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-
-              {/* SUBSECTION: INADIMPLÊNCIA / CONTAS EM ATRASO (6 columns) */}
-              <div className="lg:col-span-6 bg-white border border-slate-200 rounded-3xl p-6 flex flex-col justify-between shadow-xs">
-                <div className="space-y-4">
-                  <div className="border-b border-slate-100 pb-3">
-                    <h3 className="text-sm font-black uppercase tracking-wider text-[#141410] flex items-center gap-2">
-                      <Users className="size-4.5 text-[#D4A017]" />
-                      Carteira de Recebíveis em Atraso (Cobrança Ativa)
-                    </h3>
-                    <p className="text-xs text-[#6B6B5F]">Visualização de faturamentos de serviços confirmados em atraso com duplicata em cobrança no cartório.</p>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs font-sans">
-                      <thead>
-                        <tr className="bg-slate-50 text-[9px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                          <th className="py-2.5 px-3">Cliente Operador</th>
-                          <th className="py-2.5 px-3 text-right font-semibold">Duplicata R$</th>
-                          <th className="py-2.5 px-3 text-center">Inadimplente</th>
-                          <th className="py-2.5 px-3 text-right">Ação</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {defaultDelinquentClients.map(cli => (
-                          <tr key={cli.id} className="hover:bg-slate-50/30">
-                            <td className="py-3 px-3">
-                              <div className="space-y-0.5">
-                                <p className="font-bold text-slate-800">{cli.name}</p>
-                                <p className="text-[10px] text-slate-400">{cli.details}</p>
-                              </div>
-                            </td>
-                            <td className="py-3 px-3 text-right font-mono font-extrabold text-[#C1361A]">
-                              R$ {cli.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td className="py-3 px-3 text-center">
-                              <span className="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded-lg">
-                                {cli.daysOverdue} dias
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 text-right">
-                              <button
-                                onClick={() => handleOpenClientDetails(cli.id)}
-                                className="px-3 py-1.5 bg-[#FAF9F5] border border-slate-200 rounded-lg hover:border-[#1B3A2D] hover:bg-[#1B3A2D] hover:text-white transition-all text-[10.5px] font-black uppercase tracking-wider cursor-pointer"
-                              >
-                                Abrir Cliente
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-
-              {/* SUBSECTION: DOCUMENTOS FISCAIS (6 columns) */}
-              <div className="lg:col-span-6 bg-white border border-slate-200 rounded-3xl p-6 flex flex-col justify-between shadow-xs">
-                <div className="space-y-4">
-                  <div className="border-b border-slate-100 pb-3">
-                    <h3 className="text-sm font-black uppercase tracking-wider text-[#141410] flex items-center gap-2">
-                      <FileUp className="size-4.5 text-[#1B3A2D]" />
-                      Lançamento de Boletos, Contratos e Notas Fiscais
-                    </h3>
-                    <p className="text-xs text-[#6B6B5F]">Organize sua central de furos de caixa rurais anexando arquivos operacionais no painel.</p>
-                  </div>
-
-                  {/* Document upload integration component */}
-                  <FileUpload 
-                    files={uploadedFiles} 
-                    onFilesChange={(update) => setUploadedFiles(update)}
-                    maxFiles={6} 
-                  />
-                </div>
-              </div>
-
-
-              {/* SUBSECTION: IA FINANCIAL INSIGHTS INTELLIGENTE */}
-              <div className="lg:col-span-12 bg-[#1B3A2D] text-white p-6 rounded-3xl border border-[#2D6A4F] shadow-lg">
-                <div className="flex items-center gap-2.5 border-b border-[#2D6A4F] pb-4 mb-4">
-                  <div className="p-2 bg-white/10 rounded-xl">
-                    <Sparkles className="size-5 text-yellow-400 animate-pulse" />
-                  </div>
-                  <div className="text-left">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[#A8CDB8]">PestFlow Advanced Financial Advisor</h3>
-                    <p className="text-[10.5px] text-emerald-100">Gatilhos operacionais interpretados pela IA baseados nos furos do Plano de Contas.</p>
-                  </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2 text-left text-xs font-sans">
-                  {financialInsightsMessages.map((ins, index) => (
-                    <div 
-                      key={index} 
-                      className="bg-white/5 border border-white/10 p-3.5 rounded-2xl leading-relaxed flex gap-2.5 items-start"
-                    >
-                      <Sparkle className={`size-3 shrink-0 mt-1 ${
-                        ins.type === 'critical' ? 'text-red-400' :
-                        ins.type === 'attention' ? 'text-yellow-400' : 'text-emerald-400'
-                      }`} />
-                      <p className="opacity-95">{ins.text}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-
-          </motion.div>
-        )}
+            {/* SECTION 6: ANALISES ESTRATÉGICAS (COLLAPSIBLE SECTIONS) */}
+            <FinancialDetailedAnalysis
+              profitabilityByService={profitabilityByService}
+              serviceRankings={serviceRankings}
+              operationalGuaranteeMetrics={operationalGuaranteeMetrics}
+              warrantyQuotes={warrantyQuotes}
+              defaultDelinquentClients={defaultDelinquentClients}
+              totalDelinquencyVolume={totalDelinquencyVolume}
+              onOpenClientDetails={handleOpenClientDetails}
+              uploadedFiles={uploadedFiles}
+              onFilesChange={setUploadedFiles}
+              financialInsightsMessages={financialInsightsMessages}
+              onNavigateToServicos={() => setActiveTab('servicos')}
+            />
+        </TabsContent>
 
         {/* TAB DRE POR SERVIÇO EXECUTADO */}
-        {activeTab === 'servicos' && (
-          <motion.div
-            key="servicos-view"
-            className="space-y-6 text-left"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-          >
+        <TabsContent value="servicos" className="space-y-6 text-left">
             {/* Header Banner */}
             <div className="bg-[#FAF9F6] border border-[#E8E6E1] rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-2xs">
               <div className="flex items-center gap-3.5">
@@ -1994,155 +1605,15 @@ export function FinancialPage() {
                 </table>
               </div>
             </div>
-
-            {/* DRE Detail Modal */}
-            <AnimatePresence>
-              {selectedQuoteForDREModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-white border border-[#E8E6E1] rounded-2xl max-w-lg w-full overflow-hidden shadow-xl text-left"
-                  >
-                    {/* Modal Header */}
-                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-[#FAF9F6]">
-                      <div>
-                        <h3 className="font-display font-black text-[#141410] text-xs uppercase tracking-wider">
-                          DRE do Serviço: OS #{selectedQuoteForDREModal.id}
-                        </h3>
-                        <p className="text-[11px] text-[#6B6B5F] mt-0.5">
-                          {selectedQuoteForDREModal.client?.name} — {selectedQuoteForDREModal.service?.serviceType}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedQuoteForDREModal(null)}
-                        className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                      >
-                        <X className="size-4" />
-                      </button>
-                    </div>
-
-                    {/* Modal Content */}
-                    <div className="p-6 space-y-4">
-                      {(() => {
-                        const q = selectedQuoteForDREModal;
-                        const state = useSystemStore.getState();
-                        const breakdown = q.dreBreakdown || calcularDREPorOS(q, state);
-                        const receita = Number(q.pricing?.finalPrice) || 0;
-                        const custoVariavel = Number(breakdown.variableCost) || Number(q.costs?.total) || 0;
-                        const custoFixoShare = Number(breakdown.fixedCostShare) || 0;
-                        const custoTotal = Number(breakdown.totalCost) || (custoVariavel + custoFixoShare);
-                        const lucroLiquido = Number(breakdown.netMargin) ?? (receita - custoTotal);
-                        const margemPct = Number(breakdown.netMarginPercent) ?? (receita > 0 ? (lucroLiquido / receita) * 100 : 0);
-
-                        return (
-                          <>
-                            {/* Detailed Table */}
-                            <div className="bg-[#FAF9F6] border border-[#E8E6E1] rounded-xl p-4 space-y-2.5 text-xs font-mono">
-                              <div className="flex justify-between items-center py-1 border-b border-slate-200/80">
-                                <span className="font-sans font-bold text-slate-700">Receita Bruta do Serviço</span>
-                                <span className="font-black text-slate-900">{formatBRL(receita)}</span>
-                              </div>
-
-                              <div className="flex justify-between items-center py-1 border-b border-slate-200/80 text-rose-700">
-                                <span className="font-sans font-medium text-slate-600">(-) Custo Variável Direto (Produtos + MO + Transp.)</span>
-                                <span>- {formatBRL(custoVariavel)}</span>
-                              </div>
-
-                              <div className="flex justify-between items-center py-1 border-b border-slate-200/80 text-rose-700">
-                                <span className="font-sans font-medium text-slate-600">(-) Rateio de Custos Fixos Operacionais</span>
-                                <span>- {formatBRL(custoFixoShare)}</span>
-                              </div>
-
-                              <div className="flex justify-between items-center py-1 border-b border-slate-200/80 font-bold text-slate-800">
-                                <span className="font-sans font-bold text-slate-700">(=) Custo Total do Serviço</span>
-                                <span className="text-rose-700">{formatBRL(custoTotal)}</span>
-                              </div>
-
-                              <div className="flex justify-between items-center pt-2 font-black text-sm">
-                                <span className="font-sans text-slate-900">(=) Lucro Operacional Líquido</span>
-                                <span className={lucroLiquido >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
-                                  {formatBRL(lucroLiquido)} ({formatPercent(margemPct)})
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Products Used Info */}
-                            {q.productsUsed && q.productsUsed.length > 0 && (
-                              <div className="space-y-1.5 pt-2">
-                                <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-wider font-sans">
-                                  Insumos Consumidos do Estoque
-                                </h4>
-                                <div className="space-y-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-mono">
-                                  {q.productsUsed.map((p, idx) => (
-                                    <div key={idx} className="flex justify-between text-[#141410]">
-                                      <span>{p.productName}</span>
-                                      <span className="font-bold">{p.quantity} {p.unit}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Service metadata */}
-                            <div className="grid grid-cols-2 gap-3 pt-2 text-[11px] text-slate-600 font-sans border-t border-slate-100">
-                              <div>
-                                <span className="font-bold block text-slate-800">Técnico Designado</span>
-                                {q.scheduledTechnician || 'Não informado'}
-                              </div>
-                              <div>
-                                <span className="font-bold block text-slate-800">Data de Confirmação</span>
-                                {q.confirmedAt ? formatDate(q.confirmedAt.substring(0, 10)) : (q.scheduledDate ? formatDate(q.scheduledDate) : 'N/A')}
-                              </div>
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </div>
-
-                    {/* Modal Footer */}
-                    <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedQuoteForDREModal(null)}
-                        className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[10px] font-black uppercase rounded-lg cursor-pointer"
-                      >
-                        Fechar
-                      </button>
-                    </div>
-                  </motion.div>
-                </div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        )}
+        </TabsContent>
 
         {/* TAB LANÇAMENTOS */}
-        {activeTab === 'lancamentos' && (
-          <motion.div
-            key="lancamentos-view"
-            className="space-y-4"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-          >
-            <PlanoContasTab />
-          </motion.div>
-        )}
+        <TabsContent value="lancamentos" className="space-y-4">
+          <PlanoContasTab />
+        </TabsContent>
 
         {/* TAB CAIXA (PROJEÇÃO DE CAIXA) */}
-        {activeTab === 'caixa' && (
-          <motion.div
-            key="caixa-view"
-            className="space-y-6"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-          >
+        <TabsContent value="caixa" className="space-y-6">
             {/* Header / Config Row */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl border border-slate-200 shadow-xs gap-4">
               <div className="text-left">
@@ -2428,263 +1899,38 @@ export function FinancialPage() {
               </div>
 
             </div>
-
-          </motion.div>
-        )}
+        </TabsContent>
 
         {/* TAB PLANILHA */}
-        {activeTab === 'planilha' && (
-          <motion.div
-            key="planilha-view"
-            className="space-y-4"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-          >
-            <SpreadsheetImportTab />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+        <TabsContent value="planilha" className="space-y-4">
+          <SpreadsheetImportTab />
+        </TabsContent>
+      </Tabs>
 
       {/* ----------------------------------------------------
-          MODAL: NEW TRANSACTION DIALOG (RECEITA / DESPESA)
+          MODALS / DIALOGS (4-LAYER PATTERN)
           ---------------------------------------------------- */}
-      {isNewTxOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200 text-left border border-slate-100 flex flex-col justify-between">
-            
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
-              <div className="space-y-0.5">
-                <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-md ${
-                  txCategory === 'RECEITAS' ? 'bg-[#EBFDF5] text-[#2D6A4F]' : 'bg-rose-50 text-rose-800'
-                }`}>
-                  {txCategory === 'RECEITAS' ? 'CONCILIAÇÃO ENTRADA' : 'CONCILIAÇÃO SAÍDA'}
-                </span>
-                <h3 className="font-extrabold text-base text-slate-800 mt-1">
-                  {txCategory === 'RECEITAS' ? 'Novo Faturamento Recebido' : 'Nova Baixa de Conta / Despesa'}
-                </h3>
-              </div>
-              
-              <button 
-                onClick={() => setIsNewTxOpen(false)}
-                className="size-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer shrink-0 transition-colors"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
+      <NewTransactionDialog
+        open={isNewTxOpen}
+        onOpenChange={setIsNewTxOpen}
+        defaultType={newTxType}
+      />
 
-            <form onSubmit={handleCreateTransaction} className="py-4 space-y-3.5 text-xs">
-              
-              {/* Description */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Descrição Comercial (Histórico)</label>
-                <input 
-                  type="text"
-                  placeholder="Ex: Serviço de Dedetização - Shopping das Flores"
-                  value={txDescription}
-                  onChange={(e) => setTxDescription(e.target.value)}
-                  className="w-full bg-slate-50/50 border border-slate-200 rounded-xl py-2.5 px-3.5 font-sans font-bold text-slate-800 outline-none focus:border-slate-800 focus:bg-white text-xs"
-                  required
-                />
-              </div>
+      <ServiceDREDetailDialog
+        quote={selectedQuoteForDREModal}
+        open={Boolean(selectedQuoteForDREModal)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedQuoteForDREModal(null);
+        }}
+      />
 
-              {/* Group Category */}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1 text-left">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Grupo Geral de Contas</label>
-                  <select
-                    value={txCategory}
-                    onChange={(e) => setTxCategory(e.target.value)}
-                    className="w-full bg-slate-50/50 border border-slate-200 rounded-xl py-2.5 px-3 font-semibold text-slate-700 text-xs"
-                  >
-                    {Object.keys(GROUPS_STRUCTURE).map(key => (
-                      <option key={key} value={key}>{CATEGORY_NAMES[key as keyof typeof CATEGORY_NAMES] || key}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Subcategory */}
-                <div className="space-y-1 text-left">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Subgrupo Técnico</label>
-                  <select
-                    value={txSubcategory}
-                    onChange={(e) => setTxSubcategory(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 font-semibold text-slate-700 text-xs"
-                  >
-                    {(GROUPS_STRUCTURE[txCategory as keyof typeof GROUPS_STRUCTURE] || []).map(sub => (
-                      <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Value & Payment Method */}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Valor Bruto R$</label>
-                  <input 
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="2500,00"
-                    value={txValue}
-                    onChange={(e) => setTxValue(e.target.value)}
-                    className="w-full bg-slate-50/50 border border-slate-200 rounded-xl py-2.5 px-3.5 font-mono font-bold text-slate-800 outline-none focus:border-slate-800 focus:bg-white text-xs"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1 text-left">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Meio de Recomutação</label>
-                  <select
-                    value={txPaymentMethod}
-                    onChange={(e) => setTxPaymentMethod(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 font-semibold text-slate-700 text-xs"
-                  >
-                    {['Pix', 'Boleto', 'Cartão de Crédito', 'Dinheiro', 'Transferência'].map(method => (
-                      <option key={method} value={method}>{method}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Cost Center & Due Date */}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1 text-left">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Centro de Custo Ativo</label>
-                  <select
-                    value={txCostCenter}
-                    onChange={(e) => setTxCostCenter(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 font-semibold text-slate-700 text-xs"
-                  >
-                    {COST_CENTERS.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Data Limite / Competência</label>
-                  <input 
-                    type="date"
-                    value={txDueDate}
-                    onChange={(e) => setTxDueDate(e.target.value)}
-                    className="w-full bg-slate-50/50 border border-slate-200 rounded-xl py-2.5 px-3.5 font-semibold text-slate-800 text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Instant paid toggler */}
-              <div className="flex items-center gap-2 pt-2">
-                <input 
-                  type="checkbox" 
-                  id="chk-is-paid"
-                  checked={txIsPaid}
-                  onChange={(e) => setTxIsPaid(e.target.checked)}
-                  className="size-4 accent-[#1B3A2D] shrink-0 cursor-pointer"
-                />
-                <label htmlFor="chk-is-paid" className="font-bold text-slate-700 select-none cursor-pointer">
-                  Marcar como Liquidado / Pago imediatamente em conta principal.
-                </label>
-              </div>
-
-              {/* Submit panel */}
-              <div className="flex gap-2.5 justify-end mt-4 border-t border-slate-100 pt-4">
-                <Button
-                  onClick={() => setIsNewTxOpen(false)}
-                  type="button"
-                  className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-50 transition-all cursor-pointer h-10"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  className="px-5 py-2 bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer h-10"
-                >
-                  Registrar Lançamento
-                </Button>
-              </div>
-
-            </form>
-          </div>
-        </div>
-      )}
-
-
-      {/* ----------------------------------------------------
-          MODAL: CLIENT BILLING DETAILS COBRANÇA
-          ---------------------------------------------------- */}
-      {selectedClientDetail && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200 text-left border border-slate-100 flex flex-col justify-between">
-            
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-base text-slate-800 flex items-center gap-1">
-                <Briefcase className="size-4.5 text-[#D4A017]" />
-                Ficha de Cobrança / Reconciliável
-              </h3>
-              <button 
-                onClick={() => setSelectedClientDetail(null)}
-                className="size-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer shrink-0 transition-colors"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-
-            <div className="py-4 space-y-4 text-xs">
-              <div className="space-y-1">
-                <label className="text-[9px] uppercase tracking-widest font-black text-slate-400 block">Razão Social / Nome Fantasia</label>
-                <p className="font-extrabold text-[#141410] text-sm flex items-center gap-1">
-                  <User className="size-4 text-slate-500" />
-                  {selectedClientDetail.name}
-                </p>
-                <p className="text-[10.5px] font-medium text-slate-500 font-mono">CNPJ/CPF: {selectedClientDetail.cnpjCpf || '⚠️ NÃO INFORMADO'}</p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2 pt-2 border-t border-slate-100">
-                <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Telefone Principal</span>
-                  <p className="font-semibold text-slate-700 flex items-center gap-1.5"><Phone className="size-3 text-slate-400" /> {selectedClientDetail.phone || '⚠️ NÃO INFORMADO'}</p>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">E-mail de Faturamento</span>
-                  <p className="font-semibold text-slate-700 truncate flex items-center gap-1.5"><Mail className="size-3 text-slate-400" /> {selectedClientDetail.email || '⚠️ NÃO INFORMADO'}</p>
-                </div>
-              </div>
-
-              <div className="space-y-1 pt-2 border-t border-slate-100">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block font-sans">Endereço de Notificação</span>
-                <p className="font-semibold text-[#141410] text-[11px] leading-relaxed">{selectedClientDetail.address || '⚠️ NÃO INFORMADO'}</p>
-              </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 leading-relaxed space-y-1.5 mt-2">
-                <p className="font-bold">⚠️ Procedimento Recomendado:</p>
-                <p>Entre em contato utilizando os dados acima para notificar pendências de OS confirmadas. Encaminhe o boleto PDF atualizado via e-mail e registre o estorno ou acordo no Plano de Contas.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-2.5 justify-end border-t border-slate-100 pt-4">
-              <Button
-                onClick={() => {
-                  toast.success(`Notificação automatizada enviada ao e-mail ${selectedClientDetail.email || 'geral'}`);
-                  setSelectedClientDetail(null);
-                }}
-                className="px-4 py-2 bg-[#1B3A2D] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#1B3A2D]/90 transition-all cursor-pointer h-10"
-              >
-                Gerar Cobrança por WhatsApp
-              </Button>
-              <Button
-                onClick={() => setSelectedClientDetail(null)}
-                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-slate-50 transition-all cursor-pointer h-10"
-              >
-                Fechar
-              </Button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
+      <ClientBillingDetailDialog
+        client={selectedClientDetail}
+        open={Boolean(selectedClientDetail)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedClientDetail(null);
+        }}
+      />
     </div>
   );
 }
