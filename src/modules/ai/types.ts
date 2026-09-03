@@ -22,3 +22,49 @@ export interface OperationalContext {
     byCategory: Record<string, number>;
   };
 }
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  sources?: string[];
+}
+
+export interface FavoriteItem {
+  id: string;
+  title: string;
+  query: string;
+  mode: 'chat' | 'analista' | 'consultor';
+  block?: string;
+}
+
+export interface HistoryItem {
+  id: string;
+  date: string;
+  type: 'chat' | 'analista' | 'consultor';
+  title: string;
+  query: string;
+  preview: string;
+}
+
+export interface AutomaticInsight {
+  id: string;
+  badge: string;
+  badgeColor: string;
+  title: string;
+  description: string;
+  actionLabel: string;
+  path: string;
+}
+
+export type AIMainTab = 'chat' | 'copiloto' | 'insights' | 'auditor' | 'consultor';
+
+export type SpreadsheetSubTab =
+  | 'premissas'
+  | 'folha'
+  | 'fixos'
+  | 'variaveis'
+  | 'emprestimos'
+  | 'dre'
+  | 'fluxo'
+  | 'indicadores';
