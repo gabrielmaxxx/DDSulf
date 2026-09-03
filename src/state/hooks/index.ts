@@ -196,7 +196,7 @@ export function usePersistedState() {
   }, []);
 
   const clearPersistentCache = () => {
-    persistenceService.clearAllDDSulfKeys();
+    persistenceService.clearAllTenantKeys();
   };
 
   return {

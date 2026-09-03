@@ -59,7 +59,7 @@ export function InfrastructureMonitor() {
       <div className="space-y-1">
         <span className="text-[10px] font-black uppercase tracking-widest text-[#9CA3AF]">Backbone Observability & Telemetry</span>
         <h2 className="text-3xl font-black text-black">Infraestrutura Enterprise & Performance</h2>
-        <p className="text-gray-500 text-sm max-w-3xl">Painel de telemetria em tempo real para auditoria de conexões de banco, latência de rede, e buffers de escrita offline do DDSulf.</p>
+        <p className="text-gray-500 text-sm max-w-3xl">Painel de telemetria em tempo real para auditoria de conexões de banco, latência de rede, e buffers de escrita offline do PestFlow.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-4">

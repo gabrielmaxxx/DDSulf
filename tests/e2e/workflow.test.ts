@@ -18,13 +18,13 @@ describe('E2E Testing - Commercial-to-Operational Core Sequence', () => {
 
   test('Fractions Conversion & Routing Pipeline Flow Checks', async () => {
     // 1. Authenticate user session
-    await mockPlaywrightPage.goto('https://app.ddsulf.com.br/login');
-    await mockPlaywrightPage.fill('input[type="email"]', 'gabriel.max@ddsulf.com.br');
+    await mockPlaywrightPage.goto('https://app.pestflow.com.br/login');
+    await mockPlaywrightPage.fill('input[type="email"]', 'operador@pestflow.com.br');
     await mockPlaywrightPage.fill('input[type="password"]', '************');
     await mockPlaywrightPage.click('button[type="submit"]');
 
     // 2. Draft Commercial Estimate with healthy margin
-    await mockPlaywrightPage.goto('https://app.ddsulf.com.br/calculator');
+    await mockPlaywrightPage.goto('https://app.pestflow.com.br/calculator');
     await mockPlaywrightPage.fill('#input-customer', 'Matriz de Alimentos Sul');
     await mockPlaywrightPage.fill('#input-price', '3500');
     await mockPlaywrightPage.fill('#input-operational-cost', '1800');

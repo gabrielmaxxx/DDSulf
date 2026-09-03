@@ -212,4 +212,7 @@ export interface HistoricalInsight {
   pattern: string;
   confidence: number;
   dataPoints: number;
+  title?: string;
+  recommendation?: string;
+  metric?: string;
 }

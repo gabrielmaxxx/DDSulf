@@ -47,7 +47,7 @@ export async function verifyAuthToken(req: express.Request, res: express.Respons
     if (token) {
       try {
         const decodedToken = await getAuth().verifyIdToken(token);
-        const empresaId = (decodedToken.empresaId as string) || (req.headers['x-tenant-id'] as string) || 'ddsulf';
+        const empresaId = (decodedToken.empresaId as string) || (req.headers['x-tenant-id'] as string) || 'pestflow_matriz';
         const isSuperAdmin = Boolean(decodedToken.isSuperAdmin || decodedToken.role === 'master' || decodedToken.email?.includes('master'));
         const role = (decodedToken.role as string) || (isSuperAdmin ? 'master' : 'admin');
 
@@ -86,7 +86,7 @@ export async function verifyAuthToken(req: express.Request, res: express.Respons
     }
 
     // Fallback authentication for dev session, master superadmin, or tenant headers
-    const tenantIdHeader = (req.headers['x-tenant-id'] as string) || 'ddsulf';
+    const tenantIdHeader = (req.headers['x-tenant-id'] as string) || 'pestflow_matriz';
     const isMasterToken = !token || token === 'master_superadmin_token' || token.includes('master');
 
     const tenantContext = {
@@ -188,10 +188,10 @@ const aiRateLimiter = rateLimit({
 export async function autoBootstrapMaster() {
   try {
     ensureFirebaseAdmin();
-    const empresaId = process.env.BOOTSTRAP_EMPRESA_ID || 'ddsulf';
+    const empresaId = process.env.BOOTSTRAP_EMPRESA_ID || 'pestflow_matriz';
     const login = process.env.BOOTSTRAP_LOGIN || 'master';
     const senhaTemporaria = process.env.BOOTSTRAP_PASSWORD || '123456';
-    const name = process.env.BOOTSTRAP_NAME || 'Gabriel - Super Admin Master';
+    const name = process.env.BOOTSTRAP_NAME || 'Super Admin Master';
     const email = buildSyntheticEmail(login, empresaId);
 
     console.log(`[PestFlow AutoBootstrap] Verificando provisão da conta master: ${email} (${empresaId})...`);
@@ -218,7 +218,7 @@ export async function autoBootstrapMaster() {
     const db = getFirestore();
     await db.doc(`empresas/${empresaId}`).set({
       empresaId,
-      nome: 'DDSulf Dedetização e Controle de Pragas',
+      nome: 'PestFlow Matriz e Gestão Operacional',
       cnpj: '12.345.678/0001-90',
       plano: 'enterprise',
       ativa: true,
@@ -274,7 +274,7 @@ async function startServer() {
     try {
       ensureFirebaseAdmin();
       const { empresaId: rawEmpresa, login: rawLogin, username: rawUsername, email: rawEmail, password } = req.body || {};
-      const empresaId = (rawEmpresa || 'ddsulf').trim().toLowerCase();
+      const empresaId = (rawEmpresa || 'pestflow_matriz').trim().toLowerCase();
       const login = (rawLogin || rawUsername || (rawEmail ? rawEmail.split('@')[0] : '') || 'master').trim().toLowerCase();
       const syntheticEmail = buildSyntheticEmail(login, empresaId);
 
@@ -1072,12 +1072,65 @@ Responda APENAS com o JSON de dados puro, sem blocos de código markdown ou text
     }
   });
 
-  // Executive Decision Intelligence & Strategic Copilot Endpoint
-  app.post("/api/executive-ai/query", authMiddleware, requirePermission('ia', 'view'), aiRateLimiter, async (req, res) => {
+  // AI Dashboard & Operational Insights Generator Endpoint
+  app.post("/api/ai/dashboard-insights", authMiddleware, requirePermission('ia', 'view'), aiRateLimiter, async (req, res) => {
+    try {
+      const { summary, quotesSample, costsSample } = req.body;
+      const ai = getAi();
+      const tenantContext = (req as any).tenantContext;
+      const empresaId = tenantContext?.empresaId || req.body.empresaId || 'PestFlow Tenant';
+
+      const prompt = `Como analista financeiro e operacional sênior da PestFlow, analise os dados consolidados e gere diagnósticos precisos e acionáveis para o painel de controle do gestor (${empresaId}).
+
+DADOS OPERACIONAIS E FINANCEIROS ATUAIS:
+- Faturamento do Período: R$ ${(summary?.totalRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+- Margem Média Operacional: ${(summary?.avgMargin || 0).toFixed(1)}%
+- Total de Orçamentos: ${summary?.quotesCount || 0} (Aprovados: ${summary?.approvedQuotesCount || 0}, Executados: ${summary?.executedQuotesCount || 0})
+- Inadimplência / Contas a Receber Vencidas: ${summary?.unpaidCount || 0} títulos (Total: R$ ${(summary?.unpaidTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })})
+- Insumos com Estoque Crítico: ${summary?.lowStockCount || 0} itens (${(summary?.criticalStockNames || []).join(', ') || 'Nenhum crítico'})
+- Contratos Próximos do Vencimento (15 dias): ${summary?.expiringContractsCount || 0}
+- Praga Mais Frequente: ${summary?.topPest || 'Geral / Controle Integrado'}
+- Custos Fixos Mensais: R$ ${(summary?.fixedCostsTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+
+Retorne um array JSON contendo entre 3 e 5 objetos de insight com a estrutura exata:
+[
+  {
+    "id": "string único (ex: insight-1)",
+    "type": "warning" | "success" | "info" | "critical",
+    "title": "Título curto do insight (máximo 6 palavras)",
+    "pattern": "Descrição objetiva do padrão ou anomalia identificado com números reais.",
+    "recommendation": "Recomendação prática de ação imediata para o gestor.",
+    "confidence": número entre 0.70 e 0.99,
+    "dataPoints": número de registros analisados,
+    "metric": "Nome da métrica envolvida (ex: Margem, Estoque, Contratos, Faturamento)"
+  }
+]
+
+Responda APENAS com o JSON puro, sem blocos de código markdown ou texto antes/depois.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          temperature: 0.2,
+          responseMimeType: "application/json"
+        }
+      });
+
+      const parsed = JSON.parse(response.text?.trim() || "[]");
+      res.json(Array.isArray(parsed) ? parsed : (parsed.insights || []));
+    } catch (error: any) {
+      console.error("AI Dashboard Insights Error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate dashboard insights" });
+    }
+  });
+
+  // Executive Decision Intelligence & Strategic Copilot Endpoint (Supports both routes)
+  const handleExecutiveQuery = async (req: express.Request, res: express.Response) => {
     try {
       const { prompt, history, context } = req.body;
       const tenantContext = (req as any).tenantContext;
-      const empresaId = tenantContext?.empresaId || req.body.tenantId;
+      const empresaId = tenantContext?.empresaId || req.body.tenantId || req.body.empresaId;
 
       if (!empresaId) {
         return res.status(400).json({ error: "empresaId é obrigatório para consultas executivas." });
@@ -1101,6 +1154,7 @@ DADOS DE CONTEXTO ESTRATÉGICO DO TENANT ATIVO (${empresaId}):
 - Coeficiente de Eficiência de Campo: ${(operationalEfficiencyCoefficient * 100).toFixed(1)}%
 - Índice de Conformidade e Segurança Física (Anvisa): ${monthlySafetyIndexPercent.toFixed(1)}%
 - Recomendações Ativas no Funil: ${context?.recommendationCount || 0}
+${context?.details ? `- Detalhes operacionais adicionais: ${JSON.stringify(context.details)}` : ''}
 
 Instruções importantes:
 1. Resuma as decisões usando tópicos focados em faturamento, saúde regulatória ou planejamento de equipe.
@@ -1108,18 +1162,25 @@ Instruções importantes:
 3. Use formatação Markdown polida.`;
 
       const contentsList: any[] = [];
-      if (history && Array.isArray(history)) {
+      if (history && Array.isArray(history) && history.length > 0) {
         for (const h of history) {
           const role = h.role === "assistant" || h.role === "model" ? "model" : "user";
           contentsList.push({
             role,
-            parts: [{ text: h.content || "" }]
+            parts: [{ text: h.content || h.text || "" }]
           });
         }
-      } else {
+      }
+
+      if (prompt) {
         contentsList.push({
           role: "user",
-          parts: [{ text: prompt || "Qual o status estratégico?" }]
+          parts: [{ text: prompt }]
+        });
+      } else if (contentsList.length === 0) {
+        contentsList.push({
+          role: "user",
+          parts: [{ text: "Qual o status estratégico da operação e principais recomendações?" }]
         });
       }
 
@@ -1138,7 +1199,10 @@ Instruções importantes:
       console.error("Executive AI Server-Side Query Error:", error);
       res.status(500).json({ error: error.message || "Failed to process executive strategic query" });
     }
-  });
+  };
+
+  app.post("/api/executive-ai/query", authMiddleware, requirePermission('ia', 'view'), aiRateLimiter, handleExecutiveQuery);
+  app.post("/api/ai/executive-copilot", authMiddleware, requirePermission('ia', 'view'), aiRateLimiter, handleExecutiveQuery);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

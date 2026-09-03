@@ -72,7 +72,7 @@ export function FinancialDashboardsTab() {
   const revenueTxCount = activeMovements.filter(m => m.category === 'RECEITAS').length;
   const ticketMedio = revenueTxCount > 0 ? (totalRevenue / revenueTxCount) : 0;
 
-  // DDSulf Advanced Intelligence Formulas
+  // PestFlow Advanced Intelligence Formulas
   const fc = financial.fixedCosts || { salaries: 0, rent: 0, fuel: 0, insurance: 0, other: 0, vehicleRental: 0 };
   const vc = financial.variableCosts || { productsPerService: 0, laborPerHour: 0, equipmentDepreciation: 0 };
   const op = financial.operational || { servicesPerMonth: 120, avgServiceDurationHours: 3, minimumMarginPercent: 35 };
@@ -202,7 +202,7 @@ export function FinancialDashboardsTab() {
             <h4 className="text-2xl font-black text-neutral-900 font-mono">
               {operationalMargin.toFixed(2)}%
             </h4>
-            <p className="text-[11px] text-[#6B6B5F]">Meta DDSulf: 35%</p>
+            <p className="text-[11px] text-[#6B6B5F]">Meta Operacional: 35%</p>
           </div>
           <div className="p-3 bg-[#FCFAF5] text-[#D4A017] rounded-2xl shrink-0">
             <Percent className="size-5" />
@@ -239,13 +239,13 @@ export function FinancialDashboardsTab() {
 
       </div>
 
-      {/* Painel DDSulf de Indicadores de Inteligência Financeira Avançada */}
+      {/* Painel PestFlow de Indicadores de Inteligência Financeira Avançada */}
       <div className="bg-[#1B3A2D] text-white p-6 rounded-3xl border border-[#2D6A4F] shadow-xl space-y-4">
         <div className="flex items-center gap-2 border-b border-[#2D6A4F]/60 pb-3">
           <Sparkles className="size-5 text-yellow-400 shrink-0 animate-pulse" />
           <div className="text-left">
-            <h3 className="text-sm font-black uppercase tracking-wider text-white">📊 Indicadores Analíticos Calculados (DDSulf Intelligence)</h3>
-            <p className="text-[11px] text-[#A8CDB8]">Fórmulas automatizadas exigidas estruturalmente pela DDSulf sobre custos, folha e amortizações.</p>
+            <h3 className="text-sm font-black uppercase tracking-wider text-white">📊 Indicadores Analíticos Calculados (PestFlow Intelligence)</h3>
+            <p className="text-[11px] text-[#A8CDB8]">Fórmulas automatizadas para controle de custos, folha e amortizações.</p>
           </div>
         </div>
 

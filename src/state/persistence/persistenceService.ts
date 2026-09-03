@@ -57,6 +57,10 @@ export class PersistenceService {
     }
   }
 
+  clearAllDDSulfKeys(): void {
+    this.clearAllTenantKeys();
+  }
+
   getStorageReport(): { usedBytes: number; entryCount: number } {
     if (!this.isAvailable()) return { usedBytes: 0, entryCount: 0 };
     let size = 0;

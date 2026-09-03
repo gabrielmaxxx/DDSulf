@@ -41,7 +41,7 @@ function handleFirestoreError(error: any, operationType: OperationType, path: st
     path,
     authInfo: {
       userId: 'local_client_uid', // Standard stub resolved via dynamic system calls
-      email: 'local_client@ddsulf.com',
+      email: 'operador@pestflow.com',
     },
   };
   console.error('Firestore Error Exception:', JSON.stringify(errInfo));

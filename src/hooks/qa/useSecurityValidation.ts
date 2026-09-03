@@ -17,7 +17,7 @@ export function useSecurityValidation() {
     details: [
       {
         category: 'Cross-Tenant Separation',
-        description: 'Verify ddsulf_matriz user cannot fetch data from ddsulf_erechim_franquia.',
+        description: 'Verify tenant_alpha user cannot fetch data from tenant_beta.',
         remediation: 'No remediation necessary. Tenant Isolation checked valid.',
         passed: true
       },
@@ -45,8 +45,8 @@ export function useSecurityValidation() {
     
     // Validate rules through service bounds
     const breachTest = validationService.runValidation('val_tenant_boundary', {
-      userTenantId: 'ddsulf_matriz',
-      payloadTenantId: 'ddsulf_erechim_franquia'
+      userTenantId: 'tenant_alpha',
+      payloadTenantId: 'tenant_beta'
     });
 
     setReport({
@@ -59,7 +59,7 @@ export function useSecurityValidation() {
         {
           category: 'Cross-Tenant Separation',
           description: breachTest.valid 
-            ? 'Verify ddsulf_matriz user cannot fetch data from ddsulf_erechim_franquia.' 
+            ? 'Verify tenant_alpha user cannot fetch data from tenant_beta.' 
             : 'SaaS Multi-tenant bypass warning triggered!',
           remediation: breachTest.valid ? 'Isolation certified optimal.' : 'Revise database rules immediately.',
           passed: breachTest.valid

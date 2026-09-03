@@ -100,7 +100,7 @@ export function CommandPaletteOverlay({ isOpen, onClose, shortcuts }: CommandPal
               <span className="flex items-center gap-1.5 font-bold">
                 <CornerUpLeft className="size-3" /> enter para disparar
               </span>
-              <span>DDSULF COMMAND SYSTEM v2.0 • ESCAPE para fechar</span>
+              <span>PESTFLOW COMMAND SYSTEM v2.0 • ESCAPE para fechar</span>
             </div>
           </motion.div>
         </div>

@@ -1,10 +1,38 @@
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { useSystemStore } from '../../src/store/systemStore';
 
 describe('Dashboard Metrics & Financial Retornos Verification', () => {
+  const currentMonth = new Date().toISOString().slice(0, 7);
+
+  beforeEach(() => {
+    useSystemStore.setState({
+      quotes: {
+        list: [
+          { id: 'q1', status: 'executado', createdAt: `${currentMonth}-01T10:00:00Z` } as any,
+          { id: 'q2', status: 'executado', createdAt: `${currentMonth}-02T10:00:00Z` } as any,
+          { id: 'q3', status: 'executado', createdAt: `${currentMonth}-03T10:00:00Z` } as any,
+          { id: 'q4', status: 'retorno', isRetorno: true, createdAt: `${currentMonth}-04T10:00:00Z` } as any,
+        ]
+      } as any,
+      contracts: [
+        {
+          id: 'c1',
+          clientName: 'Cliente 1',
+          status: 'ativo',
+          endDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+        } as any,
+        {
+          id: 'c2',
+          clientName: 'Cliente 2',
+          status: 'vencido',
+          endDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+        } as any
+      ]
+    });
+  });
+
   test('Dashboard correctly metrics executed and return quotes', () => {
     const state = useSystemStore.getState();
-    const currentMonth = new Date().toISOString().slice(0, 7);
 
     const quotes = state.quotes.list;
     const totalCompletedQuotes = quotes.filter(q => q.status === 'executado').length;

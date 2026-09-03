@@ -21,7 +21,7 @@ export const DEFAULT_FIXED_COSTS: FixedCostItem[] = [
   },
   {
     id: 'fc_3',
-    name: 'Software DDSulf ERP + IA',
+    name: 'Software PestFlow ERP + IA',
     category: 'Sistemas',
     monthlyAmount: 480.0,
     allocationFactor: 1.0, // 100% operational

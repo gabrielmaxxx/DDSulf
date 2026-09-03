@@ -402,7 +402,7 @@ export function FinancialPage() {
 
   // Default custom delinquency data based on unpaid receivables representing arrears
   const defaultDelinquentClients = useMemo(() => {
-    // In DDSulf logic, we represent clients who have overdue accounts receivable (isPaid === false, date < current, value > 0)
+    // In business logic, we represent clients who have overdue accounts receivable (isPaid === false, date < current, value > 0)
     // We can filter movements or fall back to high precision seeds matching "Grupo Pão Duro" and "Residência Dr. Marcos"
     return [
       { id: 'c-01', name: 'Grupo Pão Duro Ltd', value: 3500.00, daysOverdue: 42, details: 'Fatura da OS #m-rev-01 não quitada' },
@@ -474,7 +474,7 @@ export function FinancialPage() {
         id: 'alt-salaries',
         level: 'critical' as const,
         title: 'Comprometimento Elevado de Folha',
-        message: `Folha de pagamento e encargos (R$ ${salaries.toLocaleString('pt-BR')}) consomem ${ratioSalaries.toFixed(2)}% do faturamento bruto, estourando o limite de 40,00% estipulado pela DDSulf.`
+        message: `Folha de pagamento e encargos (R$ ${salaries.toLocaleString('pt-BR')}) consomem ${ratioSalaries.toFixed(2)}% do faturamento bruto, estourando o limite recomendado de 40,00%.`
       });
     }
 
@@ -602,7 +602,7 @@ export function FinancialPage() {
 
 
   // ----------------------------------------------------
-  // SECTION 6: RENTABILIDADE POR SERVIÇO (DDSULF INTEL)
+  // SECTION 6: RENTABILIDADE POR SERVIÇO (PESTFLOW INTEL)
   // ----------------------------------------------------
   const profitabilityByService = useMemo(() => {
     const categoriesSeed = [
@@ -791,7 +791,7 @@ export function FinancialPage() {
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `DDSulf_Relatorio_Financeiro_${new Date().getFullYear()}.csv`);
+      link.setAttribute("download", `Relatorio_Financeiro_PestFlow_${new Date().getFullYear()}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -814,7 +814,7 @@ export function FinancialPage() {
         id: clientId,
         name: clientId === 'c-01' ? 'Grupo Pão Duro Ltd' : clientId === 'c-05' ? 'Residência Dr. Marcos' : 'Condomínio Green Park',
         cnpjCpf: clientId === 'c-01' ? '12.345.678/0001-90' : '222.333.444-55',
-        address: 'Rua Principal de Atendimento Sanitário DDSulf, 1500 - VR',
+        address: 'Sede Operacional da Empresa',
         phone: '(24) 99988-7766',
         email: 'financeiro@grupocobrancas.com.br',
         createdAt: '2026-05-10'
@@ -841,7 +841,7 @@ export function FinancialPage() {
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 border-b border-slate-200/55 pb-6">
         <div>
           <span className="text-[10px] uppercase font-black tracking-widest text-[#2D6A4F] bg-[#EBFDF5] px-3 py-1 rounded-full border border-emerald-100">
-            DDSulf Economic Management Center
+            PestFlow Economic Management Center
           </span>
           <h1 className="text-4xl font-extrabold text-slate-900 leading-none tracking-tight mt-3">Financeiro</h1>
           <p className="text-slate-500 font-normal mt-2.5 text-sm max-w-2xl leading-relaxed">
@@ -1690,7 +1690,7 @@ export function FinancialPage() {
                     <Sparkles className="size-5 text-yellow-400 animate-pulse" />
                   </div>
                   <div className="text-left">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[#A8CDB8]">DDSulf Advanced Financial Advisor</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-[#A8CDB8]">PestFlow Advanced Financial Advisor</h3>
                     <p className="text-[10.5px] text-emerald-100">Gatilhos operacionais interpretados pela IA baseados nos furos do Plano de Contas.</p>
                   </div>
                 </div>
@@ -2658,7 +2658,7 @@ export function FinancialPage() {
               </div>
 
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 leading-relaxed space-y-1.5 mt-2">
-                <p className="font-bold">⚠️ Procedimento Recomendado DDSulf:</p>
+                <p className="font-bold">⚠️ Procedimento Recomendado:</p>
                 <p>Entre em contato utilizando os dados acima para notificar pendências de OS confirmadas. Encaminhe o boleto PDF atualizado via e-mail e registre o estorno ou acordo no Plano de Contas.</p>
               </div>
             </div>

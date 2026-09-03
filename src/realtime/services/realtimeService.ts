@@ -33,7 +33,7 @@ export class RealtimeService {
     this.initialized = true;
 
     if (process.env.NODE_ENV !== 'production') {
-      console.log('%c🌟 [RealtimeService] DDSulf Live operational infrastructure initialized.', 'color: #10b981; font-weight: bold;');
+      console.log('%c🌟 [RealtimeService] PestFlow Live operational infrastructure initialized.', 'color: #10b981; font-weight: bold;');
     }
   }
 

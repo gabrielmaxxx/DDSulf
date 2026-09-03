@@ -167,7 +167,7 @@ export function ServicoConfirmacaoPage() {
 
     confirmServiceExecuted(
       quoteId,
-      techName || 'Técnico DDSulf',
+      techName || 'Técnico Responsável',
       notes || 'Concluído via Confirmação de Serviços'
     );
 
@@ -175,7 +175,7 @@ export function ServicoConfirmacaoPage() {
       OperationalEventType.OS_CONCLUIDA,
       {
         quoteId: quoteId,
-        confirmedBy: techName || 'Técnico DDSulf',
+        confirmedBy: techName || 'Técnico Responsável',
         serviceNotes: notes || 'Concluído via evento',
         timestamp: Date.now()
       },
@@ -363,7 +363,7 @@ export function ServicoConfirmacaoPage() {
             <Activity className="size-4 text-[#2D6A4F]" />
             <div className="text-left">
               <span className="block text-[10px] font-mono text-slate-400 font-bold uppercase leading-tight">Canal Ativo</span>
-              <span className="text-xs font-bold text-[#141410] leading-none">DDSulf Integração</span>
+              <span className="text-xs font-bold text-[#141410] leading-none">PestFlow Integração</span>
             </div>
           </div>
         </div>

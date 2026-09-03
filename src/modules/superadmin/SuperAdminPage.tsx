@@ -772,7 +772,7 @@ export function SuperAdminPage() {
                       </label>
                       <input
                         type="text"
-                        placeholder="Ex: DDSulf Dedetização e Controle de Pragas"
+                        placeholder="Ex: Dedetizadora Exemplo e Controle de Pragas"
                         value={formNome}
                         onChange={(e) => setFormNome(e.target.value)}
                         required

@@ -57,7 +57,7 @@ export function DesignSystemShowcase() {
   return (
     <div className="space-y-8 animate-in fade-in duration-600">
       <div className="space-y-1">
-        <span className="text-[10px] font-black uppercase tracking-widest text-[#9CA3AF]">DDSulf UI/UX Unified Standard Specification</span>
+        <span className="text-[10px] font-black uppercase tracking-widest text-[#9CA3AF]">PestFlow UI/UX Standard Specification</span>
         <h2 className="text-3xl font-black text-black">Design System & Experiência Operacional</h2>
         <p className="text-gray-500 text-sm max-w-3xl">Auditoria visual de Tokens, layout adaptativo, paleta de cores unificada, e paleta de comandos de teclado de alta performance.</p>
       </div>
@@ -137,7 +137,7 @@ export function DesignSystemShowcase() {
       <PremiumGlassCard className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
           <div className="space-y-1">
-            <h3 className="text-lg font-black text-black">Simulador de Densidade Adaptativa DDSulf</h3>
+            <h3 className="text-lg font-black text-black">Simulador de Densidade Adaptativa PestFlow</h3>
             <p className="text-xs text-gray-400">Personalize a escala visual para atender desde displays robustos até comandos rápidos de campo em Android celular.</p>
           </div>
 

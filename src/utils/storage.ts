@@ -20,6 +20,7 @@ export function getTenantStorageKey(key: string, customEmpresaId?: string): stri
 }
 
 export const tenantStorage = {
+  getEmpresaId: (): string => getActiveEmpresaId(),
   getItem: (key: string, customEmpresaId?: string): string | null => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(getTenantStorageKey(key, customEmpresaId));
@@ -31,6 +32,9 @@ export const tenantStorage = {
   removeItem: (key: string, customEmpresaId?: string): void => {
     if (typeof window === 'undefined') return;
     localStorage.removeItem(getTenantStorageKey(key, customEmpresaId));
+  },
+  clearTenant: (customEmpresaId?: string): void => {
+    tenantStorage.clearCurrentTenant(customEmpresaId);
   },
   clearCurrentTenant: (customEmpresaId?: string): void => {
     if (typeof window === 'undefined') return;

@@ -758,6 +758,33 @@ Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos
         headers['Authorization'] = `Bearer ${token}`;
       }
 
+      // Filter real chemical/active products from inventory
+      const chemicalProducts = (inventoryProducts || []).filter(p => {
+        const cat = (p.category || '').toLowerCase();
+        const name = (p.name || '').toLowerCase();
+        const isExcluded = cat.includes('epi') || cat.includes('equip') || cat.includes('veículo') || cat.includes('veiculo') || cat.includes('ferramenta') || cat.includes('uniforme');
+        if (isExcluded) return false;
+        return cat.includes('quím') || 
+               cat.includes('quim') || 
+               cat.includes('insetic') || 
+               cat.includes('ratic') || 
+               cat.includes('cupin') || 
+               cat.includes('gel') || 
+               cat.includes('isca') || 
+               cat.includes('defensiv') || 
+               cat.includes('desinfest') ||
+               name.includes('sc') ||
+               name.includes('wg') ||
+               name.includes('ce') ||
+               name.includes('gel') ||
+               cat === '' ||
+               p.quantity > 0;
+      });
+
+      const allowedChemicalIds = (chemicalProducts.length > 0 ? chemicalProducts : inventoryProducts).map(p => 
+        p.id ? `${p.id}: ${p.name}` : p.name
+      );
+
       const response = await fetch('/api/ai/generate-procedure', {
         method: 'POST',
         headers,
@@ -765,7 +792,7 @@ Responda dúvidas sobre técnicas de controle de pragas, dosagens, EPIs exigidos
           title: formName || 'Procedimento Técnico de Controle de Pragas',
           description: formName || 'Controle de Pragas Urbana',
           targetPests: [formPest],
-          allowedChemicalIds: []
+          allowedChemicalIds
         })
       });
 

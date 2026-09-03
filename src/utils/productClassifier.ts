@@ -212,7 +212,7 @@ export const DDSULF_OFFICIAL_PRODUCTS: DDSulfOfficialProduct[] = [
     productGroup: 'Inseticidas',
     chemicalGroup: 'Organofosforado',
     activeIngredient: 'Diclorvós',
-    supplier: 'DDSulf Consolidado',
+    supplier: 'Distribuidor Homologado',
     unit: 'ml',
     categoryCode: 'inseticida'
   }

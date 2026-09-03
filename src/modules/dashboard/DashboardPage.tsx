@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import {
@@ -18,18 +18,26 @@ import {
   ChevronRight,
   MoreVertical,
   ArrowRight,
-  Activity
+  Activity,
+  Sparkles,
+  RotateCcw
 } from 'lucide-react';
 import { useSystemStore, selectMargemMesAnterior, selectContratosParaReajuste } from '@/store/systemStore';
+import { useAuth } from '@/auth/hooks/useAuth';
+import { analyticsService } from './services/analyticsService';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatBRL, formatPercent } from '@/utils/format';
 import { DisponibilidadeTecnicos } from './components/DisponibilidadeTecnicos';
 
 export function DashboardPage() {
+  const { empresaId } = useAuth();
   const systemState = useSystemStore();
   const { financial, inventory, quotes, pops, agenda, clients, contracts, settings } = systemState;
   const navigate = useNavigate();
+
+  const [aiInsightsList, setAiInsightsList] = useState<any[]>([]);
+  const [aiInsightsLoading, setAiInsightsLoading] = useState<boolean>(false);
 
   // 2. DATA EXTRACTION AND COMPUTATIONS (REAL VALUES REGULATORY PARSED)
   const currentMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
@@ -374,38 +382,90 @@ export function DashboardPage() {
   const qtdExecutadosVal = currentMonthExecutados.length;
   const returnRateVal = qtdExecutadosVal > 0 ? (qtdRetornosVal / qtdExecutadosVal) * 100 : 0;
 
-  const aiInsights = [
+  const fallbackAiInsights = [
     {
       id: 'ai-ins-1',
+      title: 'Margem Financeira',
       message: marginInsightMessage,
+      recommendation: avgMarginValue < minMarginTarget ? 'Revisar estrutura de custos diretos e renegociar compras.' : 'Margens saudáveis mantidas.',
       btnLabel: 'Abrir Financeiro',
       path: '/financial',
     },
     {
       id: 'ai-ins-2',
+      title: 'Risco de Ruptura de Estoque',
       message: lowStockProducts.length > 0 
         ? `${lowStockProducts.length} ${lowStockProducts.length === 1 ? 'produto apresenta' : 'produtos apresentam'} risco crítico de ruptura no estoque.`
         : 'Todos os insumos operacionais encontram-se em níveis adequados de segurança.',
+      recommendation: lowStockProducts.length > 0 ? 'Emitir ordem de compra urgente para os itens abaixo do estoque mínimo.' : 'Manter compras programadas.',
       btnLabel: 'Abrir Estoque',
       path: '/inventory',
     },
     {
       id: 'ai-ins-3',
+      title: 'Oportunidade de Renovação',
       message: potentialRenewalCount > 0
         ? `${potentialRenewalCount} ${potentialRenewalCount === 1 ? 'cliente possui' : 'clientes possuem'} contrato expirando ou vencido ideal para renovação.`
         : 'Sem contratos expirados ou em vias de renovação nos próximos 30 dias.',
+      recommendation: potentialRenewalCount > 0 ? 'Contatar clientes em janela de renovação e oferecer proposta de reajuste.' : 'Acompanhar calendário contratual.',
       btnLabel: 'Abrir Clientes',
       path: '/clientes',
     },
     {
       id: 'ai-ins-4',
+      title: 'Taxa de Retorno Operacional',
       message: returnRateVal > returnRateThreshold
         ? `Atenção: A taxa de retornos de assistência (${returnRateVal.toFixed(1)}%) supera o limite ideal definido de ${returnRateThreshold}%.`
         : 'Índice de retornos gerais controlado e em conformidade técnica.',
+      recommendation: returnRateVal > returnRateThreshold ? 'Auditar a qualidade de aplicação dos químicos nas OSs com assistência técnica.' : 'Padrão operacional de qualidade mantido.',
       btnLabel: 'Abrir Relatório',
       path: '/agenda',
     }
   ];
+
+  const fetchAI = async () => {
+    setAiInsightsLoading(true);
+    try {
+      const result = await analyticsService.fetchAIInsights(
+        empresaId || 'tenant_default',
+        {
+          totalRevenue: revenueValue,
+          avgMargin: avgMarginValue,
+          quotesCount: quotes?.list?.length || 0,
+          approvedQuotesCount: serviceCountValue,
+          lowStockCount: lowStockProducts.length,
+          criticalStockNames: lowStockProducts.map(p => p.name).slice(0, 5),
+          expiringContractsCount,
+          servicesCount: quotes?.list?.filter(q => q.status === 'executado').length || 0,
+        },
+        quotes?.list || [],
+        []
+      );
+      if (result && result.length > 0) {
+        setAiInsightsList(result);
+      }
+    } catch (err) {
+      console.warn('Dashboard AI insights fetch fallback:', err);
+    } finally {
+      setAiInsightsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAI();
+  }, [empresaId, revenueValue, avgMarginValue, serviceCountValue, lowStockProducts.length, expiringContractsCount]);
+
+  const displayInsights = aiInsightsList.length > 0
+    ? aiInsightsList.map((ins, idx) => ({
+        id: ins.id || `ai-real-${idx}`,
+        title: ins.title || 'Insight Estratégico',
+        message: ins.pattern || ins.message,
+        recommendation: ins.recommendation,
+        btnLabel: ins.metric?.includes('Margem') || ins.metric?.includes('Receita') ? 'Abrir Financeiro' : ins.metric?.includes('Estoque') ? 'Abrir Estoque' : 'Ver Detalhes',
+        path: ins.metric?.includes('Margem') || ins.metric?.includes('Receita') ? '/financial' : ins.metric?.includes('Estoque') ? '/inventory' : '/analytics',
+        isAiGenerated: true,
+      }))
+    : fallbackAiInsights;
 
   if (noDataTotal) {
     return (
@@ -471,7 +531,7 @@ export function DashboardPage() {
             Sem dados suficientes para calcular
           </h3>
           <p className="text-xs text-slate-500 max-w-md font-bold leading-relaxed">
-            Sua conta DDSulf ainda não possui histórico de orçamentos, ordens de serviço ou registros financeiros gravados nesta empresa. Comece gerando novos orçamentos ou inserindo saldos operacionais.
+            Sua conta ainda não possui histórico de orçamentos, ordens de serviço ou registros financeiros gravados nesta empresa. Comece gerando novos orçamentos ou inserindo saldos operacionais.
           </p>
           <div className="flex gap-3 pt-3">
             <button
@@ -886,35 +946,63 @@ export function DashboardPage() {
 
       {/* SEÇÃO 4: IA OPERACIONAL */}
       <section id="section-ia-operacional" className="space-y-4 pt-1">
-        <div>
-          <h2 className="text-xl font-black text-slate-800 tracking-tight">
-            Insights da IA
-          </h2>
-          <p className="text-xs font-medium text-slate-450 mt-1">
-            Análises e recomendações automáticas baseadas em modelos ativos.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+              <Sparkles className="size-5 text-[#2D6A4F]" />
+              Insights da IA
+            </h2>
+            <p className="text-xs font-medium text-slate-450 mt-1">
+              Análises e recomendações estratégicas geradas via inteligência artificial (Gemini) e regras regulatórias.
+            </p>
+          </div>
+          <button
+            onClick={fetchAI}
+            disabled={aiInsightsLoading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-3xs cursor-pointer disabled:opacity-50 self-start sm:self-auto"
+          >
+            <RotateCcw className={`size-3.5 ${aiInsightsLoading ? 'animate-spin text-[#1B3A2D]' : ''}`} />
+            <span>{aiInsightsLoading ? 'Atualizando IA...' : 'Atualizar Insights'}</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* INSIGHTS CARDS LIST (COL-SPAN-2) */}
           <div className="lg:col-span-2 space-y-4">
-            {aiInsights.map((insight) => (
+            {displayInsights.map((insight) => (
               <div
                 key={insight.id}
-                className="flex items-center justify-between p-5 bg-white border border-[#E8E6E1] rounded-2xl hover:border-slate-350 transition-all shadow-xxs"
+                className="p-5 bg-white border border-[#E8E6E1] rounded-2xl hover:border-slate-350 transition-all shadow-xxs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
               >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="p-2.5 bg-slate-50 text-[#1B3A2D] rounded-xl shrink-0">
-                    <Activity className="size-4" />
+                <div className="flex items-start gap-4 min-w-0">
+                  <div className="p-2.5 bg-emerald-50 text-[#1B3A2D] rounded-xl shrink-0 mt-0.5">
+                    <Sparkles className="size-4" />
                   </div>
-                  <p className="text-sm font-extrabold text-slate-700 leading-snug">
-                    {insight.message}
-                  </p>
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black uppercase text-slate-800 tracking-wider">
+                        {insight.title}
+                      </span>
+                      {insight.isAiGenerated && (
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-[#1B3A2D] text-[9px] font-bold">
+                          IA Ativa
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-semibold text-slate-700 leading-snug">
+                      {insight.message}
+                    </p>
+                    {insight.recommendation && (
+                      <p className="text-[11px] text-slate-500 font-medium pt-0.5">
+                        <strong className="text-slate-700">Recomendação:</strong> {insight.recommendation}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <button
                   onClick={() => navigate(insight.path)}
-                  className="shrink-0 flex items-center gap-1 ml-3 px-3.5 py-2 hover:bg-[#1B3A2D] hover:text-white bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  className="shrink-0 flex items-center gap-1 self-start sm:self-auto px-3.5 py-2 hover:bg-[#1B3A2D] hover:text-white bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
                 >
                   <span>{insight.btnLabel}</span>
                   <ChevronRight className="size-3.5" />

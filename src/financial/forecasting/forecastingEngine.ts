@@ -41,7 +41,7 @@ export function processPredictiveFinancialForecast(
     if (projectedCosts / projectedRevenue > 0.65) {
       targetCategory = 'Logística';
       savingsAmount = Number((projectedDirectCosts * 0.15).toFixed(2));
-      optimizationTip = 'Custos diretos operacionais elevados. Ative a roteirização do DDSulf para reduzir rotas redundantes e economizar cerca de 15% de combustível.';
+      optimizationTip = 'Custos diretos operacionais elevados. Ative a roteirização inteligente do PestFlow para reduzir rotas redundantes e economizar cerca de 15% de combustível.';
     } else if (projectedDirectCosts > 15000) {
       targetCategory = 'Químicos';
       savingsAmount = Number((projectedDirectCosts * 0.08).toFixed(2));

@@ -21,9 +21,6 @@ export * from './inventory/InventoryComponents';
 // Procedures POPs
 export * from './pops/POPsComponents';
 
-// Intelligent operational helper modules
-export * from './ai/AIComponents';
-
 // Data lists grids and chronology
 export * from './data-display/DataDisplay';
 

@@ -63,7 +63,7 @@ export class EventBusService {
             timestamp: Date.now() - 3600000,
             type: 'info',
             module: SystemModuleName.INTEGRATION,
-            message: 'Barramento de eventos corporativo Firebase inicializado (DDSulf Enterprise Fabric).',
+            message: 'Barramento de eventos corporativo Firebase inicializado (PestFlow Enterprise Fabric).',
             correlationId: 'corr_init_default'
           }
         ];
@@ -202,7 +202,7 @@ export class EventBusService {
         
         // 1. Confirmar serviço executado no store (deduz estoque e lança receita correspondente do OS)
         if (quote && quote.status !== 'executado') {
-          store.confirmServiceExecuted(quoteId, payload.confirmedBy || 'Técnico DDSulf', payload.serviceNotes || 'Concluído via evento');
+          store.confirmServiceExecuted(quoteId, payload.confirmedBy || 'Técnico Responsável', payload.serviceNotes || 'Concluído via evento');
         }
 
         // 2. Agendar retorno gratuito baseado no tipo de praga (Garantia)
@@ -376,7 +376,7 @@ export class EventBusService {
       traceParent: `00-${correlationId}-01`,
       date: dateObj.toLocaleDateString('pt-BR'),
       time: dateObj.toLocaleTimeString('pt-BR'),
-      user: auth.currentUser?.email || auth.currentUser?.uid || 'Colaborador DDSulf'
+      user: auth.currentUser?.email || auth.currentUser?.uid || 'Colaborador PestFlow'
     };
 
     if (!isOnline) {

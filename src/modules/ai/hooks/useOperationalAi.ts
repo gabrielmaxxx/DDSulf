@@ -32,7 +32,7 @@ export function useOperationalAi() {
 
       // Compile and caching into the unified enterprise context engine
       const userRole = role || 'visualizador';
-      const userNameStr = user?.name || user?.email || 'Operador DDSulf';
+      const userNameStr = user?.name || user?.email || 'Operador PestFlow';
 
       AIContextEngine.compileContext(
         userRole,

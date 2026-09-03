@@ -828,7 +828,7 @@ export function AgendaPage() {
                       height="180px"
                     />
                     <div className="text-[9px] text-zinc-400 font-bold leading-normal">
-                      Exibindo trajeto sugerido partindo da sede da DDSulf.
+                      Exibindo trajeto sugerido partindo da sede da empresa.
                     </div>
                   </div>
                 )}

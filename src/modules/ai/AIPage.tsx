@@ -35,6 +35,7 @@ import { useSystemStore } from '@/store';
 import { useNavigate } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import { auth } from '@/firebase/config';
+import { useAuth } from '@/auth/hooks/useAuth';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -64,7 +65,10 @@ export function AIPage() {
     settings
   } = useSystemStore();
 
-  const [mainTab, setMainTab] = useState<'chat' | 'analises'>('chat');
+  const { user, role, empresaId, isSuperAdmin } = useAuth();
+  const isExecutive = Boolean(isSuperAdmin || role === 'master' || role === 'admin' || role === 'manager' || role === 'diretoria');
+
+  const [mainTab, setMainTab] = useState<'chat' | 'copiloto' | 'analises'>('chat');
   const [analysisTab, setAnalysisTab] = useState<'insights' | 'analista' | 'consultor'>('insights');
   
   // Chat state
@@ -72,6 +76,19 @@ export function AIPage() {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Executive Copilot state
+  const [executiveMessages, setExecutiveMessages] = useState<ChatMessage[]>([
+    {
+      role: 'assistant',
+      content: '👋 **Bem-vindo ao Copiloto Executivo do PestFlow.**\n\nEstou conectado aos módulos de Diretoria, Contratos, CRM e DRE para fornecer análises estratégicas de alto nível, diagnósticos de MRR, retenção e planos de expansão.',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      sources: ['Diretoria', 'Contratos', 'DRE', 'CRM']
+    }
+  ]);
+  const [executiveInput, setExecutiveInput] = useState('');
+  const [executiveLoading, setExecutiveLoading] = useState(false);
+  const executiveScrollRef = useRef<HTMLDivElement>(null);
 
   // POP specific search state
   const [popQuery, setPopQuery] = useState('');
@@ -187,6 +204,31 @@ export function AIPage() {
   const pendingAgendaCount = useMemo(() => {
     return agenda.filter(e => e.status === 'pendente').length || 0;
   }, [agenda]);
+
+  // Executive Board Metrics
+  const activeContracts = useMemo(() => {
+    return contracts.filter(c => c.status === 'ativo');
+  }, [contracts]);
+
+  const mrrTotal = useMemo(() => {
+    return activeContracts.reduce((sum, c) => sum + (Number(c.value) || 0), 0);
+  }, [activeContracts]);
+
+  const activeContractsRatio = useMemo(() => {
+    return contracts.length > 0 ? (activeContracts.length / contracts.length) * 100 : 100;
+  }, [contracts, activeContracts]);
+
+  const operationalEfficiencyCoefficient = useMemo(() => {
+    const executed = quotes.list.filter(q => q.status === 'executado').length;
+    const total = quotes.list.filter(q => q.status !== 'rascunho').length;
+    return total > 0 ? executed / total : 0.88;
+  }, [quotes.list]);
+
+  const monthlySafetyIndexPercent = useMemo(() => {
+    const procs = pops?.procedures || [];
+    const validPops = procs.filter(p => !('validityDate' in p) || new Date((p as any).validityDate) >= new Date()).length;
+    return procs.length > 0 ? (validPops / procs.length) * 100 : 98.5;
+  }, [pops]);
 
   // 10 AUTOMATED INSIGHTS (Computed from store, falling back carefully to ensure 10 items)
   const automaticInsights = useMemo(() => {
@@ -411,7 +453,7 @@ INSTRUÇÕES DE TOM DE VOZ E COMPORTAMENTO DA IA:
       }
     } else if (checkLowerText.includes('quantos serviços') || checkLowerText.includes('serviços realizamos') || checkLowerText.includes('serviço realizou')) {
       sources = ['Agenda', 'Financeiro'];
-      directReplyContent = `Neste mês atual (${currentMonth}), a DDSulf registrou:\n\n* **Serviços Fechados/Realizados:** ${monthQuotes.length} ordens de serviço.\n* **Faturamento Bruto:** R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n* **Ticket Médio Comercial:** R$ ${avgTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n\nVocê pode consultar a lista detalhada de fechamento no painel de finanças.`;
+      directReplyContent = `Neste mês atual (${currentMonth}), a empresa registrou no PestFlow:\n\n* **Serviços Fechados/Realizados:** ${monthQuotes.length} ordens de serviço.\n* **Faturamento Bruto:** R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n* **Ticket Médio Comercial:** R$ ${avgTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n\nVocê pode consultar a lista detalhada de fechamento no painel de finanças.`;
     } else if (checkLowerText.includes('estoque crítico') || checkLowerText.includes('estoque baixo') || checkLowerText.includes('estoques críticos')) {
       sources = ['Estoque'];
       if (criticalProductsList.length > 0) {
@@ -518,6 +560,85 @@ INSTRUÇÕES DE TOM DE VOZ E COMPORTAMENTO DA IA:
     }
   };
 
+  // EXECUTIVE COPILOT: Send queries to /api/ai/executive-copilot with full board context
+  const handleSendExecutiveQuery = async (queryText?: string) => {
+    const textToSend = queryText || executiveInput;
+    if (!textToSend.trim() || executiveLoading) return;
+
+    const userMsg: ChatMessage = {
+      role: 'user',
+      content: textToSend,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setExecutiveMessages(prev => [...prev, userMsg]);
+    setExecutiveInput('');
+    setExecutiveLoading(true);
+
+    try {
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch('/api/ai/executive-copilot', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          prompt: textToSend,
+          tenantId: empresaId || 'tenant_default',
+          history: executiveMessages.map(m => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            content: m.content
+          })),
+          context: {
+            board: {
+              mrrTotal,
+              activeContractsRatio,
+              operationalEfficiencyCoefficient,
+              monthlySafetyIndexPercent
+            },
+            recommendationCount: automaticInsights.length,
+            details: {
+              totalRevenue,
+              avgMargin,
+              avgTicket,
+              totalFixedCosts,
+              criticalStockCount: criticalProductsList.length,
+              expiringContractsCount: expiringContractsList.length,
+              activeClientsCount: clients.length
+            }
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao consultar o Copiloto Executivo.');
+      }
+
+      const data = await response.json();
+      const assistantMsg: ChatMessage = {
+        role: 'assistant',
+        content: data.text || 'Análise executiva gerada com sucesso.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        sources: ['Diretoria', 'Contratos', 'DRE', 'Auditoria']
+      };
+
+      setExecutiveMessages(prev => [...prev, assistantMsg]);
+    } catch (err: any) {
+      setExecutiveMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `❌ **Falha na Análise Executiva**: Não foi possível processar a consulta via IA (${err.message || 'Erro de comunicação'}). Verifique as credenciais ou a conexão com o servidor.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]);
+    } finally {
+      setExecutiveLoading(false);
+    }
+  };
+
   // ANALISTA MODE: Active simulation block using real state values
   const handleAnalyzeBlock = (block: 'financeiro' | 'operacao' | 'estoque' | 'clientes') => {
     setAnalysisLoading(prev => ({ ...prev, [block]: true }));
@@ -613,7 +734,7 @@ INSTRUÇÕES DE TOM DE VOZ E COMPORTAMENTO DA IA:
     setDiagnosticReportText(null);
     setTimeout(() => {
       setDiagnosticLoading(false);
-      setDiagnosticReportText(`### 🩺 Diagnóstico e Auditoria de Planilhas - DDSulf Volta Redonda
+      setDiagnosticReportText(`### 🩺 Diagnóstico e Auditoria de Planilhas - PestFlow Inteligência Financeira
 
 Identificamos inconsistências e discrepâncias importantes no balanço operacional consolidado ao cruzar as abas analisadas:
 
@@ -680,11 +801,11 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
       } else if (lower.includes('escorpi') || lower.includes('escorpiões')) {
         const popMatch = pops.procedures.find(p => p.pestType.toLowerCase().includes('escorpi') || p.name.toLowerCase().includes('escorpi'));
         answer = `### Procedimento de Controle de Escorpiões\n\n` +
-          `* **DDSulf Padrão Operacional:** ${popMatch?.name || 'Vigilância Ativa de Aracnídeos'}\n` +
+          `* **PestFlow Padrão Operacional:** ${popMatch?.name || 'Vigilância Ativa de Aracnídeos'}\n` +
           `* **Medida Recomendada:** Aplicação de inseticida de ação residual desalojante piretróide e microencapsulado ao longo dos rodapés e caixas de gordura/esgoto.\n` +
           `* **Atenção Sanitária:** Escorpiões não sofrem ação imediata de contato direto comum. Exige vedações físicas de ralos e vãos de portas acompanhados da eliminação de baratas (sua fonte principal de alimento).`;
       } else {
-        answer = `### Fórmulas e Metodologia DDSulf Volta Redonda\n\n` +
+        answer = `### Fórmulas e Metodologia PestFlow Operacional\n\n` +
           `Para registrar serviços ou aplicar barreiras químicas, execute as rotinas conforme instruído:\n\n` +
           `1. **Avaliar M² Comercial ou Residencial**: Use a calculadora orçamentária deduzindo veículo e mão de obra de campo.\n` +
           `2. **Lançamento em Lote**: Preencha se houver movimentações físicas de saída das embalagens registradas em estoque.\n` +
@@ -738,6 +859,21 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
               >
                 <MessageSquare className="size-3.5" />
                 <span>IA Chat</span>
+              </button>
+
+              <button
+                onClick={() => setMainTab('copiloto')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer relative ${
+                  mainTab === 'copiloto'
+                    ? 'bg-[#1B3A2D] text-white shadow-3xs'
+                    : 'text-slate-600 hover:text-[#1B3A2D] hover:bg-slate-50'
+                }`}
+              >
+                <TrendingUp className="size-3.5" />
+                <span>Copiloto Executivo</span>
+                <span className="ml-1 px-1.5 py-0.5 text-[8px] rounded-full bg-emerald-600 text-white font-black leading-none">
+                  Diretoria
+                </span>
               </button>
               
               <button
@@ -881,7 +1017,7 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
                   <div className="flex justify-between items-center pb-3 border-b border-slate-100 flex-shrink-0">
                     <div className="flex items-center gap-2">
                       <MessageSquare className="size-4.5 text-[#1B3A2D] animate-pulse" />
-                      <h2 className="text-xs font-black uppercase text-slate-800 tracking-wider">Chat DDSulf Inteligente</h2>
+                      <h2 className="text-xs font-black uppercase text-slate-800 tracking-wider">Chat PestFlow Inteligente</h2>
                     </div>
                     <button
                       onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -952,7 +1088,7 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
                                 ) : (
                                   <>
                                     <BrainCircuit className="size-3.5 text-[#D4A017]" />
-                                    DDSulf IA Assistant
+                                    PestFlow IA Assistant
                                   </>
                                 )}
                               </span>
@@ -1029,6 +1165,184 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
               </div>
             )}
 
+            {/* COPILOTO EXECUTIVO WORKSPACE */}
+            {mainTab === 'copiloto' && (
+              <div className="space-y-6 animate-fade-in text-left">
+                {!isExecutive ? (
+                  <div className="bg-white border border-amber-200 rounded-3xl p-8 shadow-xs text-center">
+                    <div className="size-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto mb-4">
+                      <Shield className="size-7 text-amber-700" />
+                    </div>
+                    <h3 className="text-base font-bold text-slate-800">Acesso Restrito ao Copiloto Executivo</h3>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto mt-2 leading-relaxed">
+                      Este módulo é exclusivo para usuários com perfil de <strong>Diretoria, Master ou Administrador</strong>, pois consolida indicadores estratégicos de margem, MRR e saúde contratual da empresa.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* STRATEGIC BOARD KPIS */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="bg-white border border-[#E8E6E1] rounded-2xl p-4 shadow-3xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">MRR Contratual</span>
+                          <DollarSign className="size-4 text-emerald-600" />
+                        </div>
+                        <p className="text-lg font-black font-mono text-slate-900 mt-2">
+                          R$ {mrrTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-[10.5px] text-slate-500 mt-0.5">{activeContracts.length} contratos ativos</p>
+                      </div>
+
+                      <div className="bg-white border border-[#E8E6E1] rounded-2xl p-4 shadow-3xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Retenção de Base</span>
+                          <TrendingUp className="size-4 text-blue-600" />
+                        </div>
+                        <p className="text-lg font-black font-mono text-slate-900 mt-2">
+                          {activeContractsRatio.toFixed(1)}%
+                        </p>
+                        <p className="text-[10.5px] text-slate-500 mt-0.5">Contratos em vigência regular</p>
+                      </div>
+
+                      <div className="bg-white border border-[#E8E6E1] rounded-2xl p-4 shadow-3xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Eficiência de Campo</span>
+                          <BarChart2 className="size-4 text-amber-600" />
+                        </div>
+                        <p className="text-lg font-black font-mono text-slate-900 mt-2">
+                          {(operationalEfficiencyCoefficient * 100).toFixed(1)}%
+                        </p>
+                        <p className="text-[10.5px] text-slate-500 mt-0.5">Taxa de conclusão de OS</p>
+                      </div>
+
+                      <div className="bg-white border border-[#E8E6E1] rounded-2xl p-4 shadow-3xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Conformidade Anvisa</span>
+                          <Shield className="size-4 text-emerald-600" />
+                        </div>
+                        <p className="text-lg font-black font-mono text-slate-900 mt-2">
+                          {monthlySafetyIndexPercent.toFixed(1)}%
+                        </p>
+                        <p className="text-[10.5px] text-slate-500 mt-0.5">POPs técnicos homologados</p>
+                      </div>
+                    </div>
+
+                    {/* COPILOTO EXECUTIVO CHAT WORKSPACE */}
+                    <div className="bg-white border border-[#E8E6E1] rounded-3xl p-6 shadow-xs flex flex-col min-h-[480px] justify-between">
+                      <div>
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                          <div className="flex items-center gap-2.5">
+                            <div className="size-8 rounded-xl bg-emerald-950 flex items-center justify-center text-amber-400">
+                              <Sparkles className="size-4" />
+                            </div>
+                            <div>
+                              <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider">Copiloto Estratégico de Diretoria</h3>
+                              <p className="text-[10.5px] text-slate-500">Processamento em tempo real com modelo Gemini e dados operacionais consolidados.</p>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+                            Inteligência Ativa
+                          </span>
+                        </div>
+
+                        {/* EXECUTIVE QUICK PROMPTS */}
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          <button
+                            onClick={() => handleSendExecutiveQuery('Gerar Relatório Estratégico de Diretoria (Board-Level) com resumo de receitas, margens e principais riscos.')}
+                            className="px-3 py-1.5 bg-[#FAF9F5] border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 hover:border-[#1B3A2D] hover:bg-slate-50 transition-all cursor-pointer"
+                          >
+                            📊 Relatório de Diretoria
+                          </button>
+                          <button
+                            onClick={() => handleSendExecutiveQuery('Analisar a estabilidade do MRR, taxa de retenção de contratos e risco de churn nos próximos 30 dias.')}
+                            className="px-3 py-1.5 bg-[#FAF9F5] border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 hover:border-[#1B3A2D] hover:bg-slate-50 transition-all cursor-pointer"
+                          >
+                            💰 Análise de MRR & Churn
+                          </button>
+                          <button
+                            onClick={() => handleSendExecutiveQuery('Avaliar a eficiência do estoque de químicos e sugerir compras estratégicas para evitar ruptura.')}
+                            className="px-3 py-1.5 bg-[#FAF9F5] border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 hover:border-[#1B3A2D] hover:bg-slate-50 transition-all cursor-pointer"
+                          >
+                            📦 Auditoria de Insumos
+                          </button>
+                          <button
+                            onClick={() => handleSendExecutiveQuery('Sugerir 3 ações prioritárias para aumentar a margem operacional média acima de 45%.')}
+                            className="px-3 py-1.5 bg-[#FAF9F5] border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 hover:border-[#1B3A2D] hover:bg-slate-50 transition-all cursor-pointer"
+                          >
+                            🎯 Otimização de Margem
+                          </button>
+                        </div>
+
+                        {/* EXECUTIVE MESSAGES LIST */}
+                        <div ref={executiveScrollRef} className="space-y-4 max-h-[380px] overflow-y-auto pr-2">
+                          {executiveMessages.map((msg, idx) => (
+                            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`max-w-[90%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${
+                                msg.role === 'user'
+                                  ? 'bg-[#1B3A2D] text-white rounded-tr-xs'
+                                  : 'bg-[#FAF9F5] border border-[#E8E6E1] text-slate-800 rounded-tl-xs'
+                              }`}>
+                                <div className="flex items-center justify-between gap-4 mb-1.5 border-b border-slate-200/50 pb-1">
+                                  <span className="font-bold flex items-center gap-1">
+                                    {msg.role === 'user' ? 'Diretoria / Gestão' : 'Copiloto Executivo IA'}
+                                  </span>
+                                  <span className="text-[9px] opacity-60 font-mono">{msg.timestamp}</span>
+                                </div>
+                                <div className="markdown-body">
+                                  <Markdown>{msg.content}</Markdown>
+                                </div>
+                                {msg.sources && (
+                                  <div className="flex gap-1.5 mt-2.5 pt-2 border-t border-slate-200/40 text-[9px] opacity-75">
+                                    <span>Fontes:</span>
+                                    {msg.sources.map((s, i) => (
+                                      <span key={i} className="px-1.5 py-0.2 bg-black/5 rounded">{s}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {executiveLoading && (
+                            <div className="flex justify-start">
+                              <div className="bg-[#FAF9F5] border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 flex items-center gap-2">
+                                <RotateCcw className="size-4 animate-spin text-[#1B3A2D]" />
+                                <span>Compilando dados estratégicos e processando inteligência executiva...</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* INPUT BAR */}
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={executiveInput}
+                          onChange={(e) => setExecutiveInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSendExecutiveQuery();
+                            }
+                          }}
+                          placeholder="Pergunte ao Copiloto Executivo (ex: Qual impacto financeiro de reajustar contratos em 8%?)..."
+                          className="flex-1 rounded-xl border border-[#E8E6E1] px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1B3A2D]/15 focus:border-[#2D6A4F] bg-[#F7F6F3]"
+                        />
+                        <button
+                          onClick={() => handleSendExecutiveQuery()}
+                          disabled={executiveLoading || !executiveInput.trim()}
+                          className="px-4 py-2.5 bg-[#1B3A2D] text-white rounded-xl text-xs font-bold hover:bg-[#2D6A4F] transition-all disabled:opacity-40 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                        >
+                          <Send className="size-3.5" />
+                          <span>Consultar</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {mainTab === 'analises' && analysisTab === 'analista' && (
               <div className="space-y-6">
                 {/* SPREADSHEET MANAGER CENTER (XLSX SPREADSHEET AUDITOR AS PER RULE[AGENTS_md]) */}
@@ -1039,7 +1353,7 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
                     <div>
                       <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
                         <TrendingUp className="size-5 text-[#2D6A4F]" />
-                        Central Unificada de Planilhas DDSulf
+                        Central Unificada de Planilhas PestFlow
                       </h2>
                       <p className="text-[11px] text-slate-500 font-sans mt-0.5">Auditoria inteligente e conciliação matemática de dados financeiros e operacionais.</p>
                     </div>

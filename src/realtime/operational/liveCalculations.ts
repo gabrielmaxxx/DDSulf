@@ -104,7 +104,7 @@ export class LiveCalculationsEngine {
     if (leakageAlertActive) {
       eventBus.publish('financial:margin_leakage', {
         type: 'low_margin_approved',
-        message: `ALERTA DE SEGURANÇA: Margem comercial aplicada (${margin}%) está abaixo do teto de segurança DDSulf (55%).`,
+        message: `ALERTA DE SEGURANÇA: Margem comercial aplicada (${margin}%) está abaixo do teto de segurança recomendado (55%).`,
         severity: 'critical',
       });
     }

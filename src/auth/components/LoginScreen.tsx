@@ -17,7 +17,8 @@ export function LoginScreen() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Quick credentials for development sandbox testing (only visible in DEV mode)
-  const quickTestCredentials = import.meta.env.DEV ? [
+  const isDev = (import.meta as any).env?.DEV ?? (process.env.NODE_ENV !== 'production');
+  const quickTestCredentials = isDev ? [
     { label: '👑 Super-Admin Master (Sandbox)', empresa: 'master_tenant', user: 'master', role: 'master', isSuperAdmin: true, pass: '123456' },
     { label: 'Administrador (Sandbox)', empresa: 'demo_empresa', user: 'admin', role: 'admin', pass: 'pestflow_pass_123' },
     { label: 'Gerência (Sandbox)', empresa: 'demo_empresa', user: 'manager', role: 'manager', pass: 'pestflow_pass_123' },

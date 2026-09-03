@@ -675,7 +675,7 @@ export function ClientesPage() {
 
     const returnCostNum = Number(formReturnCost) || 0;
     if (markAsRetorno && targetQuoteId) {
-      markAsRetorno(targetQuoteId, returnCostNum, 'Técnico DDSulf', formReturnNotes);
+      markAsRetorno(targetQuoteId, returnCostNum, 'Técnico Responsável', formReturnNotes);
     }
 
     const newReturnEvent: AgendaEvent = {
@@ -1829,7 +1829,7 @@ export function ClientesPage() {
                   <input
                     type="text"
                     required
-                    placeholder="Ex: DDSulf Volta Redonda Alimentações Ltda"
+                    placeholder="Ex: Restaurante Bom Sabor Ltda"
                     value={formClientName}
                     onChange={(e) => setFormClientName(e.target.value)}
                     className="w-full bg-[#FAF9F6] border border-[#E8E6E1] rounded-lg px-3.5 py-2 text-xs font-sans text-[#141410] focus:ring-1 focus:ring-[#1B3A2D] focus:outline-none"
@@ -2105,7 +2105,7 @@ export function ClientesPage() {
             >
               <div className="px-6 py-4 bg-[#FAF9F6] border-b border-[#E8E6E1] flex items-center justify-between">
                 <div>
-                  <span className="text-[8px] font-black bg-[#1B3A2D] text-white px-2 py-0.5 rounded-md uppercase tracking-wider">DDSulf Ordem de Serviço</span>
+                  <span className="text-[8px] font-black bg-[#1B3A2D] text-white px-2 py-0.5 rounded-md uppercase tracking-wider">Ordem de Serviço</span>
                   <h3 className="font-display font-black text-xs text-[#141410] uppercase tracking-wider mt-1">Nº OS-{detailServiceModal.id}</h3>
                 </div>
                 <button type="button" onClick={() => setDetailServiceModal(null)} className="p-1 px-2 border border-slate-250 bg-white hover:bg-slate-100 text-xs font-bold rounded-lg cursor-pointer"><X className="size-4" /></button>
@@ -2155,7 +2155,7 @@ export function ClientesPage() {
                 <div className="space-y-1 border-t border-slate-100 pt-3">
                   <label className="text-[9px] font-black uppercase text-slate-400 block">Indicações e Observações Técnicas</label>
                   <p className="p-3 bg-slate-50 border border-[#E8E6E1]/50 italic rounded-lg text-slate-600 font-medium font-sans leading-relaxed">
-                    "{detailServiceModal.notes || 'Nenhuma nota especial anexa por parte da engenharia operacional DDSulf.'}"
+                    "{detailServiceModal.notes || 'Nenhuma nota especial anexa por parte da equipe técnica.'}"
                   </p>
                 </div>
 
