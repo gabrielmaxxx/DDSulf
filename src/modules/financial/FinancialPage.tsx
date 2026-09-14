@@ -67,6 +67,7 @@ import { ServiceDREDetailDialog } from './components/ServiceDREDetailDialog';
 import { ClientBillingDetailDialog } from './components/ClientBillingDetailDialog';
 import { FinancialDetailedAnalysis } from './components/FinancialDetailedAnalysis';
 import { formatBRL, formatPercent, formatDate } from '@/utils/format';
+import { HeaderMetric, HeaderMetricGroup } from '@/components/HeaderMetric';
 
 const COLORS = ['#1B3A2D', '#2D6A4F', '#D4A017', '#C1361A', '#7C6F5B', '#A8CDB8', '#3F51B5'];
 const COST_CENTERS = ['Geral', 'Equipe Alfa', 'Equipe Beta', 'Veículo 01', 'Veículo 02'];
@@ -781,19 +782,49 @@ export function FinancialPage() {
       {/* ----------------------------------------------------
           TOP HEADER SECTION
           ---------------------------------------------------- */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 border-b border-slate-200/55 pb-6">
-        <div>
-          <span className="text-[10px] uppercase font-black tracking-widest text-[#2D6A4F] bg-[#EBFDF5] px-3 py-1 rounded-full border border-emerald-100">
-            PestFlow Economic Management Center
-          </span>
-          <h1 className="text-4xl font-extrabold text-slate-900 leading-none tracking-tight mt-3">Financeiro</h1>
-          <p className="text-slate-500 font-normal mt-2.5 text-sm max-w-2xl leading-relaxed">
-            Acompanhe receitas, despesas, fluxo de caixa e rentabilidade. Realize a conciliação analítica instantânea do livro fiscal.
-          </p>
+      <div className="flex flex-col 2xl:flex-row justify-between items-start 2xl:items-center gap-6 border-b border-slate-200/55 pb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-8">
+          <div>
+            <span className="text-[10px] uppercase font-black tracking-widest text-[#2D6A4F] bg-[#EBFDF5] px-3 py-1 rounded-full border border-emerald-100">
+              PestFlow Economic Management Center
+            </span>
+            <h1 className="text-4xl font-extrabold text-slate-900 leading-none tracking-tight mt-3">Financeiro</h1>
+            <p className="text-slate-500 font-normal mt-2 text-sm max-w-md leading-relaxed">
+              Acompanhe receitas, despesas, fluxo de caixa e rentabilidade. Realize a conciliação analítica instantânea do livro fiscal.
+            </p>
+          </div>
+
+          {/* Header Metrics ao lado do título */}
+          <HeaderMetricGroup id="header-metrics-financial" className="pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-slate-200/60 lg:pl-8">
+            <HeaderMetric
+              id="metric-receita-total"
+              label="Receita Total (Mês)"
+              value={`R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              delta={{ value: '+12,4%', direction: 'up' }}
+            />
+            <HeaderMetric
+              id="metric-custo-total"
+              label="Custo Total"
+              value={`R$ ${totalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              delta={{ value: '-3,2%', direction: 'down' }}
+            />
+            <HeaderMetric
+              id="metric-lucro-liquido"
+              label="Lucro Líquido"
+              value={`R$ ${netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              delta={{ value: netProfit >= 0 ? '+8,1%' : '-8,1%', direction: netProfit >= 0 ? 'up' : 'down' }}
+            />
+            <HeaderMetric
+              id="metric-margem-liquida"
+              label="Margem Líquida"
+              value={`${operationalMargin.toFixed(2)}%`}
+              delta={{ value: operationalMargin >= 0 ? '+2,5%' : '-2,5%', direction: operationalMargin >= 0 ? 'up' : 'down' }}
+            />
+          </HeaderMetricGroup>
         </div>
 
         {/* Executive Quick Actions */}
-        <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
+        <div className="flex flex-wrap items-center gap-2.5 w-full 2xl:w-auto shrink-0">
           <Button
             onClick={() => { setNewTxType('RECEITAS'); setIsNewTxOpen(true); }}
             className="flex-1 sm:flex-initial bg-[#1B3A2D] hover:bg-[#2D6A4F] text-white text-xs font-bold uppercase tracking-wider px-5 py-3 h-11 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"

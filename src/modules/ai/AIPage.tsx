@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { auth } from '@/firebase/config';
 import { useAuth } from '@/auth/hooks/useAuth';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { HeaderMetric, HeaderMetricGroup } from '@/components/HeaderMetric';
 
 // Subcomponents & Types
 import {
@@ -939,38 +940,42 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap md:flex-nowrap">
-            {/* Quick stats summarizing store availability */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium text-slate-600">
-              <Package className="size-3.5 text-slate-600" />
-              <span>{inventory.products.length} Insumos</span>
-            </div>
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium text-slate-600 border-[#E8E6E1]">
-              <DollarSign className="size-3.5 text-slate-600" />
-              <span>
-                R$ {totalRevenue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} Receita
-              </span>
-            </div>
+          <div className="flex items-center gap-6 flex-wrap md:flex-nowrap">
+            {/* Header Metrics sem borda nem fundo */}
+            <HeaderMetricGroup id="header-metrics-ai" className="gap-5 md:gap-6">
+              <HeaderMetric
+                id="metric-ai-insumos"
+                label="Insumos em Estoque"
+                value={String(inventory.products.length)}
+              />
+              <HeaderMetric
+                id="metric-ai-receita"
+                label="Receita do Mês"
+                value={`R$ ${totalRevenue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
+              />
+            </HeaderMetricGroup>
 
-            <div className="flex items-center gap-1.5 text-xs text-[#2D6A4F] font-semibold bg-[#D8EDE3] px-3 py-1.5 rounded-full select-none">
-              <div className="size-1.5 bg-[#2D6A4F] rounded-full animate-pulse" />
-              Online
-            </div>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div className="flex items-center gap-1.5 text-xs text-[#2D6A4F] font-semibold bg-[#D8EDE3] px-3 py-1.5 rounded-full select-none">
+                <div className="size-1.5 bg-[#2D6A4F] rounded-full animate-pulse" />
+                Online
+              </div>
 
-            {/* History & Favorites Trigger Button */}
-            <button
-              type="button"
-              onClick={() => setIsHistoryOpen(true)}
-              className="px-3 py-1.5 bg-[#FAF9F5] border border-slate-200 hover:border-[#1B3A2D]/40 rounded-xl text-xs font-bold text-slate-700 hover:text-[#1B3A2D] flex items-center gap-1.5 transition-all cursor-pointer shadow-3xs"
-            >
-              <History className="size-3.5 text-[#1B3A2D]" />
-              <span className="hidden sm:inline">Histórico & Favoritos</span>
-              {favorites.length > 0 && (
-                <span className="size-4 rounded-full bg-amber-100 text-amber-900 text-[10px] font-mono font-bold flex items-center justify-center">
-                  {favorites.length}
-                </span>
-              )}
-            </button>
+              {/* History & Favorites Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsHistoryOpen(true)}
+                className="px-3 py-1.5 bg-[#FAF9F5] border border-slate-200 hover:border-[#1B3A2D]/40 rounded-xl text-xs font-bold text-slate-700 hover:text-[#1B3A2D] flex items-center gap-1.5 transition-all cursor-pointer shadow-3xs"
+              >
+                <History className="size-3.5 text-[#1B3A2D]" />
+                <span className="hidden sm:inline">Histórico & Favoritos</span>
+                {favorites.length > 0 && (
+                  <span className="size-4 rounded-full bg-amber-100 text-amber-900 text-[10px] font-mono font-bold flex items-center justify-center">
+                    {favorites.length}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </header>

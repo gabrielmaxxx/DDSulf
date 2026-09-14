@@ -31,6 +31,7 @@ import { InventorySupplierImportTab } from './components/InventorySupplierImport
 import { ProductDetailSheet } from './components/ProductDetailSheet';
 import { ProductFormDialog } from './components/ProductFormDialog';
 import { QuickMoveDialog } from './components/QuickMoveDialog';
+import { HeaderMetric, HeaderMetricGroup } from '@/components/HeaderMetric';
 
 export function InventoryPage() {
   const {
@@ -668,18 +669,44 @@ export function InventoryPage() {
       className="space-y-6 text-slate-900 font-sans antialiased text-left pb-16"
     >
       {/* 1. TOP HEADER SECTION */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight font-display text-slate-950 flex items-center gap-2">
-            <Layers className="size-8 text-[#1B3A2D]" /> Estoque
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Gerencie produtos, movimentações, consumo e abastecimento.
-          </p>
+      <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-6 border-b border-slate-200 pb-5">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-8">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight font-display text-slate-950 flex items-center gap-2">
+              <Layers className="size-8 text-[#1B3A2D]" /> Estoque
+            </h1>
+            <p className="text-sm text-slate-500 mt-1 max-w-md">
+              Gerencie produtos, movimentações, consumo e abastecimento.
+            </p>
+          </div>
+
+          {/* Header Metrics sem borda nem caixa */}
+          <HeaderMetricGroup id="header-metrics-inventory" className="pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-slate-200/60 lg:pl-8">
+            <HeaderMetric
+              id="metric-inventory-produtos"
+              label="Produtos Cadastrados"
+              value={String(products.length)}
+            />
+            <HeaderMetric
+              id="metric-inventory-valor-total"
+              label="Valor Total em Estoque"
+              value={`R$ ${totalStockValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            />
+            <HeaderMetric
+              id="metric-inventory-criticos"
+              label="Estoque Crítico"
+              value={String(criticalProductsCount)}
+              delta={
+                criticalProductsCount > 0
+                  ? { value: `${criticalProductsCount} crítico(s)`, direction: 'down' }
+                  : { value: 'Nível adequado', direction: 'up' }
+              }
+            />
+          </HeaderMetricGroup>
         </div>
 
         {/* Buttons right aligned */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <Button
             id="btn-novo-produto"
             onClick={openCreateModal}

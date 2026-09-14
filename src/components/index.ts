@@ -37,3 +37,4 @@ export * from './PageContainer';
 export * from './ResponsiveGrid';
 export * from './SectionContainer';
 export * from './SearchInput';
+export * from './HeaderMetric';
