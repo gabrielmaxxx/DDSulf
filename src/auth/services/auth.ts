@@ -72,10 +72,14 @@ export class AuthService {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.customToken) {
-          localStorage.setItem('pestflow_auth_token', data.customToken);
+        const effectiveToken = data.token || data.sessionToken || data.customToken;
+        if (effectiveToken) {
+          localStorage.setItem('pestflow_auth_token', effectiveToken);
           localStorage.setItem('pestflow_tenant_id', tenantToUse);
-          
+        }
+
+        // Only invoke signInWithCustomToken if a real signed JWT (3 segments) was returned
+        if (data.customToken && typeof data.customToken === 'string' && data.customToken.split('.').length === 3) {
           try {
             const userCredential = await signInWithCustomToken(auth, data.customToken);
             logOperationalEvent('auth_login_custom_token_success', { uid: userCredential.user.uid });
@@ -83,7 +87,9 @@ export class AuthService {
             console.warn('[PestFlow AuthService] signInWithCustomToken warning:', customTokenErr?.message || customTokenErr);
           }
         }
+
         if (data.user) {
+          localStorage.setItem('pestflow_user_profile', JSON.stringify(data.user));
           logOperationalEvent('auth_login_email_success', { uid: data.user.uid, role: data.user.role });
           return data.user as UserProfile;
         }
@@ -226,7 +232,14 @@ export class AuthService {
   static async logout(): Promise<void> {
     try {
       const currentUid = auth.currentUser?.uid;
-      await signOut(auth);
+      try {
+        await signOut(auth);
+      } catch (soErr) {
+        // ignore if not signed in via client SDK
+      }
+      localStorage.removeItem('pestflow_auth_token');
+      localStorage.removeItem('pestflow_user_profile');
+      localStorage.removeItem('pestflow_tenant_id');
       logOperationalEvent('auth_logout_success', { uid: currentUid });
     } catch (error: any) {
       logOperationalEvent('auth_logout_failure', { error: error.message || error });

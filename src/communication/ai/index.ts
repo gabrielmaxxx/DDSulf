@@ -13,7 +13,7 @@ export const AI_COMM_PROMPTS = {
 
 export function getAiDefaultConfig() {
   return {
-    model: 'gemini-3.5-flash',
+    model: 'gemini-3.8-flash',
     temperature: 0.1,
     topP: 0.8
   };

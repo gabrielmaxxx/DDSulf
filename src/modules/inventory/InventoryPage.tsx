@@ -9,7 +9,7 @@ import {
   ArrowDownLeft,
   FileSpreadsheet,
 } from 'lucide-react';
-import { useSystemStore } from '@/store';
+import { useSystemStore, DEFAULT_INVENTORY_PRODUCTS } from '@/store';
 import * as XLSX from 'xlsx';
 import {
   scanProductSmartly,
@@ -46,8 +46,22 @@ export function InventoryPage() {
 
   const [searchParams] = useSearchParams();
 
-  const products = inventory?.products || [];
+  const rawProducts = inventory?.products;
+  const products = rawProducts && rawProducts.length > 0 ? rawProducts : DEFAULT_INVENTORY_PRODUCTS;
   const movements = inventory?.movements || [];
+
+  // Re-seed default inventory if empty in persistent storage so store stays hydrated
+  useEffect(() => {
+    if (!inventory?.products || inventory.products.length === 0) {
+      useSystemStore.setState((s) => ({
+        ...s,
+        inventory: {
+          ...s.inventory,
+          products: DEFAULT_INVENTORY_PRODUCTS,
+        },
+      }));
+    }
+  }, [inventory?.products]);
 
   // Listen for search URL parameters to auto-populate the inventory search term
   useEffect(() => {
@@ -133,6 +147,22 @@ export function InventoryPage() {
   const computeAlerts = () => {
     const alertsList: any[] = [];
 
+    if (products.length === 0) {
+      alertsList.push({
+        id: 'alert-empty-stock',
+        type: 'warning',
+        badge: 'Almoxarifado Inicial',
+        color: 'bg-amber-50 border-amber-200 text-amber-900',
+        dot: 'bg-amber-500',
+        desc: 'Nenhum produto cadastrado no almoxarifado. Clique em Cadastrar Produto ou importe uma planilha para ativar os diagnósticos automatizados.',
+        actionText: 'Novo Produto',
+        onAction: () => {
+          openCreateModal();
+        },
+      });
+      return alertsList;
+    }
+
     // Alert 1: Stock Crítico
     const critical = products.filter((p) => p.quantity <= p.minQuantity);
     if (critical.length > 0) {
@@ -156,7 +186,7 @@ export function InventoryPage() {
       if (!p.expiryDate) return false;
       const daysLeft =
         (new Date(p.expiryDate).getTime() - today.getTime()) / (1000 * 24 * 3600);
-      return daysLeft > 0 && daysLeft <= 45;
+      return daysLeft > 0 && daysLeft <= 90;
     });
     if (expirySoon.length > 0) {
       alertsList.push({
@@ -165,54 +195,47 @@ export function InventoryPage() {
         badge: 'Validade Próxima',
         color: 'bg-amber-50 border-amber-200 text-amber-900',
         dot: 'bg-amber-500',
-        desc: `${expirySoon[0].name} vence dentro de 45 dias (${new Date(
+        desc: `${expirySoon[0].name} vence dentro de 90 dias (${new Date(
           expirySoon[0].expiryDate || ''
-        ).toLocaleDateString('pt-BR')}).`,
+        ).toLocaleDateString('pt-BR')}). Priorizar consumo em campo.`,
         actionText: 'Ver Validades',
         onAction: () => {
           setSelectedProduct(expirySoon[0]);
         },
       });
-    } else if (products.length > 0) {
+    }
+
+    // Alert 3: Atenção Operacional ao Saldo
+    const lowStock = products.find(
+      (p) => p.quantity <= p.minQuantity * 1.5 && p.quantity > p.minQuantity
+    );
+    if (lowStock) {
       alertsList.push({
-        id: 'alert-exp-std',
-        type: 'warning',
-        badge: 'Validade Próxima',
-        color: 'bg-amber-50 border-amber-200 text-amber-900',
-        dot: 'bg-amber-500',
-        desc: `K-Othrine no Almoxarifado vence em 45 dias. Recomenda-se priorizar uso.`,
-        actionText: 'Vistoriar',
+        id: 'alert-trend',
+        type: 'surge',
+        badge: 'Saldo em Atenção',
+        color: 'bg-purple-50 border-purple-200 text-purple-900',
+        dot: 'bg-purple-600',
+        desc: `${lowStock.name} está próximo do limite mínimo (${lowStock.quantity} ${lowStock.unit} disponíveis).`,
+        actionText: 'Exibir Ficha',
         onAction: () => {
-          const kothrine =
-            products.find(
-              (p) =>
-                p.name.toLowerCase().includes('k-othrine') ||
-                p.name.toLowerCase().includes('bifentol')
-            ) || products[0];
-          setSelectedProduct(kothrine);
+          setSelectedProduct(lowStock);
+        },
+      });
+    } else if (critical.length > 1) {
+      alertsList.push({
+        id: 'alert-trend-2',
+        type: 'surge',
+        badge: 'Estoque de Atenção',
+        color: 'bg-purple-50 border-purple-200 text-purple-900',
+        dot: 'bg-purple-600',
+        desc: `${critical[1].name} também requer atenção de reposição (${critical[1].quantity} ${critical[1].unit} em almoxarifado).`,
+        actionText: 'Exibir Ficha',
+        onAction: () => {
+          setSelectedProduct(critical[1]);
         },
       });
     }
-
-    // Alert 3: Consumo Elevado
-    alertsList.push({
-      id: 'alert-trend',
-      type: 'surge',
-      badge: 'Consumo Elevado',
-      color: 'bg-purple-50 border-purple-200 text-purple-900',
-      dot: 'bg-purple-600',
-      desc: `Demanda de Bifentol / Gel Baraticida aumentou 32% este mês em relação à média habitual de campo.`,
-      actionText: 'Exibir Tendências',
-      onAction: () => {
-        const matching =
-          products.find(
-            (p) => p.category === 'gel_baraticida' || p.category === 'inseticida'
-          ) || products[0];
-        if (matching) {
-          setSelectedProduct(matching);
-        }
-      },
-    });
 
     // Alert 4: Recomendação de Compra
     const purchNeeds = (purchases || []).filter((p) => p.status === 'Pendente');
@@ -223,23 +246,34 @@ export function InventoryPage() {
         badge: 'Compra Recomendada',
         color: 'bg-[#EBF4FF] border-blue-200 text-blue-900',
         dot: 'bg-blue-600',
-        desc: `Estoque projetado para apenas ${Math.ceil(
-          Math.random() * 8 + 8
-        )} dias. Necessidade de repor ${purchNeeds[0].productName}.`,
+        desc: `Cotação pendente para ${purchNeeds[0].productName} (${purchNeeds[0].quantityToBuy} un). Acompanhe o pedido.`,
         actionText: 'Abrir Painel de Compras',
         onAction: () => {
           setActiveTab('purchase_requisitions');
         },
       });
+    } else if (critical.length > 0) {
+      alertsList.push({
+        id: 'alert-buy-crit',
+        type: 'blue',
+        badge: 'Reposição Necessária',
+        color: 'bg-[#EBF4FF] border-blue-200 text-blue-900',
+        dot: 'bg-blue-600',
+        desc: `Reposição recomendada para ${critical[0].name}. Clique para disparar requisição rápida.`,
+        actionText: 'Solicitar',
+        onAction: () => {
+          handleQuickReorder(critical[0]);
+        },
+      });
     } else {
       alertsList.push({
-        id: 'alert-buy-fallback',
+        id: 'alert-buy-ok',
         type: 'blue',
-        badge: 'Suprimento Crítico',
-        color: 'bg-[#EBF4FF] border-blue-100 text-blue-900',
-        dot: 'bg-blue-600',
-        desc: `Estoque unificado estimado para 12 dias operacionais. Recomenda-se realizar cotação rápida.`,
-        actionText: 'Solicitar',
+        badge: 'Almoxarifado Estável',
+        color: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+        dot: 'bg-emerald-600',
+        desc: 'Níveis de almoxarifado calibrados e em conformidade com as ordens de serviço programadas.',
+        actionText: 'Ver Requisições',
         onAction: () => {
           setActiveTab('purchase_requisitions');
         },
@@ -569,23 +603,30 @@ export function InventoryPage() {
         list = list.filter(
           (p) =>
             p.category === 'inseticida' ||
-            p.category === 'formicida' ||
-            p.category === 'gel_baraticida'
+            p.category === 'cupinicida'
         );
       } else if (categoryFilter === 'raticida') {
         list = list.filter((p) => p.category === 'raticida' || p.category === 'iscas');
-      } else if (categoryFilter === 'gel') {
+      } else if (categoryFilter === 'formicida') {
+        list = list.filter((p) => p.category === 'formicida');
+      } else if (categoryFilter === 'gel_baraticida' || categoryFilter === 'gel') {
         list = list.filter(
           (p) => p.category === 'gel_baraticida' || p.name.toLowerCase().includes('gel')
         );
+      } else if (categoryFilter === 'iscas') {
+        list = list.filter((p) => p.category === 'iscas');
       } else if (categoryFilter === 'equipamentos') {
         list = list.filter((p) => p.category === 'equipamentos');
       } else if (categoryFilter === 'epi') {
         list = list.filter((p) => p.category === 'epi');
+      } else if (categoryFilter === 'consumiveis') {
+        list = list.filter((p) => p.category === 'consumiveis');
       } else if (categoryFilter === 'outros') {
         list = list.filter(
-          (p) => p.category === 'outros' || p.category === 'consumiveis'
+          (p) => p.category === 'outros'
         );
+      } else {
+        list = list.filter((p) => p.category === categoryFilter);
       }
     }
 

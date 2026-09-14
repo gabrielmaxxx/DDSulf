@@ -183,6 +183,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           return () => profileUnsubscribe();
         } else {
+          // Check if user has an active session from backend login
+          const storedProfileJson = localStorage.getItem('pestflow_user_profile');
+          const storedToken = localStorage.getItem('pestflow_auth_token');
+          const storedTenant = localStorage.getItem('pestflow_tenant_id');
+
+          if (storedProfileJson && storedToken) {
+            try {
+              const savedUser = JSON.parse(storedProfileJson) as UserProfile;
+              const isSuper = Boolean(savedUser.isSuperAdmin || savedUser.role === 'master');
+              const activeEmpresaId = savedUser.empresaId || storedTenant || '';
+
+              if (isSuper || activeEmpresaId) {
+                setSession({
+                  user: savedUser,
+                  role: savedUser.role || (isSuper ? 'master' : 'admin'),
+                  empresaId: activeEmpresaId || (isSuper ? 'pestflow_matriz' : ''),
+                  isSuperAdmin: isSuper,
+                  empresaSuspensa: false,
+                  permissions: savedUser.permissions || {},
+                  isAuthenticated: true,
+                  isLoading: false,
+                  isHydrated: true,
+                });
+                return;
+              }
+            } catch (parseErr) {
+              console.warn('[PestFlow AuthProvider] Erro ao restaurar sessão local:', parseErr);
+            }
+          }
+
           setSession({
             user: null,
             role: null,
