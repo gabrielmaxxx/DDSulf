@@ -846,47 +846,49 @@ export function FinancialPage() {
         onValueChange={(val) => setActiveTab(val as any)}
         className="w-full space-y-6"
       >
-        <TabsList className="h-auto p-1.5 bg-[#F0EDE8]/60 border border-slate-200/60 rounded-2xl w-fit gap-1 shadow-inner flex-wrap">
-          <TabsTrigger
-            value="painel"
-            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
-          >
-            <Gauge className="size-4" />
-            Painel Executivo
-          </TabsTrigger>
+        <div className="flex overflow-x-auto p-1.5 bg-[#F0EDE8]/60 border border-slate-200/60 rounded-2xl w-fit max-w-full shadow-inner">
+          <TabsList className="h-auto p-0 gap-1 bg-transparent">
+            <TabsTrigger
+              value="painel"
+              className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap data-active:bg-[#1B3A2D] data-[state=active]:bg-[#1B3A2D] data-active:text-white data-[state=active]:text-white data-active:shadow-sm data-[state=active]:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+            >
+              <Gauge className="size-4" />
+              Painel Executivo
+            </TabsTrigger>
 
-          <TabsTrigger
-            value="servicos"
-            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
-          >
-            <Briefcase className="size-4" />
-            DRE por Serviço
-          </TabsTrigger>
+            <TabsTrigger
+              value="servicos"
+              className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap data-active:bg-[#1B3A2D] data-[state=active]:bg-[#1B3A2D] data-active:text-white data-[state=active]:text-white data-active:shadow-sm data-[state=active]:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+            >
+              <Briefcase className="size-4" />
+              DRE por Serviço
+            </TabsTrigger>
 
-          <TabsTrigger
-            value="lancamentos"
-            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
-          >
-            <Layers className="size-4" />
-            Lançamentos Reconciliados
-          </TabsTrigger>
+            <TabsTrigger
+              value="lancamentos"
+              className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap data-active:bg-[#1B3A2D] data-[state=active]:bg-[#1B3A2D] data-active:text-white data-[state=active]:text-white data-active:shadow-sm data-[state=active]:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+            >
+              <Layers className="size-4" />
+              Lançamentos Reconciliados
+            </TabsTrigger>
 
-          <TabsTrigger
-            value="caixa"
-            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
-          >
-            <Clock className="size-4" />
-            Projeção de Caixa
-          </TabsTrigger>
+            <TabsTrigger
+              value="caixa"
+              className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap data-active:bg-[#1B3A2D] data-[state=active]:bg-[#1B3A2D] data-active:text-white data-[state=active]:text-white data-active:shadow-sm data-[state=active]:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+            >
+              <Clock className="size-4" />
+              Projeção de Caixa
+            </TabsTrigger>
 
-          <TabsTrigger
-            value="planilha"
-            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
-          >
-            <Sparkles className="size-4" />
-            Auditoria de Planilhas
-          </TabsTrigger>
-        </TabsList>
+            <TabsTrigger
+              value="planilha"
+              className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap data-active:bg-[#1B3A2D] data-[state=active]:bg-[#1B3A2D] data-active:text-white data-[state=active]:text-white data-active:shadow-sm data-[state=active]:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+            >
+              <Sparkles className="size-4" />
+              Auditoria de Planilhas
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="painel" className="space-y-6">
             {/* Banner Configurações de Precificação/Markup */}

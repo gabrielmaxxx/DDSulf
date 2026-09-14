@@ -983,53 +983,55 @@ Identificamos inconsistências e discrepâncias importantes no balanço operacio
           className="w-full space-y-6"
         >
           {/* Main Navigation Bar (5 Flattened Destinations) */}
-          <TabsList className="h-auto p-1.5 bg-[#F0EDE8]/60 border border-slate-200/60 rounded-2xl w-fit gap-1 shadow-inner flex flex-wrap justify-start">
-            <TabsTrigger
-              value="chat"
-              className="px-4 md:px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
-            >
-              <MessageSquare className="size-4" />
-              <span>Chat Operacional</span>
-            </TabsTrigger>
+          <div className="flex overflow-x-auto p-1.5 bg-[#F0EDE8]/60 border border-slate-200/60 rounded-2xl w-fit max-w-full shadow-inner">
+            <TabsList className="h-auto p-0 gap-1 bg-transparent">
+              <TabsTrigger
+                value="chat"
+                className="px-4 md:px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap data-active:bg-[#1B3A2D] data-[state=active]:bg-[#1B3A2D] data-active:text-white data-[state=active]:text-white data-active:shadow-sm data-[state=active]:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+              >
+                <MessageSquare className="size-4" />
+                <span>Chat Operacional</span>
+              </TabsTrigger>
 
-            <TabsTrigger
-              value="copiloto"
-              className="px-4 md:px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
-            >
-              <Shield className="size-4 text-emerald-600" />
-              <span>Copiloto Executivo</span>
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-emerald-700 text-white text-[9px] font-black uppercase">
-                Diretoria
-              </span>
-            </TabsTrigger>
+              <TabsTrigger
+                value="copiloto"
+                className="px-4 md:px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap data-active:bg-[#1B3A2D] data-[state=active]:bg-[#1B3A2D] data-active:text-white data-[state=active]:text-white data-active:shadow-sm data-[state=active]:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+              >
+                <Shield className="size-4 text-emerald-600" />
+                <span>Copiloto Executivo</span>
+                <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-emerald-700 text-white text-[9px] font-black uppercase">
+                  Diretoria
+                </span>
+              </TabsTrigger>
 
-            <TabsTrigger
-              value="insights"
-              className="px-4 md:px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
-            >
-              <Zap className="size-4 text-[#D4A017]" />
-              <span>Insights</span>
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-black">
-                {automaticInsights.length}
-              </span>
-            </TabsTrigger>
+              <TabsTrigger
+                value="insights"
+                className="px-4 md:px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap data-active:bg-[#1B3A2D] data-[state=active]:bg-[#1B3A2D] data-active:text-white data-[state=active]:text-white data-active:shadow-sm data-[state=active]:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+              >
+                <Zap className="size-4 text-[#D4A017]" />
+                <span>Insights</span>
+                <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-black">
+                  {automaticInsights.length}
+                </span>
+              </TabsTrigger>
 
-            <TabsTrigger
-              value="auditor"
-              className="px-4 md:px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
-            >
-              <TrendingUp className="size-4 text-[#2D6A4F]" />
-              <span>Auditor de Planilhas</span>
-            </TabsTrigger>
+              <TabsTrigger
+                value="auditor"
+                className="px-4 md:px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap data-active:bg-[#1B3A2D] data-[state=active]:bg-[#1B3A2D] data-active:text-white data-[state=active]:text-white data-active:shadow-sm data-[state=active]:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+              >
+                <TrendingUp className="size-4 text-[#2D6A4F]" />
+                <span>Auditor de Planilhas</span>
+              </TabsTrigger>
 
-            <TabsTrigger
-              value="consultor"
-              className="px-4 md:px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 data-active:bg-[#1B3A2D] data-active:text-white data-active:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
-            >
-              <Compass className="size-4" />
-              <span>Consultor Proativo</span>
-            </TabsTrigger>
-          </TabsList>
+              <TabsTrigger
+                value="consultor"
+                className="px-4 md:px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap data-active:bg-[#1B3A2D] data-[state=active]:bg-[#1B3A2D] data-active:text-white data-[state=active]:text-white data-active:shadow-sm data-[state=active]:shadow-sm text-[#6B6B5F] hover:text-[#141410]"
+              >
+                <Compass className="size-4" />
+                <span>Consultor Proativo</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* TAB 1: CHAT */}
           <TabsContent value="chat" className="mt-0">
