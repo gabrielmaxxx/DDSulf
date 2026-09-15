@@ -38,15 +38,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           let empresaSuspensa = false;
           if (claimEmpresaId && !isSuperAdmin) {
             try {
-              const empresaSnap = await getDoc(doc(db, 'empresas', claimEmpresaId));
-              if (empresaSnap.exists()) {
+              // Wrap with 3s timeout to prevent hanging when offline or firestore backend is slow
+              const checkPromise = getDoc(doc(db, 'empresas', claimEmpresaId));
+              const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
+              const empresaSnap: any = await Promise.race([checkPromise, timeoutPromise]);
+              if (empresaSnap?.exists()) {
                 const empData = empresaSnap.data();
                 if (empData?.ativa === false) {
                   empresaSuspensa = true;
                 }
               }
             } catch (empErr) {
-              console.warn('[PestFlow AuthProvider] Erro ao verificar status da empresa:', empErr);
+              console.warn('[PestFlow AuthProvider] Verificação de empresa em modo offline ou timeout:', empErr);
             }
           }
 
