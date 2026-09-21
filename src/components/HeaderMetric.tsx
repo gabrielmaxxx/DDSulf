@@ -23,12 +23,12 @@ export function HeaderMetric({
   return (
     <div id={id} className={cn("flex flex-col gap-0.5 min-w-[120px]", className)}>
       {/* Rótulo pequeno acima em cinza / uppercase */}
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 select-none">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
         {label}
       </span>
 
       {/* Valor grande em bold (sem borda, sem caixa, sem fundo) */}
-      <span className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 font-sans">
+      <span className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white font-sans">
         {value}
       </span>
 
